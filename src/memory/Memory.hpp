@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <type_traits>
 
 namespace aul {
 
@@ -23,7 +24,7 @@ namespace aul {
 	}
 
 	/*	Destroys the objects in the range specified by [first, last) by calling
-		std::allocaotr_traits<Alloc>::destroy() on the individual elements;
+		std::allocator_traits<Alloc>::destroy() on the individual elements;
 	*/
 	template<class Forward_iter, class Alloc>
 	void destroy(Forward_iter first, Forward_iter last, Alloc& alloc) {
@@ -131,12 +132,49 @@ namespace aul {
 		}
 	}
 
-	template<class Alloc>
-	class Allocator_has_traivial_types {
-	public:
-		using value = std::false_type;
-	private:
+	///
+	/// Template which is used to determine whether an allocator has default
+	/// types for a given type T. In practice this typically means using raw
+	/// pointers.
+	///
+	template<typename T, class Alloc>
+	class Allocator_has_trivial_types {
 
+	private:
+		using alloc_traits = std::allocator_traits<T>;
+
+		using value_type = typename alloc_traits::value_type;
+		using default_value_type = T;
+
+		using pointer = typename alloc_traits::pointer;
+		using default_pointer = value_type*;
+
+		using const_pointer = typename alloc_traits::const_pointer;
+		using default_const_pointer = typename std::pointer_traits<pointer>::template rebind<const value_type>;
+
+		using void_pointer = typename alloc_traits::void_pointer;
+		using default_void_pointer = typename std::pointer_traits<pointer>::template rebind<void>;
+
+		using const_void_pointer = typename alloc_traits::const_void_pointer;
+		using default_const_void_pointer = typename std::pointer_traits<pointer>::template rebind<const void>;
+
+		using difference_type = typename alloc_traits::difference_type;
+		using default_difference_type = typename std::pointer_traits<pointer>::difference_type;
+
+		using size_type = typename alloc_traits::size_type;
+		using default_size_type = typename std::make_unsigned<difference_type>::type;
+
+	public:
+
+		//Result is equivalent to std::true_type or std::false_type
+		using value = std::integral_constant<bool,
+			std::is_same<value_type, default_value_type>::value &&
+			std::is_same<pointer, default_pointer>::value &&
+			std::is_same<const_pointer, default_const_pointer>::value && 
+			std::is_same<void_pointer, default_void_pointer>::value &&
+			std::is_same<difference_type, default_difference_type>::value &&
+			std::is_same<size_type, default_size_type>::value
+		>;
 	};
 
 	//=====================================================
@@ -155,56 +193,6 @@ namespace aul {
 		using const_pointer = typename std::allocator_traits<Alloc>::const_pointer;
 		using difference_type = typename std::allocator_traits<Alloc>::difference_type;
 	};
-
-	//TODO: Complete implementation
-	//https://en.cppreference.com/w/cpp/iterator/reverse_iterator
-	/*
-	template <class Iter>
-	class Reverse_random_access_iterator {
-	private:
-		Iter it;
-
-	public:
-		static_assert(
-			std::is_same<std::random_access_iterator_tag, Iter::iterator_category>::value,
-			"aul::Reverse_random_access_iterator must be instantiated with random access iterator type"
-		);
-
-		using value_type = Iter::value_type;
-		using pointer = Iter::pointer;
-		using reference = Iter::reference;
-		using difference_type = Iter::difference_type;
-		using iterator_category = Iter::iterator_category;
-
-		constexpr Reverse_random_access_iterator() {}
-
-		constexpr explicit Reverse_random_access_iterator(Iter iter) :
-			it(iter)
-		{}
-
-		template<class U>
-		constexpr Reverse_random_access_iterator(const Reverse_random_access_iterator<U>& other) {
-			it = other;
-		}
-
-		//-------------------------------------------------
-		// Assignment operators
-		//-------------------------------------------------
-
-		template<class U>
-		constexpr Reverse_random_access_iterator& operator=(const Reverse_random_access_iterator& iter) {
-
-		}
-
-		//-------------------------------------------------
-		// Increment/decrement operators
-		//-------------------------------------------------
-
-		//-------------------------------------------------
-		// Arithmetic operators
-		//-------------------------------------------------
-	};
-	*/
 
 }
 
