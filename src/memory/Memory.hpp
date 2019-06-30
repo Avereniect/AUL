@@ -166,7 +166,6 @@ namespace aul {
 
 	public:
 
-		//Result is equivalent to std::true_type or std::false_type
 		bool value = 
 			std::is_same<value_type, default_value_type>::value &&
 			std::is_same<pointer, default_pointer>::value &&
