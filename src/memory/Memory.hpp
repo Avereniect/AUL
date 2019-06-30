@@ -167,14 +167,13 @@ namespace aul {
 	public:
 
 		//Result is equivalent to std::true_type or std::false_type
-		using value = std::integral_constant<bool,
+		bool value = 
 			std::is_same<value_type, default_value_type>::value &&
 			std::is_same<pointer, default_pointer>::value &&
 			std::is_same<const_pointer, default_const_pointer>::value && 
 			std::is_same<void_pointer, default_void_pointer>::value &&
 			std::is_same<difference_type, default_difference_type>::value &&
-			std::is_same<size_type, default_size_type>::value
-		>;
+			std::is_same<size_type, default_size_type>::value;
 	};
 
 	//=====================================================
