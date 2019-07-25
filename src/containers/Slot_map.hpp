@@ -380,24 +380,18 @@ namespace aul {
 			base.clear();
 		}
 
-		friend void swap(Slot_map& right) noexcept(
+		void swap(Slot_map& right) noexcept(
 			std::allocator_traits<Alloc>::propagate_on_container_swap::value || 	
 			std::allocator_traits<Alloc>::is_always_equal::value
 		) {
 			std::swap(this->base, right.base);
 		}
 
-		void straighten() {
-			//TODO
-		}
+		void straighten();
 
-		void sort() {
-			//TODO
-		}
+		void sort();
 
-		void stable_sort() {
-			//TODO
-		}
+		void stable_sort();
 
 		//=====================================================================
 		//	Assignment methods/operators
@@ -407,7 +401,7 @@ namespace aul {
 			static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructible.");
 			
 			if (this == &right) {
-				return;
+				return *this;
 			}
 
 			clear();
@@ -570,35 +564,35 @@ namespace aul {
 		iterator stable_insert(const_iterator it, T&& val) {
 
 		}
+		iterator insert(const_iterator it, const size_type n, const T& val);
+            /*
+            {
+                size_type pos_index = it.pos - base.data_begin;
 
-		/*
-		iterator insert(const_iterator it, const size_type n, const T& val) {
-			size_type pos_index = it.pos - base.data_begin;
+                grow(size() + n);
+                //TODO: Implement
 
-			grow(size() + n);
-			//TODO: Implement
+                //Number of existing elements to be moved right
+                size_type move_count = std::max(0, base.data_last - it);
 
-			//Number of existing elements to be moved right
-			size_type move_count = std::max(0, base.data_last - it);
+                for (int i = 0; i != n; ++i) {
+                    move_construct_element(base.data_last - 1 - i, base.data_last - 1 - i + n);
+                }
 
-			for (int i = 0; i != n; ++i) {
-				move_construct_element(base.data_last - 1 - i, base.data_last - 1 - i + n);
-			}
+                return iterator(nullptr);
+            }
 
-			return iterator(nullptr);
-		}
+            template<class InputIt>
+            iterator insert(const_iterator it, InputIt begin, InputIt end) {
+                //TODO: Implement
 
-		template<class InputIt>
-		iterator insert(const_iterator it, InputIt begin, InputIt end) {
-			//TODO: Implement
+                return iterator(nullptr);
+            }
 
-			return iterator(nullptr);
-		}
-
-		iterator insert(const_iterator it, std::initializer_list<T> list) {
-			return insert(it, list.begin(), list.end());
-		}
-		*/
+            iterator insert(const_iterator it, std::initializer_list<T> list) {
+                return insert(it, list.begin(), list.end());
+            }
+            */
 
 		void erase(const key_type id) {
 			if (!validate_id(id)) {
@@ -799,9 +793,9 @@ namespace aul {
 			}
 
 			//Store the differences between the old and new locations in memory
-			difference_type data_offset  = data_begin - base.data_begin;
-			difference_type index_offset = index_begin - base.index_begin;
-			difference_type erase_offset = erase_begin - base.erase_begin;
+			//difference_type data_offset  = data_begin - base.data_begin;
+			//difference_type index_offset = index_begin - base.index_begin;
+			//difference_type erase_offset = erase_begin - base.erase_begin;
 
 			//Update index pointers
 			offset_indicies(base.data_begin, data_begin);
