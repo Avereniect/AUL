@@ -16,7 +16,7 @@ namespace aul {
 
 	/*	aul::Vector is a modified implementation of std::vector offering more
 		control for the user. Vector supports the setting of a custom growth 
-		factor and it allows the user to sepcify a size of the small buffer
+		factor and it allows the user to sepcify a size for the small buffer
 		optimization
 	 */
 	template<typename T, int SB_size = 0, class Alloc = std::allocator<T>>

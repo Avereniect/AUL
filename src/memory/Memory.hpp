@@ -1,5 +1,5 @@
-#ifndef MEMORY_HPP
-#define MEMORY_HPP
+#ifndef AUL_MEMORY_HPP
+#define AUL_MEMORY_HPP
 
 #include <memory>
 #include <vector>

@@ -5,9 +5,9 @@
 #include <cmath>
 #include <algorithm>
 
-#pragma warning(push, 0)
-#include <simdpp/simd.h>
-#pragma warning(pop)
+//#pragma warning(push, 0)
+//#include <simdpp/simd.h>
+//#pragma warning(pop)
 
 namespace aul {
 
@@ -21,7 +21,8 @@ namespace aul {
 
 		return (fac < 1) ? a : b;
 	}
-	
+
+	/// TODO: Remove upon release of C++20
 	template <typename T, typename U>
 	U linear_interploation(T fac, U a, U b) {
 		static_assert(std::is_floating_point<T>::value, "T must be a flating point type");
@@ -39,10 +40,10 @@ namespace aul {
 	}
 
 	template <typename T>
-	T smoother_step(T x) {
+	T smoother_step(T y) {
 		static_assert(std::is_floating_point<T>::value, "T must be a flating point type");
 
-		T x = std::clamp();
+		T x = std::clamp(y, 0.0, 1.0);
 		return x * x * x* (x * (x * 6 - 15) + 10);
 	}
 

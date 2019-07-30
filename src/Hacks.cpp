@@ -1,5 +1,5 @@
-#ifndef HACKS_HPP
-#define HACKS_HPP
+#ifndef AUL_HACKS_HPP
+#define AUL_HACKS_HPP
 
 #include <cstdint>
 

@@ -1,5 +1,5 @@
-#ifndef VERSIONED_TYPE_HPP
-#define VERSIONED_TYPE_HPP
+#ifndef AUL_VERSIONED_TYPE_HPP
+#define AUL_VERSIONED_TYPE_HPP
 
 #include <type_traits>
 #include <utility>

@@ -1,5 +1,5 @@
-#ifndef DEBUG_CLASS_HPP
-#define DEBUG_CLASS_HPP
+#ifndef AUL_DEBUG_CLASS_HPP
+#define AUL_DEBUG_CLASS_HPP
 
 #include <iostream>
 

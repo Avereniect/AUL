@@ -1,7 +1,9 @@
 #ifndef AUL_SLOT_MAP_HPP
 #define AUL_SLOT_MAP_HPP
 
+#ifdef _MSC_VER
 #pragma warning(disable:4996)
+#endif
 
 #include "../Versioned_type.hpp"
 #include "../memory/Memory.hpp"
@@ -168,14 +170,15 @@ namespace aul {
 
 
 
-	/*
-		Note: Implementation assumes there are no relevant specializations on
-		allocator
-	*/
-
+	/// A vector like associative container which offers constant time look-up,
+	/// insertion, and deletion.
+	///
 	template<typename T, class Alloc = std::allocator<T>>
 	class Slot_map {
 	private:
+
+	    //TODO: Implemention of C++20 ranges
+
 		//-----------------------------
 		// Forward declarations
 		//-----------------------------
@@ -215,26 +218,24 @@ namespace aul {
 		//	Constructors
 		//=====================================================================
 		
-		/*	Default Contructor
-			Constructs an empty instance of Slot_map with default constructed
-			allocators.
-		*/
+		///	Default Contructor
+		/// Constructs an empty instance of Slot_map with default constructed
+		/// allocators.
 		Slot_map() noexcept(noexcept(Alloc()))
 			:Slot_map(Alloc())
 		{}
 
-		/*	Allocator constructor
-			Constructs an empty Slot_map that uses copies of Alloc.
-		*/
+		///	Allocator constructor
+		/// Constructs an empty Slot_map that uses copies of Alloc.
 		explicit Slot_map(const Alloc& alloc) noexcept
 			:base(0, alloc)
 		{}
 
-		/*	Fill contructor
-			Constructs a Slot_map with n copies of value. If Alloc is provided,
-			Slot_map creates 3 copies to use internally, otherwise, all
-			allocators are copy constructed from a default
-		*/
+		///	Fill contructor
+		/// Constructs a Slot_map with n copies of value. If Alloc is provided,
+		/// Slot_map creates 3 copies to use internally, otherwise, all
+		/// allocators are copy constructed from a default
+		///
 		Slot_map(const size_type n, const T& value, const Alloc& allocator = {})
 			:base( n, allocator )
 		{
@@ -247,7 +248,9 @@ namespace aul {
 			aul::uninitialized_iota(base.erase_begin, base.erase_end, 0u, base.erase_allocator);
 		}
 
-		//Reserve constructor
+		/// Reserves enough space for n elements creates an internal allocator
+		/// by copying constructing from alloc
+		///
 		Slot_map(const size_type n, const Alloc& alloc = {})
 			:base(n, alloc)
 		{
@@ -255,7 +258,9 @@ namespace aul {
 			aul::uninitialized_iota(base.erase_begin, base.erase_end, 0u, base.erase_allocator);
 		}
 
-		//Iterator contructor
+		/// Constructs a new Slot_map from the elements within the range
+		/// specified by the
+		/// iterators begin and end
 		template<class InputIter>
 		Slot_map(InputIter begin, InputIter end, const Alloc& allocator = {})
 			:base( end - begin, allocator)
@@ -269,7 +274,10 @@ namespace aul {
 			aul::uninitialized_iota(base.erase_begin, base.erase_end, 0, base.erase_allocator);
 		}
 
-		//Initializer list constructor
+		/// Constructs a Slot_map with elements copy_constructed from list. The
+		/// internal allocatator is copy-constructed from allocator.
+		///
+		///
 		Slot_map(const std::initializer_list<T> list, Alloc allocator = {})
 			:Slot_map{list.begin(), list.end(), allocator}
 		{}
@@ -380,24 +388,18 @@ namespace aul {
 			base.clear();
 		}
 
-		friend void swap(Slot_map& right) noexcept(
+		void swap(Slot_map& right) noexcept(
 			std::allocator_traits<Alloc>::propagate_on_container_swap::value || 	
 			std::allocator_traits<Alloc>::is_always_equal::value
 		) {
 			std::swap(this->base, right.base);
 		}
 
-		void straighten() {
-			//TODO
-		}
+		void straighten();
 
-		void sort() {
-			//TODO
-		}
+		void sort();
 
-		void stable_sort() {
-			//TODO
-		}
+		void stable_sort();
 
 		//=====================================================================
 		//	Assignment methods/operators
@@ -407,7 +409,7 @@ namespace aul {
 			static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructible.");
 			
 			if (this == &right) {
-				return;
+				return *this;
 			}
 
 			clear();
@@ -570,35 +572,35 @@ namespace aul {
 		iterator stable_insert(const_iterator it, T&& val) {
 
 		}
+		iterator insert(const_iterator it, const size_type n, const T& val);
+            /*
+            {
+                size_type pos_index = it.pos - base.data_begin;
 
-		/*
-		iterator insert(const_iterator it, const size_type n, const T& val) {
-			size_type pos_index = it.pos - base.data_begin;
+                grow(size() + n);
+                //TODO: Implement
 
-			grow(size() + n);
-			//TODO: Implement
+                //Number of existing elements to be moved right
+                size_type move_count = std::max(0, base.data_last - it);
 
-			//Number of existing elements to be moved right
-			size_type move_count = std::max(0, base.data_last - it);
+                for (int i = 0; i != n; ++i) {
+                    move_construct_element(base.data_last - 1 - i, base.data_last - 1 - i + n);
+                }
 
-			for (int i = 0; i != n; ++i) {
-				move_construct_element(base.data_last - 1 - i, base.data_last - 1 - i + n);
-			}
+                return iterator(nullptr);
+            }
 
-			return iterator(nullptr);
-		}
+            template<class InputIt>
+            iterator insert(const_iterator it, InputIt begin, InputIt end) {
+                //TODO: Implement
 
-		template<class InputIt>
-		iterator insert(const_iterator it, InputIt begin, InputIt end) {
-			//TODO: Implement
+                return iterator(nullptr);
+            }
 
-			return iterator(nullptr);
-		}
-
-		iterator insert(const_iterator it, std::initializer_list<T> list) {
-			return insert(it, list.begin(), list.end());
-		}
-		*/
+            iterator insert(const_iterator it, std::initializer_list<T> list) {
+                return insert(it, list.begin(), list.end());
+            }
+            */
 
 		void erase(const key_type id) {
 			if (!validate_id(id)) {
@@ -799,9 +801,9 @@ namespace aul {
 			}
 
 			//Store the differences between the old and new locations in memory
-			difference_type data_offset  = data_begin - base.data_begin;
-			difference_type index_offset = index_begin - base.index_begin;
-			difference_type erase_offset = erase_begin - base.erase_begin;
+			//difference_type data_offset  = data_begin - base.data_begin;
+			//difference_type index_offset = index_begin - base.index_begin;
+			//difference_type erase_offset = erase_begin - base.erase_begin;
 
 			//Update index pointers
 			offset_indicies(base.data_begin, data_begin);
