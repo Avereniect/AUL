@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <limits>
 
-float recip_sqrt_hack(float x) {
+constexpr float recip_sqrt_hack(const float x) {
     static_assert(std::numeric_limits<float>::is_iec559);
 
     float half_x = 0.5f * x;
@@ -24,7 +24,7 @@ float recip_sqrt_hack(float x) {
     return x;
 }
 
-double recip_sqrt_hack(double x) {
+constexpr double recip_sqrt_hack(const double x) {
     static_assert(std::numeric_limits<double>::is_iec559);
     double half_x = 0.5f * x;
 
