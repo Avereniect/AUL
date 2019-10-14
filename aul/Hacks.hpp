@@ -26,6 +26,8 @@ float recip_sqrt_hack(const float a) {
     return x;
 }
 
+
+
 double recip_sqrt_hack(const double a) {
     static_assert(std::numeric_limits<double>::is_iec559);
 

@@ -7,6 +7,7 @@
 #include <memory>
 #include <type_traits>
 #include <limits>
+#include <algorithm>
 
 namespace aul {
 
@@ -16,39 +17,54 @@ namespace aul {
         class Associative_array_base;
 
     public:
-        
+
         //-------------------------------------------------
         // Type aliases
         //-------------------------------------------------
+
+        using allocator_type = template std::allocator_traits<Alloc>::template rebind_alloc<T>;
 
         using key_type = K;
         using value_type = T;
 
         using key_compare = C;
 
-        using pointer = typename std::allocator_traits<Alloc>::pointer;
-        using const_pointer = typename std::allocator_traits<Alloc>::const_pointer;
+        using pointer = typename std::allocator_traits<allocator_type>::pointer;
+        using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
 
         using reference = T&;
         using const_reference = const T&;
 
-        using size_type = typename std::allocator_traits<Alloc>::size_type;
-        using difference_type = typename std::allocator_traits<Alloc>::pointer;
+        using size_type = typename std::allocator_traits<allocator_type>::size_type;
+        using difference_type = typename std::allocator_traits<allocator_type>::pointer;
 
         using iterator = aul::Random_access_iterator<aul::Allocator_types<Alloc>, false>;
         using const_iterator = aul::Random_access_iterator<aul::Allocator_types<Alloc>, true>;
 
-        using allocator_type = Alloc;
 
     private:
 
+        using val_allocator_type = allocator_traits;
         using key_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<K>;
+
+        using val_pointer = pointer;
+        using const_val_pointer = const_pointer;
 
         using key_pointer = typename std::allocator_traits<key_allocator_type>::pointer;
         using const_key_pointer = typename std::allocator_traits<key_allocator_type>::pointer;
 
         using key_alloc_traits = std::allocator_traits<key_allocator_type>;
         using val_alloc_traits = std::allocator_traits<allocator_type>;
+
+        static_assert(std::is_same<
+            key_alloc_traits::difference_type,
+            val_alloc_traits::difference_type
+        >value);
+
+        static_assert(std::is_same<
+            key_alloc_traits::size_type,
+            val_alloc_traits::size_type
+        >::value);
 
     public:
 
@@ -91,14 +107,13 @@ namespace aul {
         Associative_array(const Associative_array& arr):
             base(arr.base)
         {
-            aul::uninitialized_copy(arr.begin(), arr.end(), begin(), base.val_alloc);
-            aul::uninitialized_copy(arr.begin(), arr.end(), begin(), base.key_alloc);
+            aul::uninitialized_copy_n(arr.base.values, base.size, base.values, base.val_alloc);
+            aul::uninitialized_copy_n(arr.base.keys, base.size, base.key, base.key_alloc);
         }
 
         Associative_array(const Associative_array& arr, const allocator_type& allocator):
-            base(arr, allocator)
+            base(arr.base, allocator)
         {}
-
 
         Associative_array(Associative_array&& arr):
             base(std::move(arr.base))
@@ -120,38 +135,110 @@ namespace aul {
         // Iterator methods
         //-------------------------------------------------
 
-        iterator begin();
-        const_iterator begin() const;
-        const_iterator cbegin() const;
+        inline iterator begin() noexcept {
+            return iterator{base.values};
+        }
 
-        iterator end();
-        const_iterator end() const;
-        const_iterator cend() const;
+        inline const_iterator begin() const noexcept {
+            return const_iterator{base.values};
+        }
+
+        inline const_iterator cbegin() const noexcept {
+            return const_iterator{base.values};
+        }
+
+        inline iterator end() noexcept {
+            return iterator{base.values + base.size};
+        }
+
+        inline const_iterator end() const noexcept {
+            return const_iterator{base.values + base.size};
+        }
+
+        inline const_iterator cend() const noexcept {
+            return const_iterator{base.values + base.size};
+        }
 
         //-------------------------------------------------
         // Comparison Operators
         //-------------------------------------------------
 
-        bool operator==(const Associative_array& rhs);
-        bool operator!=(const Associative_array& rhs);
+        bool operator==(const Associative_array& rhs) {
+            return (size() == rhs.size()) ? std::equal(begin(), end(), rhs.begin()) : false;
+        }
+
+        bool operator!=(const Associative_array& rhs) {
+            return (size() != rhs.size()) ? true : !(*this == rhs);
+        }
 
         //-------------------------------------------------
         // Element access
         //-------------------------------------------------
 
-        T& at(const key_type& key);
+        T& at(const key_type& key) {
+            key_pointer pos = std::lower_bound(base.keys, base.keys + base.size, key, base.compare);
 
-        const T& at(const key_type& key) const;
+            if (*pos != key) {
+                return *pointer(nullptr);
+            }
 
-        T& operator[](const key_type& key);
+            return base.values[pos - base.keys];
+        }
 
-        T& operator[](key_type&& key);
+        const T& at(const key_type& key) const {
+            key_pointer pos = std::lower_bound(base.keys, base.keys + base.size, key, base.compare);
+
+            if (*pos != key) {
+                return *pointer(nullptr);
+            }
+
+            return base.values[pos - base.keys];
+        }
+
+
+        T& at(const size_type x) {
+            if (x  < size()) {
+                return base.values[x];
+            }
+
+            throw std::out_of_range("aul::Associative_array::at() called with invalid index");
+        }
+
+
+        const T& at(const size_type x) const {
+            if (x  < size()) {
+                return base.values[x];
+            }
+
+            throw std::out_of_range("aul::Associative_array::at() called with invalid index");
+        }
+
+
+        T& operator[](const key_type& key) {
+            auto[a, b] = std::equal_range(base.keys, base.keys + base.size, std::forward(key));
+            return *a;
+        }
+
+        T& operator[](key_type&& key) {
+            auto[a, b] = std::equal_range(base.keys, base.keys + base.size, std::forward(key));
+            return *a;
+        }
+
+        T& operator[](const size_type x) {
+            return base.values[x];
+        }
+
+        const T& operator[](const size_type x) const {
+            return base.values[x];
+        }
 
         //-------------------------------------------------
         // Insertion & emplacement methods
         //-------------------------------------------------
 
-        std::pair<iterator, bool> insert(const key_type& k, const value_type& ref);
+        std::pair<iterator, bool> insert(const key_type& k, const value_type& ref) {
+            reserve(size() + 1);
+        }
 
         template<typename U>
         std::pair<iterator, bool> insert(U&&, const value_type& ref);
@@ -226,18 +313,27 @@ namespace aul {
 
         inline size_type max_size() const noexcept {
             constexpr size_type a = std::numeric_limits<size_type>::max();
-            size_type b = std::allocator_traits<Alloc>::max_size(base.alloc);
+            size_type b = std::allocator_traits<Alloc>::max_size(base.val_alloc);
 
             return std::min(a, b);
+        }
+
+        inline size_type capacity() const noexcept {
+            return base.capacity;
         }
 
         inline bool empty() const noexcept {
             return begin() == end();
         }
 
-        void clear() noexcept;
+        void clear() noexcept {
+            aul::destroy_n(base.values, base.size, base.val_alloc);
+            aul::destroy_n(base.keys,   base.size, base.key_alloc);
+        }
 
-        void reserve(const size_type n);
+        void reserve(const size_type n) {
+
+        }
 
         //-------------------------------------------------
         // Internal details
@@ -247,12 +343,78 @@ namespace aul {
             return base.compare;
         }
 
+        pointer data() const noexcept {
+            return base.values;
+        }
+
+        key_pointer keys() const noexcept {
+            return base.keys;
+        }
+
     private:
         Associative_array_base base;
 
         //=====================================================================
         // Helper classes
         //=====================================================================
+
+        struct Allocation {
+            val_pointer vals;
+            key_pointer keys;
+
+            size_type size;
+            size_type capacity;
+
+            Allocation() = default;
+            Allocation(const Allocation& alloc) = default;
+
+            Allocation(Allocation&& alloc) {
+
+            }
+
+            Allocation& operator=(const Allocation&) = default;
+
+            Allocation& operator=(Allocation&&) {
+
+            }
+
+            ~Allocation() = default;
+        };
+
+        struct Allocators {
+            val_allocator_type val_allocator;
+            key_allocator_type key_allocator;
+
+            Allocators(const Alloc& alloc) :
+                val_allocator(alloc),
+                key_allocator(alloc) {
+            }
+
+            Allocators(const Allocators& allocs) :
+                val_allocator(val_alloc_traits::select_on_container_copy_construction(allocs.val_allocator)),
+                key_allocator(key_alloc_traits::select_on_container_copy_construction(allocs.key_allocator)) {
+            }
+
+            Allocators(Allocators&&) = default;
+
+            Allocators& operator=(const Allocators&);
+
+            Allocators& operator=(Allocators&&);
+
+            void swap(Allocators& allocs) {
+                if constexpr (key_alloc_traits::propogate_on_container_swap::value) {
+                    std::swap(this->key_allocator, allocs.key_allocator)
+                }
+
+                if constexpr (val_alloc_traits::propogate_on_container_swap::value) {
+                    std::swap(this->val_allocator, allocs.val_allocator);
+                }
+            }
+
+            Allocation allocate(const size_type n);
+
+            Allocation
+        };
 
         class Associative_array_base {
         public:
@@ -332,7 +494,7 @@ namespace aul {
             //---------------------------------------------
             // Assignment operators
             //---------------------------------------------
-            
+
             Associative_array_base& operator=(const Associative_array_base& array) {
                 deallocate();
 
@@ -347,7 +509,7 @@ namespace aul {
                 allocate(array.capacity);
                 compare = array.compare;
             }
-            
+
             Associative_array_base& operator=(Associative_array_base&& array) {
                 deallocate();
 

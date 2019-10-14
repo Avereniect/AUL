@@ -6,9 +6,14 @@
 
 namespace aul {
 
+    /// Random_access_iterator
+    /// General-purpose random-access iterator suitable for containers with
+    /// contiguous storage of elements.
+    ///
+    /// \tparam Alloc_types Type containing allocator_type aliases.
+    /// \tparam is_const    Is const_iterator
     template<typename Alloc_types, bool is_const>
     class Random_access_iterator {
-
     public:
 
         //-----------------------------------------------------
@@ -16,7 +21,6 @@ namespace aul {
         //-----------------------------------------------------
 
         using value_type = typename Alloc_types::value_type;
-
         using difference_type = typename Alloc_types::difference_type;
 
         using pointer = typename std::conditional<is_const,
@@ -43,6 +47,7 @@ namespace aul {
 
         Random_access_iterator(Random_access_iterator&& itr) noexcept:
             p(itr.p) {
+
             itr.p = pointer{};
         }
 
@@ -89,7 +94,7 @@ namespace aul {
         }
 
         difference_type operator-(const Random_access_iterator rhs) noexcept {
-            return Random_access_iterator{p - rhs.p};
+            return p - rhs.p;
         }
 
         //-----------------------------------------------------
@@ -103,12 +108,12 @@ namespace aul {
         // TODO: C++ 20 Check for comparable concept
         //-----------------------------------------------------
 
-        bool operator==(const Random_access_iterator rhs) noexcept {
-            return p == rhs.p;
+        friend  bool operator==(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
+            return lhs.p == rhs.p;
         }
 
-        bool operator!=(const Random_access_iterator rhs) noexcept {
-            return p != rhs.p;
+        friend bool operator!=(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
+            return lhs.p != rhs.p;
         }
 
         bool operator<=(const Random_access_iterator rhs) noexcept {
