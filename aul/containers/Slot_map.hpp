@@ -560,29 +560,12 @@ namespace aul {
         ///
         /// \param id Key mapping to element to remove
         ///
-        void erase(const key_type id); /*{
-            if (!validate_id(id)) {
-                throw std::invalid_argument("Version mismatch.");
-            }
-
-            size_type pos = base.index_begin[id.data()].data().element_pointer - base.elems_begin;
-            erase(begin() + pos);
-        }*/
+        void erase(const key_type id);
 
         ///
         /// \param x Iterator to element to remove
         ///
-        void erase(const_iterator x); /*{
-            index_type* index = index_of(x.operator->());
-            if (x.operator->() != (base.elems_last - 1)) {
-                swap_elements(const_cast<pointer>(x.operator->()), base.elems_last - 1);
-            }
-            destruct_element(base.elems_last - 1);
-
-            //TODO: Update free_head
-            --base.elems_last;
-            --base.erase_last;
-        }*/
+        void erase(const_iterator x);
 
         ///
         /// \param val Object to copy-construct from
@@ -628,27 +611,7 @@ namespace aul {
         /// \param args  Constructor arguments for construction of new element
         /// \return      Reference to newly constructed object
         template<class... Args>
-        reference emplace(const_iterator pos, Args&& ... args); /*{
-            size_type position = pos.pos - base.elems_begin;
-
-            grow(size() + 1);
-
-            pointer p = base.elems_begin + position;
-
-            if (p != base.elems_last) {
-                move_construct_element(p, base.elems_last);
-            }
-
-            emplace_element(p, std::forward<Args>(args)...);
-            std::cout << *p << std::endl;
-
-            find_free_head();
-
-            ++base.elems_last;
-            ++base.erase_last;
-
-            return base.elems_last[-1];
-        }*/
+        reference emplace(const_iterator pos, Args&& ... args);
 
         // TODO: Implement
         template<class... Args>
@@ -852,7 +815,9 @@ namespace aul {
         ///
         [[nodiscard]]
         inline bool validate_id(key_type x) noexcept {
-            return (x.version() == mem.index_array[x.data()].version()) && (x.data() <= size());
+            return 
+                x.version() == mem.index_array[x.data()].version() &&
+                x.data() <= size();
         }
 
         ///
@@ -896,15 +861,16 @@ namespace aul {
         /// 
         ///
         void grow(size_type n) {
-            constexpr size_type max_size_type = std::numeric_limits<size_type>::max();
-            const size_type double_size = (max_size_type / 2) < size() ? max_size_type : 2 * size();
+            constexpr size_type size_type_max = std::numeric_limits<size_type>::max();
+            const size_type double_size = (size_type_max / 2) < size() ? size_type_max : 2 * size();
+
             reserve(std::max(n, double_size));
         }
 
         ///
-        /// Pops index off list of free indices
+        /// \
         ///
-        inline index_pointer consume_free_head(const size_type pos) noexcept {
+        inline index_pointer consume_index(const size_type pos) noexcept {
             const index_pointer free_ptr = mem.free_head;
 
             if (free_ptr->data() == (free_ptr - mem.index_array) ) {
@@ -919,11 +885,21 @@ namespace aul {
         }
 
         ///
-        /// Pushes index onto list of free indices
+        /// Frees index pointed to by ptr and pushes it onto list of free
+        /// indices. Increments index version
         ///
-        inline index_pointer release_index(const index_pointer ptr) noexcept;
+        inline index_pointer release_index(const index_pointer ptr) noexcept {
+            if (mem.free_head) {
+                *ptr = mem.free_head - mem.index_array;
+            } else {
+                *ptr = ptr - mem.index_array;
+            }
+            mem.free_head = ptr;
+        }
 
-        inline index_type* index_of(const_pointer x) noexcept;
+        inline index_type& index_of(const_pointer ptr) const noexcept {
+            return mem.index_array[mem.erase_array[ptr - mem.elems_array]];
+        }
 
         /// Destroys the element pointed to by p through the allocator and
         /// clears the associated inde value.
