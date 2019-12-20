@@ -6,6 +6,8 @@ else()
     cmake_policy(VERSION 3.14)
 endif()
 
+SET(CMAKE_BUILD_TYPE Debug)
+
 project(AUL
     VERSION 0.0.1
     DESCRIPTION "A utility library"
@@ -19,9 +21,6 @@ add_library(AUL INTERFACE)
 add_executable(AUL_TESTS ./tests/AUL_tests.cpp)
 
 add_subdirectory(googletest)
-include_directories("./googletest/googletest/include")
-
 target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main)
-target_include_directories(AUL_TESTS PRIVATE "/home/avereniect/Downloads/vcpkg/installed/x64-linux/include/")
 
 target_compile_features(AUL_TESTS PUBLIC cxx_std_17)

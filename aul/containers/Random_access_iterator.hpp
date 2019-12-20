@@ -66,7 +66,7 @@ namespace aul {
 
             return *this;
         }
-
+        
         Random_access_iterator& operator+=(const difference_type x) noexcept {
             p += x;
             return *this;
@@ -81,18 +81,22 @@ namespace aul {
         // Arithmetic operators
         //-----------------------------------------------------
 
+        [[nodiscard]]
         friend Random_access_iterator operator+(const Random_access_iterator itr, const difference_type x) noexcept {
             return Random_access_iterator{itr.p + x};
         }
 
+        [[nodiscard]]
         friend Random_access_iterator operator+(const difference_type x, const Random_access_iterator itr) noexcept {
             return Random_access_iterator{itr.p + x};
         }
 
+        [[nodiscard]]
         friend Random_access_iterator operator-(const Random_access_iterator itr, const difference_type x) noexcept {
             return Random_access_iterator{itr.p - x};
         }
 
+        [[nodiscard]]
         difference_type operator-(const Random_access_iterator rhs) noexcept {
             return p - rhs.p;
         }
@@ -108,26 +112,32 @@ namespace aul {
         // TODO: C++ 20 Check for comparable concept
         //-----------------------------------------------------
 
+        [[nodiscard]]
         friend  bool operator==(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
             return lhs.p == rhs.p;
         }
 
+        [[nodiscard]]
         friend bool operator!=(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
             return lhs.p != rhs.p;
         }
 
+        [[nodiscard]]
         bool operator<=(const Random_access_iterator rhs) noexcept {
             return p <= rhs.p;
         }
 
+        [[nodiscard]]
         bool operator>=(const Random_access_iterator rhs) noexcept {
             return p >= rhs.p;
         }
 
+        [[nodiscard]]
         bool operator<(const Random_access_iterator rhs) noexcept {
             return p < rhs.p;
         }
 
+        [[nodiscard]]
         bool operator>(const Random_access_iterator rhs) noexcept {
             return p > rhs.p;
         }
@@ -162,15 +172,18 @@ namespace aul {
         // Dereference operators
         //-----------------------------------------------------
 
+        [[nodiscard]]
         reference operator*() {
             return *p;
         }
 
-        reference operator[](const difference_type x) {
+        [[nodiscard]]
+        reference operator[](const difference_type x) noexcept {
             return p[x];
         }
 
-        pointer operator->() noexcept {
+        [[nodiscard]]
+        pointer operator->() const noexcept {
             return p;
         }
 
