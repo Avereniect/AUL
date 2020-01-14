@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <limits>
 #include <algorithm>
+#include <functional>
 
 namespace aul {
 
@@ -55,16 +56,6 @@ namespace aul {
 
         using key_alloc_traits = std::allocator_traits<key_allocator_type>;
         using val_alloc_traits = std::allocator_traits<allocator_type>;
-
-        static_assert(std::is_same<
-            key_alloc_traits::difference_type,
-            val_alloc_traits::difference_type
-        >value);
-
-        static_assert(std::is_same<
-            key_alloc_traits::size_type,
-            val_alloc_traits::size_type
-        >::value);
 
     public:
 
@@ -606,9 +597,6 @@ namespace aul {
         };
 
     };
-
-    template<class K, class T, class C, typename A>
-    void swap(Associative_array<K, T, C, A> lhs, Associative_array<K, T, C, A> rhs) noexcept;
 
 }
 

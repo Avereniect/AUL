@@ -1,5 +1,5 @@
-#ifndef AUL_TESTS_BITS_HPP
-#define AUL_TESTS_BITS_HPP
+#ifndef AUL_BITS_HPP
+#define AUL_BITS_HPP
 
 #include <string>
 #include <type_traits>
@@ -94,7 +94,7 @@ namespace aul {
     template<typename T>
     [[nodiscard]]
     constexpr inline T clear_bit_range(const T x, const unsigned from, const unsigned to) {
-        static_assert(std::numeric_limits<T>::is_integer)
+        static_assert(std::numeric_limits<T>::is_integer);
 
         constexpr T full = ~0;
         int mask = (full << from) & (full >> (std::numeric_limits<T>::digits - to) ) ;
@@ -135,7 +135,7 @@ namespace aul {
     /// \return   std::string conversion of x
     template<typename T>
     [[nodiscard]]
-    constexpr std::string bits_to_string(const T x) {
+    std::string bits_to_string(const T x) {
         static_assert(std::numeric_limits<T>::is_integer);
 
         std::string str;
@@ -149,6 +149,7 @@ namespace aul {
         return str;
     }
 
+    /*
     ///
     /// Mods x by 2^n
     ///
@@ -165,18 +166,20 @@ namespace aul {
     }
 
     template<typename T, typename U>
+    [[nodiscard]]
     constexpr inline T mod_power(const T x, const U p) noexcept {
         static_assert(std::is_unsigned<T>::value);
         static_assert(std::is_unsigned<U>::value);
 
         //2^p
-        T 2ep = 1;
+        T _2ep = 1;
         for (U i = 0; i < p; ++i) {
-            2ep *= 2;
+            _2ep *= 2;
         }
 
-        return x % 2ep;
+        return x % _2ep;
     }
+     */
 
     ///
     /// Rounds x up to the nearest multiple of 2^n
@@ -194,6 +197,7 @@ namespace aul {
         return (x + y) & ~y;
     }
 
+    /*
     template<typename T>
     [[nodiscard]]
     constexpr inline T round_up_power(const T x, const unsigned p) noexcept {
@@ -233,13 +237,14 @@ namespace aul {
 
         return 
     }
+     */
 
     template<typename T>
     [[nodiscard]]
     constexpr inline T ceil2(const T v) {
         static_assert(std::is_unsigned<T>::value);
         T power = 1;
-        while (power < x) {
+        while (power < v) {
             power <<= 1;
         }
         return power;
@@ -248,4 +253,4 @@ namespace aul {
 
 }
 
-#endif //AUL_TESTS_BITS_HPP
+#endif //AUL_BITS_HPP

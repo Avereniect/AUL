@@ -25,23 +25,20 @@ namespace aul {
 
         Versioned_type(const T& x = T()) :
             dat(x),
-            ver(V())
-        {}
+            ver(V{}) {}
 
         Versioned_type(const T& x, const V v) :
             dat(x),
-            ver(v)
-        {}
+            ver(v) {}
 
         Versioned_type(const Versioned_type& r) :
             dat(r.dat),
-            ver(r.ver)
-        {}
+            ver(r.ver) {}
 
         Versioned_type(Versioned_type&& r) noexcept :
             dat(std::move(r)),
-            ver(r.ver)
-        {
+            ver(r.ver) {
+
             r.ver = 0;
         }
 
@@ -109,7 +106,7 @@ namespace aul {
         //=====================================================================
 
         T dat;
-        version_type ver = 1;
+        version_type ver = 0;
 
     };
 
