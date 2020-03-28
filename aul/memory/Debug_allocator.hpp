@@ -2,20 +2,21 @@
 #define AUL_DEBUG_ALLOCATOR_HPP
 
 #include <memory>
+#include <iostream>
 
 namespace aul {
 
     ///
     /// Wrapper around an STL allocator that keeps track of the number of
-    /// memory allocation made with wrapped allocator. 
-    /// 
-    /// 
+    /// memory allocation made with wrapped allocator.
     ///
     template<class Alloc>
     class Debug_allocator : public Alloc {
     private:
 
-        using base_pointer = typename std::allocator_traits<Alloc>::pointer;
+        using base
+    ///
+    /// _pointer = typename std::allocator_traits<Alloc>::pointer;
         using base_size_type = typename std::allocator_traits<Alloc>::size_type;
         using base_const_void_pointer = typename std::allocator_traits<Alloc>::const_void_pointer;
 
@@ -49,6 +50,20 @@ namespace aul {
         struct rebind {
             using other = Debug_allocator<U>;
         };
+
+        //=================================================
+        // -ctors
+        //=================================================
+
+        ~Debug_allocator() {
+            if (!object_count) {
+                std::cerr << object_count << " objects were never destroyed" << std::endl;
+            }
+
+            if (!allocs_count) {
+                std::cerr << allocs_count << " allocations were never deallocated" << std::endl;
+            }
+        }
 
         //=================================================
         // Allocation methods

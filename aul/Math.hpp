@@ -4,13 +4,13 @@
 #include <type_traits>
 #include <cmath>
 #include <algorithm>
-
+#include <vector>
 
 namespace aul {
 
-    //---------------------------------
+    //=====================================================
     // Interpolation functions
-    //---------------------------------
+    //=====================================================
 
     // TODO: C++ 20 Remove
     template<typename T, typename U>
@@ -22,7 +22,7 @@ namespace aul {
 
     /// TODO: C++ 20 Remove
     template<typename T, typename U>
-    U linear_interploation(T fac, U a, U b) {
+    U linear_interpolation(T fac, U a, U b) {
         static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
 
         return static_cast<U>(a + fac * (b - a));
@@ -45,10 +45,10 @@ namespace aul {
         return x * x * x * (x * (x * 6 - 15) + 10);
     }
 
-    //---------------------------------
+    //=====================================================
     // Distance metrics
     // TODO: Specializations for standard types supported by SIMD ops
-    //---------------------------------
+    //=====================================================
 
     template<typename T>
     constexpr T euclidean_distance(const T p0[], const T p1[], const std::size_t n) {
@@ -74,6 +74,7 @@ namespace aul {
 
     template<typename T>
     constexpr T manhattan_distance(const T p0[], const T p1[], const std::size_t n) {
+
         T dist = 0.0;
         for (std::size_t i = 0; i < n; ++i) {
             dist += std::abs(p0[i] - p1[i]);
@@ -85,6 +86,7 @@ namespace aul {
     template<typename T>
     constexpr T minkowski_distance(const T p0[], const T p1[], const std::size_t n, const T p = 1.0) {
         static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
+
         T dist = 0.0;
         for (std::size_t i = 0; i < n; ++i) {
             dist += std::pow(std::abs(p0[i] - p1[i]));
@@ -92,6 +94,37 @@ namespace aul {
 
         return std::pow(dist, 1.0 / p);
     }
+
+
+    /*
+    ///
+    /// Computes binomial coefficients
+    ///
+    /// \tparam T Integral type
+    /// \param n
+    /// \param k
+    /// \return
+    template<typename T>
+    [[nodiscard]]
+    constexpr T choose(const T n, const T k) {
+        if (k < 0 || n < k) {
+            return T{};
+        }
+
+        if (k == 0 || k == n) {
+            return 1;
+        }
+
+
+
+    }
+
+    template<typename T>
+    [[nodiscard]]
+    constexpr T permute(const T n, const T k) {
+
+    }
+    */
 }
 
 #endif

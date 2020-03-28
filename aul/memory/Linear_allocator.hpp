@@ -212,18 +212,6 @@ namespace aul {
         Linear_allocator(const std::size_t n) {
             block = Linear_memory_block::create(n * sizeof(T));
             block->increment_users();
-
-            const char* name = typeid(T).name();
-        }
-
-        Linear_allocator(const Linear_allocator& alloc) noexcept :
-            block(alloc.get_block()) {
-
-            if (block) {
-                block->increment_users();
-            }
-
-            const char* name = typeid(T).name();
         }
 
         ///
@@ -239,8 +227,16 @@ namespace aul {
             }
         }
 
+        Linear_allocator<T>(const Linear_allocator<T>& alloc) noexcept :
+            block(alloc.get_block()) {
+
+            if (block) {
+                block->increment_users();
+            }
+        }
+
         ///
-        ///
+        /// Move constructor
         ///
         Linear_allocator(Linear_allocator&& alloc) noexcept:
             block(alloc.block) {
@@ -295,9 +291,9 @@ namespace aul {
         }
 
         ///
-        /// \param n
-        /// \param ptr
-        /// \return
+        /// \param n   Number of elements to allocate memory for
+        /// \param ptr Unused
+        /// \return    Pointer to allocation
         [[nodiscard]]
         T* allocate(const std::size_t n, const void* ptr) {
             return allocate(n);

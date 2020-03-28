@@ -3,6 +3,7 @@
 
 #include <string>
 #include <type_traits>
+#include <limits>
 
 namespace aul {
 
@@ -239,17 +240,31 @@ namespace aul {
     }
      */
 
+    ///
+    /// \tparam T
+    /// \param v
+    /// \return T rounded to the nearest power of two
     template<typename T>
     [[nodiscard]]
     constexpr inline T ceil2(const T v) {
         static_assert(std::is_unsigned<T>::value);
-        T power = 1;
-        while (power < v) {
-            power <<= 1;
+        T n = v;
+        for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
+            n |= (n >> i);
         }
-        return power;
+
+        return n;
     }
 
+    template<typename T>
+    [[nodiscard]]
+    constexpr inline T floor2(const T v) {
+        T n = v;
+        for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
+            n |= (n >> i);
+        }
+        return n - (n >> 1);
+    }
 
 }
 

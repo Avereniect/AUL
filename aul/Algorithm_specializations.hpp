@@ -1,0 +1,10 @@
+#ifndef AUL_ALGORITHM_SPECIALIZATIONS_HPP
+#define AUL_ALGORITHM_SPECIALIZATIONS_HPP
+
+namespace aul {
+
+    template<>
+
+}
+
+#endif //AUL_ALGORITHM_SPECIALIZATIONS_HPP

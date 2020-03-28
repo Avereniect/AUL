@@ -8,6 +8,10 @@
 
 namespace aul::tests {
 
+    //=====================================================
+    // Test fixtures
+    //=====================================================
+
     class Slot_map_list_f : public ::testing::Test {
     protected:
 
@@ -28,6 +32,10 @@ namespace aul::tests {
         aul::Slot_map<double> map0;
         aul::Slot_map<double> map1;
     };
+
+    //=====================================================
+    // Constructor tests
+    //=====================================================
 
     TEST(Slot_map, Default_constructor) {
         aul::Slot_map<double> map;
@@ -121,6 +129,29 @@ namespace aul::tests {
 
         EXPECT_TRUE(std::equal(list.begin(), list.end(), map1.begin()));
     }
+
+    //=====================================================
+    // Comparison operator tests
+    //=====================================================
+
+    TEST(Slot_map, Comparisons) {
+        aul::Slot_map<int> map0 = {0, 0, 0, 0};
+        aul::Slot_map<int> map1 = {0, 0, 0, 0};
+        aul::Slot_map<int> map2 = {0, 0, 0, 1};
+
+        EXPECT_EQ(map0, map1);
+        EXPECT_LE(map0, map1);
+        EXPECT_GE(map0, map1);
+        EXPECT_NE(map1, map2);
+        EXPECT_GT(map2, map0);
+        EXPECT_LT(map0, map2);
+        EXPECT_GE(map2, map1);
+        EXPECT_LE(map1, map2);
+    }
+
+    //=====================================================
+    // Mutator tests
+    //=====================================================
 
     TEST_F(Slot_map_list_f, clear) {
         map.clear();
@@ -262,6 +293,8 @@ namespace aul::tests {
         map.erase(key1);
         map.erase(key0);
     }
+
+
 
 }
 

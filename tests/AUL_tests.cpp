@@ -1,8 +1,11 @@
 //#include "Algorithms_tests.hpp"
-#include "containers/Slot_map_tests.hpp"
+#include "containers/Array_map_tests.hpp"
+//#include "containers/Slot_map_tests.hpp"
 //#include "memory/Linear_allocator_tests.hpp"
 
 #include <gtest/gtest.h>
+#include <vector>
+#include <iostream>
 
 int main(int argc, char* argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
