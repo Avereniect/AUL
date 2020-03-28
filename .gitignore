@@ -1,7 +1,8 @@
 /.idea
 /.cs
+/.vs
 /CMakeFiles
-/cmake-buiild-debug
+/cmake-build-debug
 /cmake-build-release
 /x64
 
@@ -9,3 +10,8 @@ AUL_BENCHMARKS
 cmake_install.cmake
 CMakeCache.txt
 Makefile
+
+AUL.vcxproj
+AUL.vcxproj.filters
+AUL.vcxproj.user
+aul.sln
