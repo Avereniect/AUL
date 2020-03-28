@@ -16,11 +16,16 @@ project(AUL
 
 include_directories(aul)
 
+#add_subdirectory(vendor/googletest)
+
+add_subdirectory(vendor/Celero)
+
 add_library(AUL INTERFACE)
 
-add_executable(AUL_TESTS ./tests/AUL_tests.cpp)
+add_executable(AUL_BENCHMARKS ./benchmarks/AUL_benchmarks.cpp)
+target_link_libraries(AUL_BENCHMARKS PUBLIC AUL celero)
 
-add_subdirectory(googletest)
-target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main)
+add_executable(AUL_TESTS ./tests/AUL_tests.cpp)
+target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main pthread)
 
 target_compile_features(AUL_TESTS PUBLIC cxx_std_17)
