@@ -16,9 +16,9 @@ namespace aul {
     class Random_access_iterator {
     public:
 
-        //-----------------------------------------------------
+        //=================================================
         // Type aliases
-        //-----------------------------------------------------
+        //=================================================
 
         using value_type = typename Alloc_types::value_type;
         using difference_type = typename Alloc_types::difference_type;
@@ -35,9 +35,9 @@ namespace aul {
 
         using iterator_category = std::random_access_iterator_tag;
 
-        //-----------------------------------------------------
+        //=================================================
         // -ctors
-        //-----------------------------------------------------
+        //=================================================
 
         explicit Random_access_iterator(const pointer ptr = pointer{}) noexcept:
             p(ptr) {}
@@ -51,9 +51,9 @@ namespace aul {
             itr.p = pointer{};
         }
 
-        //-----------------------------------------------------
+        //=================================================
         // Assignment operators
-        //-----------------------------------------------------
+        //=================================================
 
         Random_access_iterator& operator=(const Random_access_iterator& itr) noexcept {
             p = itr.p;
@@ -77,9 +77,9 @@ namespace aul {
             return *this;
         }
 
-        //-----------------------------------------------------
+        //=================================================
         // Arithmetic operators
-        //-----------------------------------------------------
+        //=================================================
 
         [[nodiscard]]
         friend Random_access_iterator operator+(const Random_access_iterator itr, const difference_type x) noexcept {
@@ -101,7 +101,7 @@ namespace aul {
             return p - rhs.p;
         }
 
-        //-----------------------------------------------------
+        //=================================================
         // Comparison operators
         //
         // Note: All comparison operators assume Alloc_types::pointer
@@ -110,7 +110,7 @@ namespace aul {
         //
         // TODO: C++ 20 Implement spaceship operator
         // TODO: C++ 20 Check for comparable concept
-        //-----------------------------------------------------
+        //=================================================
 
         [[nodiscard]]
         friend  bool operator==(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
@@ -142,9 +142,9 @@ namespace aul {
             return p > rhs.p;
         }
 
-        //-----------------------------------------------------
+        //=================================================
         // Increment/Decrement operators
-        //-----------------------------------------------------
+        //=================================================
 
         Random_access_iterator operator++() noexcept {
             p += 1;
@@ -168,9 +168,9 @@ namespace aul {
             return temp;
         }
 
-        //-----------------------------------------------------
+        //=================================================
         // Dereference operators
-        //-----------------------------------------------------
+        //=================================================
 
         [[nodiscard]]
         reference operator*() {

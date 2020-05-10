@@ -162,11 +162,12 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
     void uninitialized_copy_n(Input_iter begin, size_type n, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
+        Forward_iter y = begin;
         size_type i = size_type{};
 
         try {
-            for (; i != n;++i, ++x) {
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *x);
+            for (; i != n;++i, ++x, ++y) {
+                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *y);
             }
         } catch (...) {
             aul::destroy_n(begin, i, alloc);
@@ -184,9 +185,8 @@ namespace aul {
     void uninitialized_iota(Forward_iter begin, Forward_iter end, T val, Alloc& alloc) {
         Forward_iter x = begin;
         try {
-            for (; x < end; ++x) {
+            for (; x < end; ++x, ++val) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), val);
-                ++val;
             }
 
         } catch (...) {
@@ -206,9 +206,8 @@ namespace aul {
         size_type i = size_type{};
 
         try {
-            for (;i != n;++i, ++x) {
+            for (;i != n;++i, ++x, ++val) {
                 std::allocator_traits<Alloc>::construct(std::addressof(*x), val);
-                ++val;
             }
         } catch (...) {
             aul::destroy(begin, i, alloc);
