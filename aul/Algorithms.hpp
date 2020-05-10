@@ -85,7 +85,6 @@ namespace aul {
         return (end0 - begin0) >= (end1 - begin1);
     }
 
-
     ///
     /// \tparam F_iter
     /// \tparam T
@@ -138,6 +137,10 @@ namespace aul {
         return begin;
     }
 
+    template<class...Args>
+    void no_op(const Args&...args) {
+        sizeof...(args);
+    }
 }
 
 #endif //AUL_ALGORITHMS_HPP
