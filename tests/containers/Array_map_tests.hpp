@@ -124,6 +124,19 @@ namespace aul::tests {
         EXPECT_GE(arr1.capacity(), 4);
     }
 
+    TEST_F(Single_array_map, Copy_constructor) {
+        auto map_copy{map};
+
+        EXPECT_EQ(map_copy.size(), map.size());
+        EXPECT_GE(map_copy.capacity(), map_copy.size());
+
+        for (int i = 0; i < map.size(); ++i) {
+            EXPECT_EQ(map[i], map_copy[i]);
+        }
+
+        EXPECT_EQ(map_copy.get_allocator(), map.get_allocator());
+    }
+
     //=====================================================
     // Assignment operators
     //=====================================================
@@ -140,6 +153,18 @@ namespace aul::tests {
         arr1.insert(5, 5.0);
         arr1.insert(6, 6.0);
         arr1.insert(7, 7.0);
+    }
+
+    TEST_F(Two_array_maps, Copy_assignment) {
+        map1 = map0;
+
+        EXPECT_EQ(map1.size(), map0.size());
+        EXPECT_GE(map1.capacity(), map1.size());
+        EXPECT_EQ(map1.get_allocator(), map0.get_allocator());
+
+        for (int i = 0; i < map1.size(); ++i) {
+            EXPECT_EQ(map1[i], map0[i]);
+        }
     }
 
     //=====================================================
