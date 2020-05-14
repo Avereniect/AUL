@@ -187,6 +187,10 @@ namespace aul {
             return p;
         }
 
+        //=================================================
+        // Conversion operators
+        //=================================================
+
         operator Random_access_iterator<Alloc_types, true>() {
             return Random_access_iterator<Alloc_types, true>(p);
         }
