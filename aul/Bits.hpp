@@ -138,16 +138,15 @@ namespace aul {
     [[nodiscard]]
     std::string bits_to_string(const T x) {
         static_assert(std::numeric_limits<T>::is_integer);
-
-        std::string str;
-        str.resize(std::numeric_limits<T>::digits);
+        constexpr auto bit_width = std::numeric_limits<T>::digits;
+        char array[bit_width];
 
         T mask = 1;
         for (int i = 0; i < std::numeric_limits<T>::digits; ++i, mask <<= 1) {
-            str[str.size() - i - 1] = ( (x & mask) ? '1' : '0');
+            array[bit_width - i - 1] = ( (x & mask) ? '1' : '0');
         }
 
-        return str;
+        return {array};
     }
 
     /*
@@ -180,65 +179,7 @@ namespace aul {
 
         return x % _2ep;
     }
-     */
-
-    ///
-    /// Rounds x up to the nearest multiple of 2^n
-    ///
-    /// \tparam T Unsigned integral type
-    /// \param x  Value to round
-    /// \param p  Power of value rounding by
-    /// \return   Rounded value
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T round_up_power(const T x, const unsigned p) noexcept {
-        static_assert(std::is_unsigned<T>::value);
-
-        const T y =  (1 << p) - 1;
-        return (x + y) & ~y;
-    }
-
-    /*
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T round_up_power(const T x, const unsigned p) noexcept {
-        T 2_e_p = 1;
-        for (int i = 0; i < p; ++i) {
-            2_e_p *= 2;
-        }
-
-        return (x + (2_e_p - 1)) % 2_e_p;
-    }
-
-    ///
-    /// Rounds x down to the nearest multiple of 2^n
-    ///
-    /// \tparam T Unsigned integral type
-    /// \param x  Value to round
-    /// \param p  Power of value rounding by
-    /// \return   Rounded value
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T round_down_power(const T x, const unsigned p) noexcept {
-        static_assert(std::is_unsigned<T>::value);
-
-        const T y = (1 << p) - 1;
-        return x & ~y;
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T round_down_power(const T x, const T p) noexcept {
-        static_assert(std::is_unsigned<T>::value);
-
-        T 2_e_p = 1;
-        for (T i = 0; i < p; ++i) {
-            2_e_p *= 2;
-        }
-
-        return 
-    }
-     */
+    */
 
     ///
     /// \tparam T
