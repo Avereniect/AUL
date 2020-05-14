@@ -169,7 +169,7 @@ namespace aul {
 
         ///
         /// \param arr
-        /// \param alloc@u
+        /// \param alloc
         Array_map(Array_map&& arr, const allocator_type& alloc) :
             allocator(alloc),
             allocation(arr.allocator != alloc ? allocate(arr.size()) : std::move(allocation)),
