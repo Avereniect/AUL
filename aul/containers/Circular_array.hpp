@@ -234,14 +234,31 @@ namespace aul {
         }
 
         //=================================================
-        // Element mutators
+        // Element addition
         //=================================================
 
-        void pop_front();
-        void pop_back();
-
         template<class...Args>
-        void emplace_front(Args...args);
+        void emplace_front(Args...args) {
+            if (max_size() < elem_count + 1) {
+                throw std::length_error("aul::Circular_array grew too big");
+            }
+
+            if (capacity() <= size() + 1) {
+                Allocation allocation;
+
+            } else {
+                //Move elements
+                if (is_segmented() &&) {
+
+                } else {
+
+                }
+                //Construct new element
+
+            }
+
+            ++elem_count;
+        }
 
         void push_front(const T& val) {
             emplace_front(val);
@@ -254,7 +271,6 @@ namespace aul {
         template<class...Args>
         void emplace_back(Args...args);
 
-
         void push_back(const T& val) {
             emplace_back(val);
         }
@@ -263,11 +279,94 @@ namespace aul {
             emplace_back(std::forward(val));
         }
 
+        template<class...Args>
+        void emplace(const_iterator it, Args...args);
+
+        void insert(const_iterator it, const T& val) {
+            emplace(it, val);
+        }
+
+        void insert(const_iterator it, T&& val) {
+            emplace(it, std::forward<T&&>(val));
+        }
+
+        //=================================================
+        // Element removal
+        //=================================================
+
+        void pop_front() {
+            pointer ptr = begin().operator->();
+            std::allocator_traits<allocator_type>::destroy(ptr);
+
+            ++head_offset;
+            if (head_offset == capacity()) {
+                head_offset = 0;
+            }
+
+            --elem_count;
+        }
+
+        void pop_back() {
+            pointer ptr = (end() - 1).operator->();
+            std::allocator_traits<allocator_type>::destroy(ptr);
+            --elem_count;
+        }
+
+        void erase(const_iterator pos) {
+            size_type left = pos - begin();
+            size_type right = end() - pos - 1;
+
+            if (left < right) {
+                for (auto  = begin(); it != pos; ++it) {
+                    it[-1] = it[0];
+                }
+                std::allocator_traits<allocator_type>::destroy(allocator, begin().operator->());
+            } else {
+                for (auto it = end() - 1; it++ != it;) {
+                    it[0] = it[1];
+                }
+                std::allocator_traits<allocator_type>::destroy(allocator, (end() - 1).operator->());
+            }
+            --elem_count;
+        }
+
         //=================================================
         // State Mutators
         //=================================================
 
-        void reserve(const size_type n);
+        void reserve(const size_type n) {
+            if (n <= size()) {
+                return;
+            }
+
+            if (max_size() < n) {reserve(
+                throw std::length_error("aul::Circular_array::reserve() called with excessive allocation size");
+            }
+
+            Allocation new_allocation = allocate(n, allocation);
+
+            if (new_allocation.array == allocation.array) {
+                //Allocation was extended
+
+                if(is_segmented()) {
+                    auto [l, r] = second_segment();
+                    aul::uninitialized_move(l,r, new_allocation.array + new_allocation.capacity - (r - l), allocator);
+                    for (;l != r; ++l) {
+                        std::allocator_traits<allocator_type>::destroy(allocator, l);
+                    }
+                }
+            } else {
+                //Completely new allocation
+                auto [l0, r0] = first_segment();
+                auto [l1, r1] = second_sement();
+
+                pointer dest = allocation / 2 - size / 2;
+                pointer end = dest + size();
+
+                aul::uninitialized_move(l0, r0, dest, allocator);
+                aul::uninitialized_move(l1, r1, dest + (r0 - l0), allocator);
+            }
+        }
 
         //=================================================
         // State accessors
@@ -326,7 +425,9 @@ namespace aul {
         /// Destroys all elements and frees currently held allocation
         ///
         void clear() {
-            //TODO: Delete all elements
+            clear_first_segment();
+            clear_second_segment();
+
             deallocate(allocation);
         }
 
@@ -428,8 +529,19 @@ namespace aul {
             alloc.clear();
         }
 
-        void grow(const size_type n);
+        void clear_first_segment() {
+            auto [l, r] = first_segment();
+            for (;l != r; ++l) {
+                std::allocator_traits<allocator_type>::destroy(allocator, l);
+            }
+        }
 
+        void clear_second_segment() {
+            auto [l, r] = second_segment();
+            for (;l != r; ++l) {
+                std::allocator_traits<allocator_type>::destroy(allocator, l);
+            }
+        }
     };
 
 
