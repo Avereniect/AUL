@@ -59,6 +59,11 @@ namespace aul {
             friend class Slot_map;
             using key_primitive = typename std::allocator_traits<A>::size_type;
 
+            Key() = default;
+            Key(const key_primitive i, const key_primitive v):
+                index(i),
+                version(v) {}
+
             key_primitive index = std::numeric_limits<key_primitive>::max();
             key_primitive version = std::numeric_limits<key_primitive>::max();
         };
@@ -91,7 +96,7 @@ namespace aul {
 
     private:
 
-        using allocator_traits = std::allocator_traits<T>;
+        using allocator_traits = std::allocator_traits<allocator_type>;
 
         using md_allocator_type = typename std::allocator_traits<A>::template rebind_alloc<Metadata>;
         using md_allocator_traits = std::allocator_traits<md_allocator_type>;
@@ -322,7 +327,7 @@ namespace aul {
             auto md_allocator = md_allocator_type{allocator};
 
             aul::uninitialized_copy(begin, end, allocation.elements, allocator);
-            aul::uninitialized_iota(allocation.indices, allocation.indices + elem_count, 0, md_allocator);
+            aul::uninitialized_iota(allocation.metadata, allocation.metadata + elem_count, 0, md_allocator);
         }
 
         /// Replaces current contents with n copies of val.
@@ -517,7 +522,7 @@ namespace aul {
         [[nodiscard]]
         T& operator[](const key_type key) {
             size_type index = allocation.metadata[key.index].anchor;
-            return allocation.elements[index.data()];
+            return allocation.elements[index];
         }
 
         /// \param x Key mapped to desired element
@@ -530,8 +535,19 @@ namespace aul {
         }
 
         //=================================================
-        // Element mutators
+        // Element addition
         //=================================================
+
+        /// Constructs an object from a set of parameters at a specified place
+        /// Is stable.
+        ///
+        /// \tparam Args Argument types for constructor call
+        /// \param pos   Iterator to desired emplacement point
+        /// \param args  Constructor arguments for construction of new element
+        /// \return      Reference to newly constructed object
+        ///
+        template<class... Args>
+        key_type emplace(const_iterator pos, Args&& ... args);
 
         /// \param  pos Iterator to position where elements should be inserted
         /// \param  val Value to copy from to insert new element
@@ -615,47 +631,6 @@ namespace aul {
             insert(list.begin(), list.end());
         }
 
-
-        ///
-        /// \param key Valid key mapping to an element
-        ///
-        void erase(const key_type key) {
-            const size_type pos = allocation.indices[key.data()];
-            const pointer ptr = allocation.elements + pos;
-            swap_elements(ptr, std::addressof(end()[-1]));
-            pop_back();
-        }
-
-        ///
-        /// \param it Valid iterator to element to erase
-        ///
-        void erase(const_iterator it) {
-            swap_elements(std::addressof(*it), std::addressof(end()[-1]));
-            pop_back();
-        }
-
-        ///
-        /// \param val Object to copy-construct from
-        ///
-        key_type push_back(const T& val) {
-            return emplace_back(val);
-        }
-
-        ///
-        /// \param val Object to move-construct from
-        ///
-        key_type push_back(T&& val) {
-            return emplace_back(std::forward<T&&>(val));
-        }
-
-        /// Removes the last element in the container. undefined if container
-        /// is empty.
-        ///
-        void pop_back() {
-            --elem_count;
-            destroy_element(allocation.elements + elem_count);
-        }
-
         /// Constructs an object from a set of parameters at the last position
         /// in the container.
         ///
@@ -687,16 +662,50 @@ namespace aul {
             return get_key(end() - 1);
         }
 
-        /// Constructs an object from a set of parameters at a specified place
-        /// Is stable.
         ///
-        /// \tparam Args Argument types for constructor call
-        /// \param pos   Iterator to desired emplacement point
-        /// \param args  Constructor arguments for construction of new element
-        /// \return      Reference to newly constructed object
+        /// \param val Object to copy-construct from
         ///
-        template<class... Args>
-        key_type emplace(const_iterator pos, Args&& ... args);
+        key_type push_back(const T& val) {
+            return emplace_back(val);
+        }
+
+        ///
+        /// \param val Object to move-construct from
+        ///
+        key_type push_back(T&& val) {
+            return emplace_back(std::forward<T&&>(val));
+        }
+
+        //=================================================
+        // Element removal
+        //=================================================
+
+        /// Removes the last element in the container. undefined if container
+        /// is empty.
+        ///
+        void pop_back() {
+            --elem_count;
+            destroy_element(allocation.elements + elem_count);
+        }
+
+
+        ///
+        /// \param key Valid key mapping to an element
+        ///
+        void erase(const key_type key) {
+            const size_type pos = allocation.metadata[key.index].anchor;
+            const pointer ptr = allocation.elements + pos;
+            swap_elements(ptr, std::addressof(end()[-1]));
+            pop_back();
+        }
+
+        ///
+        /// \param it Valid iterator to element to erase
+        ///
+        void erase(const_iterator it) {
+            swap_elements(std::addressof(*it), std::addressof(end()[-1]));
+            pop_back();
+        }
 
         //=================================================
         // Iterator methods
@@ -934,10 +943,10 @@ namespace aul {
         key_type get_key(const_iterator it) {
             const_pointer p = it.operator->();
 
-            return key_type{
-                allocation.erase_array[p - allocation.elements],
-                allocation.indices[p - allocation.elements].version()
-            };
+            const size_type x = allocation.metadata[p - allocation.elements].anchor_index;
+            const size_type y = allocation.metadata[p - allocation.elements].anchor.version();
+
+            return key_type{x, y};
         }
 
         /// \param x Key to be checked
@@ -1004,8 +1013,8 @@ namespace aul {
         ///
         /// \param Pointer to element in element array
         [[nodiscard]]
-        Metadata& meta_data_of(const_pointer ptr) const noexcept {
-            return allocation.indices[allocation.erase_array[ptr - allocation.elements]];
+        Metadata& metadata_of(const_pointer ptr) const noexcept {
+            return allocation.metadata[allocation.metadata[ptr - allocation.elements].anchor];
         }
 
         //=================================================
@@ -1024,13 +1033,13 @@ namespace aul {
 
             //If free list terminates, assign nullptr to free_index, otherwise
             //assign the next node.
-            if (free_ptr->index == (free_ptr - allocation.meta_data)) {
+            if (free_ptr->anchor_index == (free_ptr - allocation.metadata)) {
                 free_index = nullptr;
             } else {
-                free_index = allocation.metadata + (free_ptr->index);
+                free_index = allocation.metadata + (free_ptr->anchor_index);
             }
 
-            free_ptr->index = pos;
+            free_ptr->anchor_index = pos;
 
             return free_ptr;
         }
@@ -1054,7 +1063,7 @@ namespace aul {
         void generate_default_metadata(const size_type n) {
             auto md_allocator = md_allocator_type{allocator};
             for (size_type i = 0; i < n; ++i) {
-                md_allocator_traits::construct(allocation.metadata + n, i, i);
+                md_allocator_traits::construct(md_allocator, allocation.metadata + n, i);
             }
         }
 
@@ -1108,9 +1117,8 @@ namespace aul {
         /// erase and index values.
         ///
         void swap_elements(pointer a, pointer b) noexcept {
-            std::swap(index_of(a).data(), index_of(b).data());
+            std::swap(metadata_of(a).anchor_index, metadata_of(b).anchor_index);
             std::swap(*a, *b);
-            std::swap(erase_of(a), erase_of(b));
         }
 
         //=================================================
@@ -1124,11 +1132,11 @@ namespace aul {
 
             try {
                 ret.elements = allocator_traits::allocate(allocator, n);
-                ret.indices = md_allocator_traits::allocate(md_allocator, n);
+                ret.metadata = md_allocator_traits::allocate(md_allocator, n);
                 ret.capacity = n;
             } catch (...) {
                 allocator_traits::deallocate(allocator, ret.elements, n);
-                md_allocator_traits::deallocate(md_allocator, ret.indices, n);
+                md_allocator_traits::deallocate(md_allocator, ret.metadata, n);
                 ret = {};
                 throw;
             }
@@ -1163,7 +1171,7 @@ namespace aul {
             auto md_allocator = md_allocator_type{allocator};
 
             allocator_traits::deallocate(allocator, a.elements, a.capacity);
-            md_allocator_traits::deallocate(md_allocator, a.indices, a.capacity);
+            md_allocator_traits::deallocate(md_allocator, a.metadata, a.capacity);
 
             allocation = {};
         }
