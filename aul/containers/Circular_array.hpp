@@ -5,8 +5,8 @@
 #ifndef AUL_CIRCULAR_ARRAY_HPP
 #define AUL_CIRCULAR_ARRAY_HPP
 
-#include "Algorithms.hpp"
-#include "memory/Memory.hpp"
+#include "../Algorithms.hpp"
+#include "../memory/Memory.hpp"
 
 #include <memory>
 #include <tuple>
@@ -41,8 +41,8 @@ namespace aul {
         using size_type = typename std::allocator_traits<allocator_type>::size_type;
         using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
 
-        using pointer = typename std::allocator_traits<allocator_type>::pointer;
-        using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
+        using pointer = typename std::allocator_traits<A>::pointer;
+        using const_pointer = typename std::allocator_traits<A>::const_pointer;
 
         using iterator = Iterator<false>;
         using const_iterator = Iterator<true>;
@@ -54,13 +54,47 @@ namespace aul {
         // -ctors
         //=================================================
 
-        constexpr Circular_array() = default;
+        constexpr Circular_array() noexcept(noexcept(A{}))= default;
 
-        constexpr Circular_array(const Circular_array& arr);
-        constexpr Circular_array(const Circular_array&, const allocator_type& alloc);
+        constexpr Circular_array(const Circular_array& arr):
+            allocator(std::allocator_traits<A>::select_on_container_copy_construction(arr.allocator)),
+            allocation(allocate(arr.size())),
+            elem_count(arr.elem_count) {
 
-        constexpr Circular_array(Circular_array&&);
-        constexpr Circular_array(Circular_array&&, const allocator_type& alloc);
+            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
+        }
+
+        constexpr Circular_array(const Circular_array& arr, const allocator_type& alloc):
+            allocator(alloc),
+            allocation(allocate(arr.size())),
+            elem_count(arr.elem_count) {
+
+            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
+        }
+
+        constexpr Circular_array(Circular_array&& arr) noexcept:
+            allocator(std::move(arr.allocator)),
+            allocation(std::move(allocation)),
+            elem_count(arr.elem_count),
+            head_offset(arr.head_offset) {
+
+            arr.elem_count = 0;
+            arr.head_offset = 0;
+        }
+
+        constexpr Circular_array(Circular_array&& arr, const allocator_type& alloc):
+            allocator(alloc),
+            allocation(allocator == arr.allocator ? std::move(arr.allocation) : allocate(arr.size())),
+            elem_count(arr.elem_count),
+            head_offset(allocator == arr.allocator ? arr.head_offset : 0) {
+
+            if (allocator == arr.allocator) {
+                arr.elem_count = 0;
+                arr.head_offset = 0;
+            } else {
+                aul::move(arr.begin(), arr.end(), allocation.array, allocator);
+            }
+        }
 
         constexpr Circular_array(const size_type n):
             allocator({}),
@@ -83,7 +117,7 @@ namespace aul {
             allocation(allocate(n)),
             elem_count(n) {
 
-            std::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
+            aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
         }
 
         constexpr Circular_array(const size_type n, const T& val, const allocator_type& alloc):
@@ -91,7 +125,7 @@ namespace aul {
             allocation(allocate(n)),
             elem_count(n) {
 
-            std::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
+            aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
         }
 
         constexpr Circular_array(const std::initializer_list<T>& list):
@@ -99,7 +133,7 @@ namespace aul {
             allocation(allocate(list.end() - list.begin())),
             elem_count(list.end() - list.begin()) {
 
-            aul::uninitialized_copy(allocation.array, allocation.array + size(), allocator);
+            aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
         }
 
         constexpr Circular_array(const std::initializer_list<T>& list, const allocator_type& alloc):
@@ -107,7 +141,7 @@ namespace aul {
             allocation(allocate(list.end() - list.begin())),
             elem_count(list.end() - list.begin()) {
 
-            aul::uninitialized_copy(allocation.array, allocation.array + size(), allocator);
+            aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
         }
 
         ~Circular_array() {
@@ -115,11 +149,17 @@ namespace aul {
         }
 
         //=================================================
-        // Assignment operators
+        // Assignment operators/methods
         //=================================================
 
         Circular_array& operator=(const Circular_array& rhs) {
             clear();
+
+            //TODO: Provide strong exception gaurentee
+            if constexpr (std::allocator_traits<A>::propagate_on_container_copy_assignment::value) {
+                allocator = rhs.allocator;
+            }
+
             allocation = allocate(rhs.size());
             head_offset = 0;
             elem_count = rhs.elem_count;
@@ -131,20 +171,71 @@ namespace aul {
 
             aul::uninitialized_copy(segment0.first, segment0.second, allocation.array, allocator);
             aul::uninitialized_copy(segment1.first, segment1.second, allocation.array + segment0_size, allocator);
+
+            return *this;
         }
 
-        constexpr Circular_array& operator=(Circular_array&& rhs) noexcept {
+        constexpr Circular_array& operator=(Circular_array&& rhs) noexcept(aul::no_except_move_assignable<A>::value) {
             clear();
 
-            allocator = std::move(allocator);
-            allocation = std::move(rhs.allocation);
-            head_offset = rhs.head_offset;
+            //TODO: Provide strong exception gaurentee
+            if constexpr (std::allocator_traits<A>::propagate_on_container_move_assignment::value) {
+                allocator = std::move(allocator);
+                allocation = std::move(rhs.allocation);
+                head_offset = rhs.head_offset;
+            } else {
+                allocation = allocate(rhs.size());
+                head_offset = 0;
+                aul::uninitialized_move(rhs.begin(), rhs.end(), allocation.array, allocator);
+                rhs.deallocate(rhs.allocation);
+            }
             elem_count = rhs.elem_count;
 
             rhs.elem_count = 0;
             rhs.head_offset = 0;
 
             return *this;
+        }
+
+        constexpr Circular_array& operator=(std::initializer_list<T> list) {
+            //TODO: Provide strong exception gaurentee
+            clear();
+
+            elem_count = list.end() - list.begin();
+            allocation = allocate(elem_count);
+            head_offset = 0;
+
+            aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
+
+            return *this;
+        }
+
+        template<class Iter>
+        void assign(Iter from, Iter to) {
+            //TODO: Provide strong exception gaurentee
+            clear();
+
+            elem_count = to - from;
+            allocation = allocate(elem_count);
+            head_offset = 0;
+
+            aul::uninitialized_copy(from, to, allocation.array, allocator);
+        }
+
+        void assign(const std::initializer_list<T>& list) {
+            assign(list.begin(), list.end());
+        }
+
+        void assign(const size_type n, const T& val) {
+            //TODO: Provide strong exception gaurentee
+
+            clear();
+
+            elem_count = n;
+            allocation = allocate(n);
+            head_offset = 0;
+
+            aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
         }
 
         //=================================================
@@ -155,8 +246,8 @@ namespace aul {
             if (empty()) {
                 return iterator{};
             } else {
-                return iterator {
-                    head_offset - capacity(),
+                return iterator{
+                    static_cast<difference_type>(head_offset - capacity()),
                     allocation.array,
                     allocation.array + capacity()
                 };
@@ -168,7 +259,7 @@ namespace aul {
                 return const_iterator{};
             } else {
                 return const_iterator {
-                    head_offset - capacity(),
+                    static_cast<difference_type>(head_offset - capacity())  ,
                     allocation.array,
                     allocation.array + capacity()
                 };
@@ -184,12 +275,56 @@ namespace aul {
                 return iterator{};
             } else {
                 return iterator{
-                    head_offset - capacity() + size(),
+                    static_cast<difference_type>(head_offset - capacity() + size()),
                     allocation.array,
                     allocation.array + capacity()
                 };
             }
         }
+
+        const_iterator end() const {
+            if (empty()) {
+                return const_iterator{};
+            }
+            else {
+                return const_iterator{
+                    static_cast<difference_type>(head_offset - capacity() + size()),
+                    allocation.array,
+                    allocation.array + capacity()
+                };
+            }
+        }
+
+        const_iterator cend() const {
+            return const_cast<const Circular_array&>(*this).end();
+        }
+
+
+
+        reverse_iterator rbegin() {
+            return reverse_iterator{end()};
+        }
+
+        const_reverse_iterator rbegin() const {
+            return const_reverse_iterator{end()};
+        }
+
+        const_reverse_iterator crbegin() const {
+            return const_cast<const Circular_array&>(*this).rbegin();
+        }
+
+        reverse_iterator rend() {
+            return reverse_iterator{begin()};
+        }
+
+        const_reverse_iterator rend() const {
+            return const_reverse_iterator{begin()};
+        }
+
+        const_reverse_iterator crend() const {
+            return const_cast<const Circular_array&>(*this).rend();
+        }
+
 
         //=================================================
         // Element accessors
@@ -220,14 +355,14 @@ namespace aul {
         }
 
         T& at(const size_type i) {
-            if (size() < i) {
+            if (size() <= i) {
                 throw std::out_of_range("Circular_array::at() called with invalid index");
             }
             return *index_to_ptr(i);
         }
 
         const T& at(const size_type i) const {
-            if (size() < i) {
+            if (size() <= i) {
                 throw std::out_of_range("Circular_array::at() called with invalid index");
             }
             return *index_to_ptr(i);
@@ -237,27 +372,110 @@ namespace aul {
         // Element addition
         //=================================================
 
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// \tparam Args
+        /// \param pos
+        /// \param args
+        template<class...Args>
+        iterator emplace(const_iterator pos, Args...args) {
+            size_type left_count = pos - begin();
+            size_type right_count =  end() - pos;
+
+            //Assuming space capacity is present
+
+            //Move other elements out of the way
+            if (left_count < right_count) {
+                if (left_count) {
+                    std::allocator_traits<A>::construct(allocator, (begin() - 1).operator->(), std::move(*begin()));
+                    for (auto it = begin(); it++ != pos;) {
+                        it[0] = std::move(it[1]);
+                    }
+                }
+            } else {
+                if (right_count) {
+                    std::allocator_traits<A>::construct(allocator, end().operator->(), std::move(end()[-1]));
+                    for (auto it = end() - 1; it-- != pos;) {
+                        it[-1] = std::move(it[0]);
+                    }
+                }
+            }
+
+            //Construct new element
+            auto ptr = pos.operator->();
+            std::allocator_traits<A>::destroy(allocator, ptr);
+            try {
+                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
+            } catch(...) {
+
+                //Move elements back
+                if (left_count < right_count) {
+                    if (left_count) {
+                        std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[-1]));
+                        const iterator beg = begin();
+                        for (iterator it = pos - 1; it-- != beg;) {
+                            it[0] = std::move(it[-1]);
+                        }
+                    }
+                } else {
+                    if (right_count) {
+                        std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[1]));
+                        const iterator e = end();
+                        for (auto it = pos + 1; pos++ != e;) {
+                            it[0] = std::move(it[0]);
+                        }
+                    }
+                }
+
+                throw;
+            }
+
+            elem_count++;
+            return pos;
+        }
+
+        iterator insert(const_iterator pos, const T& val) {
+            return emplace(pos, val);
+        }
+
+        iterator insert(const_iterator pos, T&& val) {
+            return emplace(pos, val);
+        }
+
+        iterator insert(const_iterator pos, const size_type n, const T& val) {
+
+        }
+
+        template<class Iter>
+        iterator insert(const_iterator pos, Iter from, Iter to);
+
+        iterator insert(const_iterator pos, const std::initializer_list<value_type>& list);
+
         template<class...Args>
         void emplace_front(Args...args) {
-            if (max_size() < elem_count + 1) {
-                throw std::length_error("aul::Circular_array grew too big");
-            }
+            if (size() + 1 <= capacity()) {
+                pointer ptr = (begin() - 1).operator->();
+                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
 
-            if (capacity() <= size() + 1) {
-                Allocation allocation;
-
+                head_offset = ptr - allocation.array;
             } else {
-                //Move elements
-                if (is_segmented() &&) {
+                size_type new_capacity = grow_size(size() + 1);
+                Allocation new_allocation = allocate(new_capacity);
 
-                } else {
+                difference_type new_offset = new_allocation.capacity - size() - 1;
+                pointer ptr = new_allocation.array + new_offset;
 
-                }
-                //Construct new element
+                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
 
+                aul::uninitialized_move(begin(), end(), ptr + 1, allocator);
+
+                head_offset = new_offset;
+
+                deallocate(allocation);
+                allocation = std::move(new_allocation);
             }
-
-            ++elem_count;
+            elem_count++;
         }
 
         void push_front(const T& val) {
@@ -265,38 +483,52 @@ namespace aul {
         }
 
         void push_front(T&& val) {
-            emplace_front(std::forward(val));
+            emplace_front(std::forward<T&&>(val));
         }
 
         template<class...Args>
-        void emplace_back(Args...args);
+        void emplace_back(Args...args) {
+            if (size() + 1 <= capacity()) {
+                pointer ptr = end().operator->();
+
+                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
+            } else {
+                size_type new_capacity = grow_size(size() + 1);
+                Allocation new_allocation = allocate(new_capacity);
+
+                std::allocator_traits<A>::construct(allocator, new_allocation.array + size(), std::forward<Args>(args)...);
+
+                auto x = begin();
+                auto y = end();
+                aul::uninitialized_move(begin(), end(), new_allocation.array, allocator);
+
+                head_offset = 0;
+
+                deallocate(allocation);
+                allocation = std::move(new_allocation);
+            }
+            elem_count++;
+        }
 
         void push_back(const T& val) {
             emplace_back(val);
         }
 
         void push_back(T&& val) {
-            emplace_back(std::forward(val));
-        }
-
-        template<class...Args>
-        void emplace(const_iterator it, Args...args);
-
-        void insert(const_iterator it, const T& val) {
-            emplace(it, val);
-        }
-
-        void insert(const_iterator it, T&& val) {
-            emplace(it, std::forward<T&&>(val));
+            emplace_back(std::forward<T&&>(val));
         }
 
         //=================================================
         // Element removal
         //=================================================
 
+        /// 
+        /// Removes the first element in the container. Undefined behavior if
+        /// container is empty.
+        ///
         void pop_front() {
             pointer ptr = begin().operator->();
-            std::allocator_traits<allocator_type>::destroy(ptr);
+            std::allocator_traits<A>::destroy(allocator, ptr);
 
             ++head_offset;
             if (head_offset == capacity()) {
@@ -306,18 +538,28 @@ namespace aul {
             --elem_count;
         }
 
+        /// 
+        /// Removes the last element in the container. Undefined behavior if
+        /// container is empty.
+        ///
         void pop_back() {
             pointer ptr = (end() - 1).operator->();
-            std::allocator_traits<allocator_type>::destroy(ptr);
+            std::allocator_traits<A>::destroy(allocator, ptr);
             --elem_count;
         }
 
+
+        /// 
+        /// Undefined behavior if pos does not point to an element
+        ///
+        /// \param pos Iterator to element to remove. 
+        ///
         void erase(const_iterator pos) {
             size_type left = pos - begin();
-            size_type right = end() - pos - 1;
+            size_type right = cend() - pos - 1;
 
             if (left < right) {
-                for (auto  = begin(); it != pos; ++it) {
+                for (auto it = begin(); static_cast<const_iterator>(it) != pos; ++it) {
                     it[-1] = it[0];
                 }
                 std::allocator_traits<allocator_type>::destroy(allocator, begin().operator->());
@@ -330,6 +572,13 @@ namespace aul {
             --elem_count;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        void erase(const_iterator from, const_iterator to);
+
         //=================================================
         // State Mutators
         //=================================================
@@ -339,7 +588,7 @@ namespace aul {
                 return;
             }
 
-            if (max_size() < n) {reserve(
+            if (max_size() < n) {
                 throw std::length_error("aul::Circular_array::reserve() called with excessive allocation size");
             }
 
@@ -358,14 +607,16 @@ namespace aul {
             } else {
                 //Completely new allocation
                 auto [l0, r0] = first_segment();
-                auto [l1, r1] = second_sement();
+                auto [l1, r1] = second_segment();
 
-                pointer dest = allocation / 2 - size / 2;
+                pointer dest = new_allocation.array + capacity() / 2 - size() / 2;
                 pointer end = dest + size();
 
                 aul::uninitialized_move(l0, r0, dest, allocator);
                 aul::uninitialized_move(l1, r1, dest + (r0 - l0), allocator);
             }
+
+            allocation = std::move(new_allocation);
         }
 
         //=================================================
@@ -404,14 +655,15 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::tuple<pointer, size_type, pointer, size_type> data() {
+        std::tuple<pointer, pointer, pointer, pointer> data() {
             const auto segment0 = first_segment();
             const auto segment1 = second_segment();
             return {segment0.first, segment0.second, segment1.first, segment1.second};
         }
 
         [[nodiscard]]
-        std::tuple<const_pointer, size_type, const_pointer, size_type> data() const {
+        std::tuple<const_pointer, const_pointer, const_pointer, const_pointer>
+        data() const {
             const auto segment0 = first_segment();
             const auto segment1 = second_segment();
             return {segment0.first, segment0.second, segment1.first, segment1.second};
@@ -429,6 +681,8 @@ namespace aul {
             clear_second_segment();
 
             deallocate(allocation);
+            elem_count = 0;
+            head_offset = 0;
         }
 
     private:
@@ -441,7 +695,7 @@ namespace aul {
 
         allocator_type allocator{};
 
-        size_type head_offset{};
+        difference_type head_offset{};
 
         size_type elem_count{};
 
@@ -451,10 +705,10 @@ namespace aul {
 
         [[nodiscard]]
         pointer index_to_ptr(const size_type n) const {
-            if (head_offset + size() < capacity()) {
+            if (head_offset + size() <= capacity()) {
                 return allocation.array + n;
             } else {
-                return allocation.array + size() - capacity() + head_offset();
+                return allocation.array + size() - capacity() + head_offset;
             }
         }
 
@@ -468,7 +722,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::pair<pointer, pointer> first_segment() const {
+        std::pair<pointer, pointer> first_segment() {
             if (is_segmented()) {
                 return {
                     allocation.array + head_offset,
@@ -477,7 +731,23 @@ namespace aul {
             } else {
                 return {
                     allocation.array + head_offset,
-                    head_offset + size()
+                    allocation.array + head_offset + size()
+                };
+            };
+        }
+
+        [[nodiscard]]
+        std::pair<const_pointer, const_pointer> first_segment() const {
+            if (is_segmented()) {
+                return {
+                    allocation.array + head_offset,
+                    allocation.array + capacity()
+                };
+            }
+            else {
+                return {
+                    allocation.array + head_offset,
+                    allocation.array + head_offset + size()
                 };
             };
         }
@@ -491,6 +761,19 @@ namespace aul {
                 };
             } else {
                 return {pointer{}, pointer{}};
+            }
+        }
+
+        [[nodiscard]]
+        std::pair<const_pointer, const_pointer> second_segment() const {
+            if (is_segmented()) {
+                return {
+                    allocation.array,
+                    allocation.array + head_offset - capacity() + size()
+                };
+            }
+            else {
+                return { pointer{}, pointer{} };
             }
         }
 
@@ -525,8 +808,8 @@ namespace aul {
         }
 
         void deallocate(Allocation& alloc) {
-            std::allocator_traits<allocator_type>::deallocate(allocator, alloc.array);
-            alloc.clear();
+            std::allocator_traits<allocator_type>::deallocate(allocator, alloc.array, alloc.capacity);
+            alloc = {};
         }
 
         void clear_first_segment() {
@@ -542,6 +825,18 @@ namespace aul {
                 std::allocator_traits<allocator_type>::destroy(allocator, l);
             }
         }
+
+        ///
+        /// \param n Minimum number of elements to allocate storage for
+        /// \return Size of new allocation
+        size_type grow_size(size_type n) {
+            if (n < max_size() / 2) {
+                return std::max(2 * capacity(), n);
+            } else {
+                return max_size();
+            }
+        }
+
     };
 
 
@@ -556,19 +851,19 @@ namespace aul {
         //=================================================
 
         using value_type = typename Circular_array<T, A>::value_type;
-        using differnce_type = typename Circular_array<T, A>::difference_type;
+        using difference_type = typename Circular_array<T, A>::difference_type;
 
-        using reference  = std::conditional<is_const,
+        using reference  = std::conditional_t<is_const,
             typename Circular_array<T, A>::const_reference,
             typename Circular_array<T, A>::reference
         >;
 
-        using pointer  = std::conditional<is_const,
+        using pointer  = std::conditional_t<is_const,
             typename Circular_array<T, A>::const_pointer,
             typename Circular_array<T, A>::pointer
         >;
 
-        using iterator_tag = std::random_access_iterator_tag;
+        using iterator_category = std::random_access_iterator_tag;
 
         //=================================================
         // -ctors
@@ -576,25 +871,27 @@ namespace aul {
 
         constexpr Iterator() = default;
 
-        constexpr Iterator(const difference_type offset, const pointer a, const pointer b):
+        constexpr Iterator(const difference_type offset, pointer a, pointer b):
             offset(offset),
             begin(a),
             end(b) {}
 
         constexpr Iterator(const Iterator& it) = default;
 
-        constexpr Iterator(Iterator&& it):
+        constexpr Iterator(Iterator&& it) noexcept:
             offset(it.offset),
             begin(it.begin),
             end(it.end) {
 
-            it = {};
+            it.offset = 0;
+            it.begin = nullptr;
+            it.end = nullptr;
         }
 
         ~Iterator() = default;
 
         //=================================================
-        // Assignment operators
+        // Assignment operators/methods
         //=================================================
 
         [[nodiscard]]
@@ -622,32 +919,32 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        constexpr bool operator==(const Iterator it) {
+        constexpr bool operator==(const Iterator it) const {
             return (offset == it.offset) && (begin == it.begin) && (end == it.end);
         }
 
         [[nodiscard]]
-        constexpr bool operator!=(const Iterator it) {
+        constexpr bool operator!=(const Iterator it) const {
             return (offset != it.offset) || (begin != it.begin) || (end != it.end);
         }
 
         [[nodiscard]]
-        constexpr bool operator<(const Iterator it) {
+        constexpr bool operator<(const Iterator it) const {
             return offset < it.offset;
         }
 
         [[nodiscard]]
-        constexpr bool operator>(const Iterator it) {
+        constexpr bool operator>(const Iterator it) const {
             return offset > it.offset;
         }
 
         [[nodiscard]]
-        constexpr bool operator<=(const Iterator it) {
+        constexpr bool operator<=(const Iterator it) const {
             return offset <= it.offset;
         }
 
         [[nodiscard]]
-        constexpr bool operator>=(const Iterator it) {
+        constexpr bool operator>=(const Iterator it) const {
             return offset >= it.offset;
         }
 
@@ -655,26 +952,22 @@ namespace aul {
         // Increment/Decrement operators
         //=================================================
 
-        [[nodiscard]]
         constexpr Iterator operator++() {
             ++offset;
-            return;
+            return *this;
         }
 
-        [[nodiscard]]
         constexpr Iterator operator++(int) {
             auto temp = *this;
             ++offset;
             return temp;
         }
 
-        [[nodiscard]]
         constexpr Iterator operator--() {
             --offset;
             return *this;
         }
 
-        [[nodiscard]]
         constexpr Iterator operator--(int) {
             auto temp = *this;
             --offset;
@@ -686,14 +979,14 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        constexpr Iterator operator+(const difference_type x) {
+        constexpr Iterator operator+(const difference_type x) const {
             auto temp = *this;
             temp.offset += x;
             return temp;
         }
 
         [[nodiscard]]
-        constexpr Iterator operator-(const difference_type x) {
+        constexpr Iterator operator-(const difference_type x) const {
              auto temp = *this;
              temp.offset -= x;
              return temp;
@@ -706,7 +999,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        constexpr Iterator operator-(const Iterator it) {
+        constexpr difference_type operator-(const Iterator it) const {
             return offset - it.offset;
         }
 
@@ -731,18 +1024,18 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        constexpr reference operator*() {
+        constexpr reference operator*() const {
             return *operator->();
         }
 
         [[nodiscard]]
-        constexpr reference operator[](const difference_type x) {
+        constexpr reference operator[](const difference_type x) const {
             return *(*this + x);
         }
 
         [[nodiscard]]
-        constexpr pointer operator->() {
-            return (0 < offset) ? begin + offset : end - offset;
+        constexpr pointer operator->() const {
+            return (offset < 0 ? end  : begin) + offset;
         }
 
         //=================================================
@@ -750,14 +1043,14 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        operator Iterator<true>() {
+        operator Iterator<true>() const {
             return {offset, begin, end};
         }
 
     private:
         difference_type offset{};
-        Circular_array::pointer begin{};
-        Circular_array::pointer end{};
+        pointer begin{};
+        pointer end{};
     };
 
 
@@ -789,11 +1082,12 @@ namespace aul {
 
         Allocation& operator=(const Allocation&) = delete;
 
-        constexpr Allocation& operator=(Allocation&& rhs) {
+        constexpr Allocation& operator=(Allocation&& rhs) noexcept {
             array = rhs.array;
-            capacity = rhs.array;
+            capacity = rhs.capacity;
 
-            rhs = {};
+            rhs.array = nullptr;
+            rhs.capacity = 0;
 
             return {*this};
         }
