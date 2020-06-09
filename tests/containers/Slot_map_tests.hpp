@@ -24,6 +24,7 @@ namespace aul::tests {
     };
 
     class Slot_map_list_f2 : public ::testing::Test {
+
         virtual void SetUp() override {
             map0 = {0, 1, 2, 3};
             map1 = {0, 1, 2, 3};
@@ -34,7 +35,7 @@ namespace aul::tests {
     };
 
     //=====================================================
-    // Constructor tests
+    // -ctors
     //=====================================================
 
     TEST(Slot_map, Default_constructor) {
@@ -45,6 +46,8 @@ namespace aul::tests {
         EXPECT_TRUE(map.empty());
         EXPECT_EQ(map.begin(), map.end());
         EXPECT_EQ(map.end() - map.begin(), 0);
+        EXPECT_EQ(map.rbegin(), map.rend());
+        EXPECT_EQ(map.rend() - map.rbegin(), 0);
     }
 
     TEST(Slot_map, Allocator_extended_default_contructor) {
@@ -90,6 +93,7 @@ namespace aul::tests {
         EXPECT_FALSE(map.empty());
         EXPECT_EQ(map.size(), SIZE);
         EXPECT_GE(map.capacity(), SIZE);
+        EXPECT_EQ(map.end() - map.begin(), 56);
         EXPECT_TRUE(std::all_of(map.begin(), map.end(), predicate));
     }
 
@@ -168,19 +172,19 @@ namespace aul::tests {
         map.reserve(4);
         map.reserve(8);
         map.reserve(16);
-        map.reserve(32);
+        map.reserve(24);
+        map.reserve(8);
+        map.reserve(48);
         map.reserve(64);
-        map.reserve(128);
         map.reserve(256);
-        map.reserve(512);
-        map.reserve(1024);
-        map.reserve(2048);
+        map.reserve(0);
 
         EXPECT_TRUE(map.empty());
         EXPECT_EQ(map.size(), 0u);
-        EXPECT_GE(map.capacity(), 32u);
+        EXPECT_GE(map.capacity(), 512u);
     }
 
+    /*
     TEST(Slot_map, push_back) {
         aul::Slot_map<int> map;
 
@@ -292,7 +296,7 @@ namespace aul::tests {
         map.erase(key2);
         map.erase(key1);
         map.erase(key0);
-    }
+    }*/
 
 
 
