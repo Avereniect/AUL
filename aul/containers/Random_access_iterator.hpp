@@ -23,15 +23,15 @@ namespace aul {
         using value_type = typename Alloc_types::value_type;
         using difference_type = typename Alloc_types::difference_type;
 
-        using pointer = typename std::conditional<is_const,
+        using pointer = typename std::conditional_t<is_const,
             typename Alloc_types::const_pointer,
             typename Alloc_types::pointer
-        >::type;
+        >;
 
-        using reference = typename std::conditional<is_const,
+        using reference = typename std::conditional_t<is_const,
             const value_type&,
             value_type&
-        >::type;
+        >;
 
         using iterator_category = std::random_access_iterator_tag;
 
@@ -82,22 +82,22 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        friend Random_access_iterator operator+(const Random_access_iterator itr, const difference_type x) noexcept {
+        Random_access_iterator operator+(const difference_type x) const {
+            return Random_access_iterator{p + x};
+        }
+
+        [[nodiscard]]
+        friend Random_access_iterator operator+(const difference_type x, const Random_access_iterator itr) {
             return Random_access_iterator{itr.p + x};
         }
 
         [[nodiscard]]
-        friend Random_access_iterator operator+(const difference_type x, const Random_access_iterator itr) noexcept {
-            return Random_access_iterator{itr.p + x};
+        Random_access_iterator operator-(const difference_type x) const {
+            return Random_access_iterator{p - x};
         }
 
         [[nodiscard]]
-        friend Random_access_iterator operator-(const Random_access_iterator itr, const difference_type x) noexcept {
-            return Random_access_iterator{itr.p - x};
-        }
-
-        [[nodiscard]]
-        difference_type operator-(const Random_access_iterator rhs) noexcept {
+        difference_type operator-(const Random_access_iterator rhs) const {
             return p - rhs.p;
         }
 
@@ -113,32 +113,32 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        friend  bool operator==(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
-            return lhs.p == rhs.p;
+        bool operator==(const Random_access_iterator rhs) const {
+            return p == rhs.p;
         }
 
         [[nodiscard]]
-        friend bool operator!=(const Random_access_iterator lhs, const Random_access_iterator rhs) noexcept {
-            return lhs.p != rhs.p;
+        bool operator!=(const Random_access_iterator rhs) const {
+            return p != rhs.p;
         }
 
         [[nodiscard]]
-        bool operator<=(const Random_access_iterator rhs) noexcept {
+        bool operator<=(const Random_access_iterator rhs) const {
             return p <= rhs.p;
         }
 
         [[nodiscard]]
-        bool operator>=(const Random_access_iterator rhs) noexcept {
+        bool operator>=(const Random_access_iterator rhs) const {
             return p >= rhs.p;
         }
 
         [[nodiscard]]
-        bool operator<(const Random_access_iterator rhs) noexcept {
+        bool operator<(const Random_access_iterator rhs) const {
             return p < rhs.p;
         }
 
         [[nodiscard]]
-        bool operator>(const Random_access_iterator rhs) noexcept {
+        bool operator>(const Random_access_iterator rhs) const {
             return p > rhs.p;
         }
 
@@ -173,17 +173,17 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        reference operator*() {
+        reference operator*() const {
             return *p;
         }
 
         [[nodiscard]]
-        reference operator[](const difference_type x) noexcept {
+        reference operator[](const difference_type x) const {
             return p[x];
         }
 
         [[nodiscard]]
-        pointer operator->() const noexcept {
+        pointer operator->() const {
             return p;
         }
 
