@@ -12,22 +12,6 @@ namespace aul {
     // Interpolation functions
     //=====================================================
 
-    // TODO: C++ 20 Remove
-    template<typename T, typename U>
-    U constant_interpolation(const T fac, const U a, const U b) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        return (fac < 1) ? a : b;
-    }
-
-    /// TODO: C++ 20 Remove
-    template<typename T, typename U>
-    U linear_interpolation(T fac, U a, U b) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        return static_cast<U>(a + fac * (b - a));
-    }
-
     template<typename T, typename U>
     U smooth_step(T fac, U a, U b) {
         static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
@@ -94,37 +78,33 @@ namespace aul {
 
         return std::pow(dist, 1.0 / p);
     }
+    
+    template<class T, class U = float>
+    constexpr U normalize_int(const T x) {
+        static_assert(std::is_integral_v<T>);
+        static_assert(std::is_floating_point_v<U>);
 
+        constexpr U temp = std::numeric_limits<T>::max();
+        return x / static_cast<U>(temp);
+    }
 
     /*
     ///
-    /// Computes binomial coefficients
+    /// http://burtleburtle.net/bob/c/lookup3.c
+    /// https://github.com/imageworks/OpenShadingLanguage/blob/ffc5303dcfd63cf395d3a1b6fbf6ca3894b44d5e/src/include/OSL/oslnoise.h
     ///
-    /// \tparam T Integral type
-    /// \param n
-    /// \param k
-    /// \return
-    template<typename T>
-    [[nodiscard]]
-    constexpr T choose(const T n, const T k) {
-        if (k < 0 || n < k) {
-            return T{};
+    template<class T>
+    constexpr std::uint32_t byte_hash32(const T& data) {
+        const std::byte* ptr = reinterpret_cast<const std::byte*>(std::addressof(data));
+        uint32_t a, b, c;
+        a = b = c = 0xdeadbeef + sizeof(data) + 17;
+
+        while () {
+
         }
-
-        if (k == 0 || k == n) {
-            return 1;
-        }
-
-
-
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr T permute(const T n, const T k) {
-
     }
     */
+
 }
 
 #endif
