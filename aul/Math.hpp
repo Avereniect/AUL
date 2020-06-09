@@ -85,7 +85,7 @@ namespace aul {
         static_assert(std::is_floating_point_v<U>);
 
         constexpr U temp = std::numeric_limits<T>::max();
-        return x / static_cast<U>(temp);
+        return U{x} / static_cast<U>(temp);
     }
 
     /*
