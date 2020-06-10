@@ -121,7 +121,7 @@ namespace aul {
         };
 
         const char* ptr = reinterpret_cast<const char*>(data);
-        uint32_t a = 0xdeadbeef + n + 17;
+        uint32_t a = 0xdeadbeef + n + 13;
         uint32_t b = a;
         uint32_t c = a;
         uint32_t length = n;
