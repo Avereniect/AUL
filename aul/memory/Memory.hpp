@@ -279,11 +279,11 @@ namespace aul {
     };
 
     template<class A>
-    struct is_noexcept_movable {
-        constexpr bool value =
-                std::allocator_traits<A>::propagate_on_container_move_assignment::value ||
-                std::allocator_traits<A>::is_always_equal::value
-    };
+    struct is_noexcept_movable : public std::bool_constant<
+            bool,
+            std::allocator_traits<A>::propagate_on_container_move_assignment::value ||
+            std::allocator_traits<A>::is_always_equal::value
+    {};
 
     template<class A>
     inline constexpr bool is_noexcept_movable_v = is_noexcept_movable<A>::value;
