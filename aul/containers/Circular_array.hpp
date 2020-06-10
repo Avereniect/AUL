@@ -54,8 +54,15 @@ namespace aul {
         // -ctors
         //=================================================
 
+        ///
+        /// Default constructor
+        /// Constructs container holding no elements
+        ///
         constexpr Circular_array() noexcept(noexcept(A{}))= default;
 
+        /// Copy constructor
+        /// \param arr Source object to copy from
+        ///
         constexpr Circular_array(const Circular_array& arr):
             allocator(std::allocator_traits<A>::select_on_container_copy_construction(arr.allocator)),
             allocation(allocate(arr.size())),
@@ -64,6 +71,9 @@ namespace aul {
             aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
         }
 
+        /// Allocator extended copy constructor
+        /// \param arr   Source object to copy from
+        /// \param alloc Allocator copy should use
         constexpr Circular_array(const Circular_array& arr, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocate(arr.size())),
@@ -72,6 +82,9 @@ namespace aul {
             aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
         }
 
+        ///
+        /// Move constructor
+        /// \param arr T Object to move resources from
         constexpr Circular_array(Circular_array&& arr) noexcept:
             allocator(std::move(arr.allocator)),
             allocation(std::move(allocation)),
@@ -82,6 +95,9 @@ namespace aul {
             arr.head_offset = 0;
         }
 
+        /// Allocator extended move constructor
+        /// \param arr   Object to move resources from
+        /// \param alloc Allocator container should copy
         constexpr Circular_array(Circular_array&& arr, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocator == arr.allocator ? std::move(arr.allocation) : allocate(arr.size())),
@@ -96,6 +112,9 @@ namespace aul {
             }
         }
 
+        ///
+        /// \param n Number of elements to default construct
+        ///
         constexpr Circular_array(const size_type n):
             allocator({}),
             allocation(allocate(n)),
@@ -104,6 +123,9 @@ namespace aul {
             aul::default_construct(allocation.array, allocation.array + n, allocator);
         }
 
+        ///
+        /// \param n     Number of elements to default constructor
+        /// \param alloc Allocator containers should copy
         constexpr Circular_array(const size_type n, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocate(n)),
@@ -112,6 +134,9 @@ namespace aul {
             aul::default_construct(allocation.array, allocation.array + n, allocator);
         }
 
+        ///
+        /// \param n   Number of elements to construct
+        /// \param val Object elements should copy from
         constexpr Circular_array(const size_type n, const T& val):
             allocator({}),
             allocation(allocate(n)),
@@ -120,6 +145,10 @@ namespace aul {
             aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
         }
 
+        ///
+        /// \param n     Number of elements to construct
+        /// \param val   Object elements should copy from
+        /// \param alloc Allocator container should use
         constexpr Circular_array(const size_type n, const T& val, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocate(n)),
@@ -128,6 +157,9 @@ namespace aul {
             aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
         }
 
+        ///
+        /// \param list List to copy elements from
+        ///
         constexpr Circular_array(const std::initializer_list<T>& list):
             allocator({}),
             allocation(allocate(list.end() - list.begin())),
@@ -136,6 +168,9 @@ namespace aul {
             aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
         }
 
+        ///
+        /// \param list  List to copy elements from
+        /// \param alloc Allocator container should use
         constexpr Circular_array(const std::initializer_list<T>& list, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocate(list.end() - list.begin())),
@@ -144,6 +179,9 @@ namespace aul {
             aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
         }
 
+        ///
+        /// Destructor
+        ///
         ~Circular_array() {
             clear();
         }
@@ -152,7 +190,10 @@ namespace aul {
         // Assignment operators/methods
         //=================================================
 
-        Circular_array& operator=(const Circular_array& rhs) {
+        /// Copy assignment operator
+        /// \param rhs Object to copy resources from
+        /// \return *this
+        constexpr Circular_array& operator=(const Circular_array& rhs) {
             clear();
 
             //TODO: Provide strong exception gaurentee
@@ -175,8 +216,13 @@ namespace aul {
             return *this;
         }
 
+        /// Move assignment operator
+        /// \param rhs Object to move resources from
+        /// \return *this
         constexpr Circular_array& operator=(Circular_array&& rhs) noexcept(aul::no_except_move_assignable<A>::value) {
             clear();
+
+            aul:
 
             //TODO: Provide strong exception gaurentee
             if constexpr (std::allocator_traits<A>::propagate_on_container_move_assignment::value) {
@@ -197,6 +243,9 @@ namespace aul {
             return *this;
         }
 
+        ///
+        /// \param list List to copy elements from
+        /// \return *this
         constexpr Circular_array& operator=(std::initializer_list<T> list) {
             //TODO: Provide strong exception gaurentee
             clear();
@@ -210,6 +259,10 @@ namespace aul {
             return *this;
         }
 
+        ///
+        /// \tparam Iter Forward iterator type
+        /// \param from Iterator to begining of range
+        /// \param to   Iterator to end of range
         template<class Iter>
         void assign(Iter from, Iter to) {
             //TODO: Provide strong exception gaurentee
@@ -242,7 +295,9 @@ namespace aul {
         // Iterator methods
         //=================================================
 
-        iterator begin() {
+        ///
+        /// \return
+        constexpr iterator begin() {
             if (empty()) {
                 return iterator{};
             } else {
@@ -254,7 +309,7 @@ namespace aul {
             }
         }
 
-        const_iterator begin() const {
+        constexpr const_iterator begin() const {
             if (empty()) {
                 return const_iterator{};
             } else {
@@ -266,11 +321,11 @@ namespace aul {
             }
         }
 
-        const_iterator cbegin() const {
+        constexpr const_iterator cbegin() const {
             return const_cast<const Circular_array&>(*this).begin();
         }
 
-        iterator end() {
+        constexpr iterator end() {
             if (empty()) {
                 return iterator{};
             } else {
@@ -282,7 +337,7 @@ namespace aul {
             }
         }
 
-        const_iterator end() const {
+        constexpr const_iterator end() const {
             if (empty()) {
                 return const_iterator{};
             }
@@ -295,33 +350,33 @@ namespace aul {
             }
         }
 
-        const_iterator cend() const {
+        constexpr const_iterator cend() const {
             return const_cast<const Circular_array&>(*this).end();
         }
 
 
 
-        reverse_iterator rbegin() {
+        constexpr reverse_iterator rbegin() {
             return reverse_iterator{end()};
         }
 
-        const_reverse_iterator rbegin() const {
+        constexpr const_reverse_iterator rbegin() const {
             return const_reverse_iterator{end()};
         }
 
-        const_reverse_iterator crbegin() const {
+        constexpr const_reverse_iterator crbegin() const {
             return const_cast<const Circular_array&>(*this).rbegin();
         }
 
-        reverse_iterator rend() {
+        constexpr reverse_iterator rend() {
             return reverse_iterator{begin()};
         }
 
-        const_reverse_iterator rend() const {
+        constexpr const_reverse_iterator rend() const {
             return const_reverse_iterator{begin()};
         }
 
-        const_reverse_iterator crend() const {
+        constexpr const_reverse_iterator crend() const {
             return const_cast<const Circular_array&>(*this).rend();
         }
 
@@ -330,38 +385,38 @@ namespace aul {
         // Element accessors
         //=================================================
 
-        T& front() {
+        constexpr T& front() {
             return allocation.array[head_offset];
         }
 
-        const T& front() const {
+        constexpr const T& front() const {
             return allocation.array[head_offset];
         }
 
-        T& back() {
+        constexpr T& back() {
             return *index_to_ptr(elem_count);
         }
 
-        const T& back() const {
+        constexpr const T& back() const {
             return *index_to_ptr(elem_count);
         }
 
-        T& operator[](const size_type i) {
+        constexpr T& operator[](const size_type i) {
             return *index_to_ptr(i);
         }
 
-        const T& operator[](const size_type i) const {
+        constexpr const T& operator[](const size_type i) const {
             return *index_to_ptr(i);
         }
 
-        T& at(const size_type i) {
+        constexpr T& at(const size_type i) {
             if (size() <= i) {
                 throw std::out_of_range("Circular_array::at() called with invalid index");
             }
             return *index_to_ptr(i);
         }
 
-        const T& at(const size_type i) const {
+        constexpr const T& at(const size_type i) const {
             if (size() <= i) {
                 throw std::out_of_range("Circular_array::at() called with invalid index");
             }
@@ -662,8 +717,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::tuple<const_pointer, const_pointer, const_pointer, const_pointer>
-        data() const {
+        std::tuple<const_pointer, const_pointer, const_pointer, const_pointer> data() const {
             const auto segment0 = first_segment();
             const auto segment1 = second_segment();
             return {segment0.first, segment0.second, segment1.first, segment1.second};

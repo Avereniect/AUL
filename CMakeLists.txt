@@ -16,7 +16,7 @@ project(AUL
 
 include_directories(aul)
 
-#add_subdirectory(vendor/googletest)
+add_subdirectory(vendor/googletest)
 
 add_subdirectory(vendor/Celero)
 

@@ -222,7 +222,6 @@ namespace aul::tests {
         arr.pop_back();
         arr.pop_back();
 
-
         EXPECT_EQ(arr.get_allocator(), std::allocator<float>{});
         EXPECT_EQ(arr.size(), 0);
         EXPECT_GE(arr.capacity(), 8);
@@ -246,7 +245,6 @@ namespace aul::tests {
         arr.pop_front();
         arr.pop_front();
         arr.pop_front();
-
 
         EXPECT_EQ(arr.get_allocator(), std::allocator<float>{});
         EXPECT_EQ(arr.size(), 0);
@@ -291,6 +289,17 @@ namespace aul::tests {
         EXPECT_ANY_THROW(arr.at(0));
         EXPECT_ANY_THROW(arr.at(1));
         EXPECT_ANY_THROW(arr.at(2));
+    }
+
+    //=====================================================
+    // -ctors
+    //=====================================================
+
+    TEST(Circular_array, Constexpr_support) {
+        constexpr aul::Circular_array<int> arr = {98, 76, 78, 90};
+        constexpr int rear = arr.back();
+
+        EXPECT_EQ(rear, 90);
     }
 
 }
