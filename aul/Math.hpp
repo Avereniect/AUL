@@ -1,6 +1,8 @@
 #ifndef AUL_MATH_HPP
 #define AUL_MATH_HPP
 
+#include "Bits.hpp"
+
 #include <type_traits>
 #include <cmath>
 #include <algorithm>
@@ -79,31 +81,66 @@ namespace aul {
         return std::pow(dist, 1.0 / p);
     }
     
-    template<class T, class U = float>
+    template<class U, class T>
     constexpr U normalize_int(const T x) {
         static_assert(std::is_integral_v<T>);
         static_assert(std::is_floating_point_v<U>);
 
         constexpr U temp = std::numeric_limits<T>::max();
-        return U{x} / static_cast<U>(temp);
+        return U(x) / static_cast<U>(temp);
     }
 
-    /*
     ///
     /// http://burtleburtle.net/bob/c/lookup3.c
     /// https://github.com/imageworks/OpenShadingLanguage/blob/ffc5303dcfd63cf395d3a1b6fbf6ca3894b44d5e/src/include/OSL/oslnoise.h
     ///
     template<class T>
     constexpr std::uint32_t byte_hash32(const T& data) {
-        const std::byte* ptr = reinterpret_cast<const std::byte*>(std::addressof(data));
+        auto mix = [] (uint32_t& a, uint32_t& b, uint32_t& c) {
+            a -= c;  a ^= aul::rotl(c, 4);  c += b;
+            b -= a;  b ^= aul::rotl(a, 6);  a += c;
+            c -= b;  c ^= aul::rotl(b, 8);  b += a;
+            a -= c;  a ^= aul::rotl(c,16);  c += b;
+            b -= a;  b ^= aul::rotl(a,19);  a += c;
+            c -= b;  c ^= aul::rotl(b, 4);  b += a;
+        };
+
+        auto final = [] (uint32_t& a, uint32_t& b, uint32_t& c) {
+
+        };
+
+        const char* ptr = reinterpret_cast<const char*>(std::addressof(data));
         uint32_t a, b, c;
         a = b = c = 0xdeadbeef + sizeof(data) + 17;
+        uint32_t length = sizeof(data);
 
-        while () {
+        while(length > 3) {
+            a += ptr[0];
+            b += ptr[1];
+            c += ptr[2];
 
+            mix(a, b, c);
+            length -= 3;
+            ptr += 3;
         }
+
+        switch (length) {
+            case 3:
+                c += ptr[2];
+            case 2:
+                b += ptr[1];
+            case 1:
+                a += ptr[0];
+        }
+
+
+        return 0;
     }
-    */
+
+    template<class T>
+    constexpr std::uint32_t byte_hash32(const T* ptr, const std::size_t length) {
+        
+    }
 
 }
 
