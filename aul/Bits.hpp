@@ -114,7 +114,7 @@ namespace aul {
 
     template<typename T>
     [[nodiscard]]
-    constexpr inline T rotate_bits_left(const T x, const int rot) {
+    constexpr inline T rotl(const T x, const int rot) {
         static_assert(std::numeric_limits<T>::is_integer);
 
         return (x << rot) | x >> (std::numeric_limits<T>::digits - rot);
@@ -122,7 +122,7 @@ namespace aul {
 
     template<typename T>
     [[nodiscard]]
-    constexpr inline T rotate_bits_right(const T x, const int rot) {
+    constexpr inline T rotr(const T x, const int rot) {
         static_assert(std::numeric_limits<T>::is_integer);
 
         return (x >> rot) | x << (std::numeric_limits<T>::digits - rot);
