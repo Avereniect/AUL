@@ -103,15 +103,17 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class Alloc>
     void uninitialized_move(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& allocator) {
         Forward_iter x = dest;
-
+        Input_iter i = begin;
         try {
-            for (Forward_iter i = begin; i != end; ++i, ++x) {
+            for (; i != end; ++i, ++x) {
                 std::allocator_traits<Alloc>::construct(allocator, std::addressof(*x), std::move(*i));
             }
 
         } catch (...) {
-            for (; begin <= x; ++begin) {
-                std::allocator_traits<Alloc>::destroy(allocator, std::addressof(*begin));
+            --x;
+            for (; i-- > begin; --x) {
+                *i = std::move(*x);
+                std::allocator_traits<Alloc>::destroy(allocator, std::addressof(*x));
             }
 
             throw;
@@ -124,12 +126,15 @@ namespace aul {
         size_type i = size_type{};
 
         try {
-            for (; i != n; ++i, ++it) {
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*it), std::move(*it));
+            for (; i != n; ++i, ++it, ++dest) {
+                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*dest), std::move(*it));
             }
 
         } catch (...) {
-            for (; begin <= it; ++begin) {
+            --it;
+            --dest;
+            for (; i-- > 0; --it, --dest) {
+                *it = std::move(*dest);
                 std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*begin));
             }
 
