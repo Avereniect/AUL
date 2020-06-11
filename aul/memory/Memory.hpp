@@ -156,7 +156,7 @@ namespace aul {
             }
 
         } catch (...) {
-            aul::destroy(begin, it, alloc);
+            aul::destroy(dest, x, alloc);
 
             throw;
         }
