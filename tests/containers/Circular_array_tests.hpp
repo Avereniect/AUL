@@ -296,10 +296,7 @@ namespace aul::tests {
     //=====================================================
 
     TEST(Circular_array, Constexpr_support) {
-        constexpr aul::Circular_array<int> arr = {98, 76, 78, 90};
-        constexpr int rear = arr.back();
-
-        EXPECT_EQ(rear, 90);
+        constexpr aul::Circular_array<int> arr{};
     }
 
 }

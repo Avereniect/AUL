@@ -108,7 +108,7 @@ namespace aul {
                 arr.elem_count = 0;
                 arr.head_offset = 0;
             } else {
-                aul::move(arr.begin(), arr.end(), allocation.array, allocator);
+                aul::uninitialized_move(arr.begin(), arr.end(), allocation.array, allocator);
             }
         }
 
@@ -182,7 +182,7 @@ namespace aul {
         ///
         /// Destructor
         ///
-        ~Circular_array() {
+        constexpr ~Circular_array() {
             clear();
         }
 
@@ -219,10 +219,8 @@ namespace aul {
         /// Move assignment operator
         /// \param rhs Object to move resources from
         /// \return *this
-        constexpr Circular_array& operator=(Circular_array&& rhs) noexcept(aul::no_except_move_assignable<A>::value) {
+        constexpr Circular_array& operator=(Circular_array&& rhs) noexcept(aul::is_noexcept_movable<A>::value) {
             clear();
-
-            aul:
 
             //TODO: Provide strong exception gaurentee
             if constexpr (std::allocator_traits<A>::propagate_on_container_move_assignment::value) {
@@ -261,7 +259,7 @@ namespace aul {
 
         ///
         /// \tparam Iter Forward iterator type
-        /// \param from Iterator to begining of range
+        /// \param from Iterator to beginning of range
         /// \param to   Iterator to end of range
         template<class Iter>
         void assign(Iter from, Iter to) {
@@ -679,12 +677,12 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        bool empty() const {
+        constexpr bool empty() const {
             return elem_count == 0;
         }
 
         [[nodiscard]]
-        size_type size() const {
+        constexpr size_type size() const {
             return elem_count;
         }
 
@@ -694,18 +692,18 @@ namespace aul {
                 std::numeric_limits<difference_type>::max()
             );
 
-            const size_type max_allocation = allocator.max_size();
+            const size_type max_allocation = std::allocator_traits<A>::max_size(allocator);
 
             return std::min(max_allocation, type_max);
         }
 
         [[nodiscard]]
-        size_type capacity() const {
+        constexpr size_type capacity() const {
             return allocation.capacity;
         }
 
         [[nodiscard]]
-        allocator_type get_allocator() const {
+        constexpr allocator_type get_allocator() const {
             return allocator;
         }
 
@@ -730,11 +728,15 @@ namespace aul {
         ///
         /// Destroys all elements and frees currently held allocation
         ///
-        void clear() {
-            clear_first_segment();
-            clear_second_segment();
+        constexpr void clear() {
+            if (!empty()) {
+                clear_first_segment();
+                clear_second_segment();
+            }
 
-            deallocate(allocation);
+            if (capacity() != 0) {
+                deallocate(allocation);
+            }
             elem_count = 0;
             head_offset = 0;
         }
@@ -758,7 +760,7 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        pointer index_to_ptr(const size_type n) const {
+        constexpr pointer index_to_ptr(const size_type n) const {
             if (head_offset + size() <= capacity()) {
                 return allocation.array + n;
             } else {
@@ -771,12 +773,12 @@ namespace aul {
         /// allocation.
         ///
         [[nodiscard]]
-        bool is_segmented() const {
+        constexpr bool is_segmented() const {
             return static_cast<difference_type>(size()) > (capacity() - head_offset);
         }
 
         [[nodiscard]]
-        std::pair<pointer, pointer> first_segment() {
+        constexpr std::pair<pointer, pointer> first_segment() {
             if (is_segmented()) {
                 return {
                     allocation.array + head_offset,
@@ -791,7 +793,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::pair<const_pointer, const_pointer> first_segment() const {
+        constexpr std::pair<const_pointer, const_pointer> first_segment() const {
             if (is_segmented()) {
                 return {
                     allocation.array + head_offset,
@@ -807,7 +809,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::pair<pointer, pointer> second_segment() {
+        constexpr std::pair<pointer, pointer> second_segment() {
             if (is_segmented()) {
                 return {
                     allocation.array,
@@ -819,7 +821,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        std::pair<const_pointer, const_pointer> second_segment() const {
+        constexpr std::pair<const_pointer, const_pointer> second_segment() const {
             if (is_segmented()) {
                 return {
                     allocation.array,
@@ -832,7 +834,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        Allocation allocate(const size_type n) {
+        constexpr Allocation allocate(const size_type n) {
             Allocation alloc{};
 
             try {
@@ -847,7 +849,7 @@ namespace aul {
         }
 
         [[nodiscard]]
-        Allocation allocate(const size_type n, const Allocation& hint) {
+        constexpr Allocation allocate(const size_type n, const Allocation& hint) {
             Allocation alloc{};
 
             try {
@@ -861,19 +863,19 @@ namespace aul {
             return alloc;
         }
 
-        void deallocate(Allocation& alloc) {
+        constexpr void deallocate(Allocation& alloc) {
             std::allocator_traits<allocator_type>::deallocate(allocator, alloc.array, alloc.capacity);
             alloc = {};
         }
 
-        void clear_first_segment() {
+        constexpr void clear_first_segment() {
             auto [l, r] = first_segment();
             for (;l != r; ++l) {
                 std::allocator_traits<allocator_type>::destroy(allocator, l);
             }
         }
 
-        void clear_second_segment() {
+        constexpr void clear_second_segment() {
             auto [l, r] = second_segment();
             for (;l != r; ++l) {
                 std::allocator_traits<allocator_type>::destroy(allocator, l);
