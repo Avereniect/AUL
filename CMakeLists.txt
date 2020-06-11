@@ -10,10 +10,9 @@ project(AUL
         VERSION 0.0.1
         DESCRIPTION "A utility library"
         LANGUAGES CXX
-        )
+)
 
 set(CMAKE_BUILD_TYPE Debug)
-
 set(CMAKE_CXX_STANDARD 20)
 
 include_directories(aul)
@@ -26,7 +25,7 @@ add_library(AUL INTERFACE)
 add_executable(AUL_BENCHMARKS ./benchmarks/AUL_benchmarks.cpp)
 target_link_libraries(AUL_BENCHMARKS PUBLIC AUL celero)
 
-add_executable(AUL_TESTS ./tests/AUL_tests.cpp)
+add_executable(AUL_TESTS ./tests/AUL_tests.hpp)
 target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main pthread)
 
 target_compile_features(AUL_TESTS PUBLIC cxx_std_20)
