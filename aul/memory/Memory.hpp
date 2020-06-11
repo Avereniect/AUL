@@ -148,14 +148,15 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class Alloc>
     void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
+        Input_iter it = begin;
 
         try {
-            for (Input_iter it = begin; it < end; ++it, ++x) {
+            for (; it < end; ++it, ++x) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *it);
             }
 
         } catch (...) {
-            aul::destroy_n(begin, x, alloc);
+            aul::destroy(begin, it, alloc);
 
             throw;
         }
