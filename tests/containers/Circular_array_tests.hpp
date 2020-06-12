@@ -86,9 +86,7 @@ namespace aul::tests {
         }
     }
 
-    TEST(Circular_array, Move_assignment) {
-
-    }
+    TEST(Circular_array, Move_assignment) {}
 
     TEST(Circular_array, Generic_assign_empty) {
         std::vector<int> vec{0, 1, 2, 4, 8, 16, 32, 64};
@@ -204,6 +202,15 @@ namespace aul::tests {
 
     }
 
+    TEST(Circular_array, Emplace) {
+        Circular_array<int> arr{};
+
+        arr.emplace(arr.begin(), 68);
+        arr.emplace(arr.begin(), 67);
+        EXPECT_EQ(arr[0], 67);
+        EXPECT_EQ(arr[1], 68);
+    }
+
     //=====================================================
     // Element removal
     //=====================================================
@@ -296,7 +303,8 @@ namespace aul::tests {
     //=====================================================
 
     TEST(Circular_array, Constexpr_support) {
-        constexpr aul::Circular_array<int> arr{};
+        constexpr aul::Circular_array<int> arr0{};
+        constexpr aul::Circular_array<int> arr1{};
     }
 
 }

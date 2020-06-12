@@ -263,7 +263,7 @@ namespace aul {
         /// \param to   Iterator to end of range
         template<class Iter>
         void assign(Iter from, Iter to) {
-            //TODO: Provide strong exception gaurentee
+            //TODO: Provide strong exception guarantee
             clear();
 
             elem_count = to - from;
@@ -278,7 +278,7 @@ namespace aul {
         }
 
         void assign(const size_type n, const T& val) {
-            //TODO: Provide strong exception gaurentee
+            //TODO: Provide strong exception guarantee
 
             clear();
 
@@ -378,7 +378,6 @@ namespace aul {
             return const_cast<const Circular_array&>(*this).rend();
         }
 
-
         //=================================================
         // Element accessors
         //=================================================
@@ -432,56 +431,79 @@ namespace aul {
         /// \param pos
         /// \param args
         template<class...Args>
-        iterator emplace(const_iterator pos, Args...args) {
+        iterator emplace(const_iterator p, Args...args) {
+            iterator pos = iterator{p.offset, const_cast<pointer>(p.begin), const_cast<pointer>(p.end)};
             size_type left_count = pos - begin();
-            size_type right_count =  end() - pos;
+            size_type right_count = cend() - pos;
 
-            //Assuming space capacity is present
+            if (size() < capacity()) {
 
-            //Move other elements out of the way
-            if (left_count < right_count) {
-                if (left_count) {
-                    std::allocator_traits<A>::construct(allocator, (begin() - 1).operator->(), std::move(*begin()));
-                    for (auto it = begin(); it++ != pos;) {
-                        it[0] = std::move(it[1]);
-                    }
-                }
-            } else {
-                if (right_count) {
-                    std::allocator_traits<A>::construct(allocator, end().operator->(), std::move(end()[-1]));
-                    for (auto it = end() - 1; it-- != pos;) {
-                        it[-1] = std::move(it[0]);
-                    }
-                }
-            }
-
-            //Construct new element
-            auto ptr = pos.operator->();
-            std::allocator_traits<A>::destroy(allocator, ptr);
-            try {
-                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
-            } catch(...) {
-
-                //Move elements back
+                //Move other elements out of the way
                 if (left_count < right_count) {
                     if (left_count) {
-                        std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[-1]));
-                        const iterator beg = begin();
-                        for (iterator it = pos - 1; it-- != beg;) {
-                            it[0] = std::move(it[-1]);
+                        std::allocator_traits<A>::construct(allocator, (begin() - 1).operator->(), std::move(*begin()));
+                        for (auto it = begin(); it++ != pos;) {
+                            it[0] = std::move(it[1]);
                         }
                     }
                 } else {
                     if (right_count) {
-                        std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[1]));
-                        const iterator e = end();
-                        for (auto it = pos + 1; pos++ != e;) {
-                            it[0] = std::move(it[0]);
+                        std::allocator_traits<A>::construct(allocator, end().operator->(), std::move(end()[-1]));
+                        for (auto it = end() - 1; it-- != pos;) {
+                            it[-1] = std::move(it[0]);
                         }
                     }
                 }
 
-                throw;
+                //Construct new element
+                auto ptr = pos.operator->();
+                std::allocator_traits<A>::destroy(allocator, ptr);
+                try {
+                    std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
+                } catch(...) {
+
+                    //Move elements back if failed to construct
+                    if (left_count < right_count) {
+                        if (left_count) {
+                            std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[-1]));
+                            const iterator beg = begin();
+                            for (iterator it = pos - 1; it-- != beg;) {
+                                it[0] = std::move(it[-1]);
+                            }
+                        }
+                    } else {
+                        if (right_count) {
+                            std::allocator_traits<A>::construct(allocator, ptr, std::move(pos[1]));
+                            const iterator e = end();
+                            for (auto it = pos + 1; pos++ != e;) {
+                                it[0] = std::move(it[0]);
+                            }
+                        }
+                    }
+
+                    throw;
+                }
+
+            } else {
+                Allocation new_allocation = allocate(grow_size(size() + 1));
+
+                //Construct new element
+                if (empty() && begin() == pos) {
+                    std::allocator_traits<A>::construct(allocator, new_allocation.array, std::forward<Args>(args)...);
+                } else {
+                    pointer ptr = pos.operator->();
+                    std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
+
+                    //Copy left elements
+                    aul::uninitialized_move(begin(), pos, allocation.array,allocator);
+
+                    //Copy right elements
+                    aul::uninitialized_move(pos + 1, end(), ptr + 1, allocator);
+                }
+
+                //Free old allocation and replace
+                deallocate(allocation);
+                allocation = std::move(new_allocation);
             }
 
             elem_count++;
@@ -496,9 +518,7 @@ namespace aul {
             return emplace(pos, val);
         }
 
-        iterator insert(const_iterator pos, const size_type n, const T& val) {
-
-        }
+        iterator insert(const_iterator pos, const size_type n, const T& val);
 
         template<class Iter>
         iterator insert(const_iterator pos, Iter from, Iter to);
@@ -901,6 +921,7 @@ namespace aul {
     template<bool is_const>
     class Circular_array<T, A>::Iterator {
     public:
+        friend class aul::Circular_array<T, A>;
 
         //=================================================
         // Type aliases
