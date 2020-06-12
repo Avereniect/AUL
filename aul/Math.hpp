@@ -156,6 +156,35 @@ namespace aul {
         return byte_hash32(std::addressof(data), sizeof(data));
     }
 
+    template<class C, class R = double>
+    R least_squares_regression(const C& xs, const C& ys) {
+        if (xs.size() != ys.size()) {
+            return R{} / R{};
+        }
+
+        R x_sum{};
+        R x2_sum{};
+        for (const auto& x : xs) {
+            x_sum += x;
+            x2_sum += x * x;
+        }
+
+        R y_sum{};
+        for (const auto& y : ys) {
+            y_sum += y;
+        }
+
+        R xy_sum{};
+        for (typename C::size_type i = 0; i < xs.size(); ++i) {
+            xy_sum += xs[i] * ys[i];
+        }
+
+        R numerator = xs.size() * xy_sum - x_sum * y_sum;
+        R denominator = xs.size() * x2_sum - x_sum * x_sum;
+
+        return numerator/denominator;
+    }
+
 }
 
 #endif

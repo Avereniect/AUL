@@ -51,44 +51,8 @@ namespace aul::tests {
             x.push_back(i);
         }
 
-        double x_sum = 0;
-        for (int i = 0; i < samples; ++i) {
-            x_sum += x[i];
-        }
+        double slope = least_squares_regression(x, y);
 
-        double x2_sum = 0;
-        for (int i = 0; i < samples; ++i) {
-            x2_sum += x[i] * x[i];
-        }
-
-        double y_sum = 0;
-        for (int i = 0; i < samples; ++i) {
-            y_sum += y[i];
-        }
-
-        double xy_sum = 0;
-        for (int i = 0; i < samples; ++i) {
-            xy_sum += x[i] * y[i];
-        }
-
-        std::ofstream foutx{"x.txt"};
-        foutx << std::fixed;
-        for (auto t : x) {
-            foutx << t << "\n";
-        }
-        foutx.close();
-
-        std::ofstream fouty{"y.txt"};
-        fouty << std::fixed;
-        for (auto t : y) {
-            fouty << t << "\n";
-        }
-        fouty.close();
-
-        double numerator = samples * xy_sum - x_sum * y_sum;
-        double denominator = samples * x2_sum - x_sum * x_sum;
-
-        double slope = numerator / denominator;
         EXPECT_LE(slope, .125   );
     }
 
