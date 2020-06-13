@@ -1,7 +1,8 @@
 //#include "Algorithms_tests.hpp"
-#include "containers/Array_map_tests.hpp"
+//#include "containers/Array_map_tests.hpp"
 //#include "containers/Slot_map_tests.hpp"
 //#include "memory/Linear_allocator_tests.hpp"
+#include "containers/Circular_array_tests.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
