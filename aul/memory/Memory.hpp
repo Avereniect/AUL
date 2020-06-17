@@ -146,7 +146,7 @@ namespace aul {
     /// Allocator-aware version of std::uninitialized_copy
     ///
     template<class Input_iter, class Forward_iter, class Alloc>
-    constexpr void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
+    void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
         Input_iter it = begin;
 
@@ -166,7 +166,7 @@ namespace aul {
     /// Allocator-aware version of std::uninitialized_copy_n
     ///
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
-    constexpr void uninitialized_copy_n(Input_iter begin, size_type n, Forward_iter dest, Alloc& alloc) {
+    void uninitialized_copy_n(Input_iter begin, size_type n, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
         Forward_iter y = begin;
         size_type i = size_type{};
