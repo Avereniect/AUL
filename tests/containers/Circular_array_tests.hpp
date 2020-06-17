@@ -202,14 +202,21 @@ namespace aul::tests {
 
     }
 
+    /*
     TEST(Circular_array, Emplace) {
         Circular_array<int> arr{};
 
-        arr.emplace(arr.begin(), 68);
-        arr.emplace(arr.begin(), 67);
-        EXPECT_EQ(arr[0], 67);
-        EXPECT_EQ(arr[1], 68);
+        arr.emplace(arr.begin(), 0x44);
+        arr.emplace(arr.begin(), 0x45);
+        arr.emplace(arr.begin(), 0x46);
+        arr.emplace(arr.begin(), 0x47);
+
+        EXPECT_EQ(arr[0], 0x47);
+        EXPECT_EQ(arr[1], 0x46);
+        EXPECT_EQ(arr[2], 0x45);
+        EXPECT_EQ(arr[3], 0x44);
     }
+    */
 
     //=====================================================
     // Element removal
@@ -299,13 +306,15 @@ namespace aul::tests {
     }
 
     //=====================================================
-    // -ctors
+    // Features
     //=====================================================
 
+    /*
     TEST(Circular_array, Constexpr_support) {
         constexpr aul::Circular_array<int> arr0{};
         constexpr aul::Circular_array<int> arr1{};
     }
+     */
 
 }
 
