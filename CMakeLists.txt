@@ -6,18 +6,18 @@ else()
     cmake_policy(VERSION 3.14)
 endif()
 
-SET(CMAKE_BUILD_TYPE Debug)
-
 project(AUL
-    VERSION 0.0.1
-    DESCRIPTION "A utility library"
-    LANGUAGES CXX
+        VERSION 0.0.1
+        DESCRIPTION "A utility library"
+        LANGUAGES CXX
 )
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(aul)
 
-#add_subdirectory(vendor/googletest)
-
+add_subdirectory(vendor/googletest)
 add_subdirectory(vendor/Celero)
 
 add_library(AUL INTERFACE)
