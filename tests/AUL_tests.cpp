@@ -1,5 +1,5 @@
 //#include "Algorithms_tests.hpp"
-//#include "containers/Array_map_tests.hpp"
+#include "containers/Array_map_tests.hpp"
 //#include "containers/Slot_map_tests.hpp"
 //#include "memory/Linear_allocator"
 #include <gtest/gtest.h>

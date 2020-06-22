@@ -258,32 +258,32 @@ namespace aul {
 
         [[nodiscard]]
         reverse_iterator rbegin() noexcept {
-            return iterator{allocation.vals ? allocation.vals : nullptr};
+            return reverse_iterator{end()};
         }
 
         [[nodiscard]]
-        const_iterator rbegin() const noexcept {
-            return const_iterator{allocation.vals ? allocation.vals : nullptr};
+        const_reverse_iterator rbegin() const noexcept {
+            return const_iterator{end()};
         }
 
         [[nodiscard]]
-        const_iterator crbegin() const noexcept {
-            return const_cast<const Array_map&>(*this).begin();
+        const_reverse_iterator crbegin() const noexcept {
+            return const_cast<const Array_map&>(*this).rbegin();
         }
 
         [[nodiscard]]
-        iterator rend() noexcept {
-            return iterator{allocation.vals ? allocation.vals + elem_count : nullptr};
+        reverse_iterator rend() noexcept {
+            return reverse_iterator{begin()};
         }
 
         [[nodiscard]]
-        const_iterator rend() const noexcept {
-            return const_iterator{allocation.vals ? allocation.vals + elem_count : nullptr};
+        const_reverse_iterator rend() const noexcept {
+            return const_reverse_iterator{begin()};
         }
 
         [[nodiscard]]
-        const_iterator crend() const noexcept {
-            return const_cast<const Array_map&>(*this).end();
+        const_reverse_iterator crend() const noexcept {
+            return const_cast<const Array_map&>(*this).rend();
         }
 
         //=================================================
