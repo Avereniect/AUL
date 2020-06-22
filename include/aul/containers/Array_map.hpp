@@ -503,7 +503,7 @@ namespace aul {
         }
 
         ///
-        /// \param i Iterator to begining of range
+        /// \param i Iterator to beginning of range
         /// \param j Iterator to end of range
         /// \return Iterator to one past remove element
         [[nodiscard]]
