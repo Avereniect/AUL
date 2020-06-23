@@ -2,7 +2,8 @@
 #define AUL_ASSOCIATIVE_LIST_TESTS_HPP
 
 
-#include "../../aul/containers/Array_map.hpp"
+#include <aul/containers/Array_map.hpp>
+
 #include <gtest/gtest.h>
 #include <string>
 
@@ -151,8 +152,6 @@ namespace aul::tests {
         aul::Array_map<int, float> arr1;
         arr1.insert(4, 4.0);
         arr1.insert(5, 5.0);
-        arr1.insert(6, 6.0);
-        arr1.insert(7, 7.0);
     }
 
     TEST_F(Two_array_maps, Copy_assignment) {
