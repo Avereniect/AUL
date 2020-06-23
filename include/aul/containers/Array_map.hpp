@@ -290,6 +290,9 @@ namespace aul {
         // Comparison Operators
         //=================================================
 
+        ///
+        /// \param rhs Array_map to compare against
+        /// \return True if all keys and elements compare equal
         bool operator==(const Array_map& rhs) {
             if (size() != rhs.size()) {
                 return false;
@@ -300,6 +303,9 @@ namespace aul {
                 std::equal(keys(), keys() + size(), rhs.keys());
         }
 
+        ///
+        /// \param rhs Array_map to compare against
+        /// \return True if at least one key or element does not compare equal
         bool operator!=(const Array_map& rhs) {
             if (size() != rhs.size()) {
                 return true;
@@ -721,20 +727,20 @@ namespace aul {
         /// \param n Size of allocation
         /// \return Allocation of size n
         Allocation allocate(const size_type n) {
-            Allocation allocation{};
+            Allocation ret{};
 
             try {
-                allocation.vals = val_alloc_traits::allocate(allocator, n);
+                ret.vals = val_alloc_traits::allocate(allocator, n);
                 auto alloc = key_allocator_type{allocator};
-                allocation.keys = key_alloc_traits::allocate(alloc, n);
-            } catch (std::bad_alloc e) {
-                allocation = Allocation{};
+                ret.keys = key_alloc_traits::allocate(alloc, n);
+            } catch (...) {
+                ret = Allocation{};
                 throw;
             }
 
-            allocation.capacity = n;
+            ret.capacity = n;
 
-            return allocation;
+            return ret;
         }
 
         ///
@@ -742,19 +748,19 @@ namespace aul {
         /// \param hint Allocation to extend if possible
         /// \return Allocation of size n
         Allocation allocate(const size_type n, const Allocation& hint) {
-            Allocation allocation{};
+            Allocation ret{};
 
             try {
-                allocation.vals = val_alloc_traits::allocate(allocator, n, hint.vals);
+                ret.vals = val_alloc_traits::allocate(allocator, n, hint.vals);
                 key_allocator_type alloc{allocator};
-                allocation.keys = key_alloc_traits::allocate(alloc, n, hint.keys);
-            } catch (std::bad_alloc e) {
-                allocation = Allocation{};
+                ret.keys = key_alloc_traits::allocate(alloc, n, hint.keys);
+            } catch (...) {
+                ret = Allocation{};
             }
 
-            allocation.capacity = n;
+            ret.capacity = n;
 
-            return allocation;
+            return ret;
         }
 
         ///
