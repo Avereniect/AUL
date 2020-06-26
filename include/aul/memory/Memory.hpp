@@ -169,7 +169,7 @@ namespace aul {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *it);
             }
         } catch (...) {
-            aul::destroy_n(begin, x, alloc);
+            aul::destroy(begin, x, alloc);
             throw;
         }
     }
