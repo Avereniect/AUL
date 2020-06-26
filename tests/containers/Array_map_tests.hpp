@@ -10,7 +10,7 @@
 namespace aul::tests {
 
     //=====================================================
-    // Text fixtures
+    // Test fixtures
     //=====================================================
 
     class Single_array_map : public ::testing::Test {
@@ -179,6 +179,10 @@ namespace aul::tests {
         arr.insert(7, 32);
         arr.insert(8, 48);
 
+        arr.insert(0, 0);
+        arr.insert(-1, 2);
+
+        EXPECT_EQ(arr[0], 0);
         EXPECT_EQ(arr[5], 16);
         EXPECT_EQ(arr[6], 24);
         EXPECT_EQ(arr[7], 32);
@@ -203,6 +207,7 @@ namespace aul::tests {
         EXPECT_TRUE(arr.empty());
         EXPECT_EQ(arr.begin(), arr.end());
         EXPECT_EQ(arr.size(), 0);
+
         EXPECT_ANY_THROW(arr.at(16));
         EXPECT_ANY_THROW(arr.at(17));
         EXPECT_ANY_THROW(arr.at(18));
