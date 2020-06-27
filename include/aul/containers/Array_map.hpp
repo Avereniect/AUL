@@ -445,10 +445,15 @@ namespace aul {
                     throw;
                 }
 
-
                 ///Move objects keys and vals to new allocation
-                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, allocator);
-                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, allocator);
+
+                auto key_alloc = key_allocator_type{allocator};
+                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
+                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
+
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, allocator);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, allocator);
 
                 allocation = std::move(new_allocation);
 
@@ -607,7 +612,7 @@ namespace aul {
         }
 
         //=================================================
-        // Lookup functions
+        // Inspection functions
         //=================================================
 
         ///
@@ -625,7 +630,7 @@ namespace aul {
         [[nodiscard]]
         const_iterator find(const key_type& key) const {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key)};
-            return (*ptr == key) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (*ptr == key) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
