@@ -2,14 +2,16 @@
 #define AUL_ASSOCIATIVE_LIST_TESTS_HPP
 
 
-#include "../../aul/containers/Array_map.hpp"
+#include <aul/containers/Array_map.hpp>
+
 #include <gtest/gtest.h>
 #include <string>
+#include <iostream>
 
 namespace aul::tests {
 
     //=====================================================
-    // Text fixtures
+    // Test fixtures
     //=====================================================
 
     class Single_array_map : public ::testing::Test {
@@ -151,18 +153,38 @@ namespace aul::tests {
         aul::Array_map<int, float> arr1;
         arr1.insert(4, 4.0);
         arr1.insert(5, 5.0);
-        arr1.insert(6, 6.0);
-        arr1.insert(7, 7.0);
     }
 
-    TEST_F(Two_array_maps, Copy_assignment) {
+    TEST(Array_map, Copy_assignment) {
+        aul::Array_map<int16_t, int16_t> map0;
+        aul::Array_map<int16_t, int16_t> map1;
+
+        map0.insert(0x00, 0x00);
+        map0.insert(0x01, 0x01);
+        map0.insert(0x02, 0x02);
+        map0.insert(0x03, 0x03);
+        map0.insert(0x04, 0x04);
+        map0.insert(0x05, 0x05);
+        map0.insert(0x06, 0x06);
+        map0.insert(0x07, 0x07);
+
+        map0.insert(0xFFFF, 0xFFFF);
+        map0.insert(0xFFFE, 0xFFFE);
+        map0.insert(0xFFFD, 0xFFFD);
+        map0.insert(0xFFFC, 0xFFFC);
+        map0.insert(0xFFFB, 0xFFFB);
+        map0.insert(0xFFFA, 0xFFFA);
+
         map1 = map0;
 
         EXPECT_EQ(map1.size(), map0.size());
         EXPECT_GE(map1.capacity(), map1.size());
         EXPECT_EQ(map1.get_allocator(), map0.get_allocator());
 
-        for (int i = 0; i < map1.size(); ++i) {
+        for (int i = 0; i < 8; ++i) {
+            EXPECT_EQ(map1[i], map0[i]);
+        }
+        for (int i = 0xFFFA; i < 0; ++i) {
             EXPECT_EQ(map1[i], map0[i]);
         }
     }
@@ -180,6 +202,14 @@ namespace aul::tests {
         arr.insert(7, 32);
         arr.insert(8, 48);
 
+        arr.insert(0, 0);
+        arr.insert(-1, -1);
+        arr.insert(-2, -2);
+        arr.insert(-3, -3);
+
+        EXPECT_EQ(arr[0], 0);
+        EXPECT_EQ(arr[-1], -1);
+        EXPECT_EQ(arr[-2], -2);
         EXPECT_EQ(arr[5], 16);
         EXPECT_EQ(arr[6], 24);
         EXPECT_EQ(arr[7], 32);
@@ -204,6 +234,7 @@ namespace aul::tests {
         EXPECT_TRUE(arr.empty());
         EXPECT_EQ(arr.begin(), arr.end());
         EXPECT_EQ(arr.size(), 0);
+
         EXPECT_ANY_THROW(arr.at(16));
         EXPECT_ANY_THROW(arr.at(17));
         EXPECT_ANY_THROW(arr.at(18));
@@ -236,6 +267,35 @@ namespace aul::tests {
         EXPECT_EQ(map.size(), 0);
 
         EXPECT_TRUE(map.begin() == map.end());
+    }
+
+    //=====================================================
+    // Inspection functions
+    //=====================================================
+
+    TEST(Array_map, Contains) {
+        aul::Array_map<int, float> map;
+
+        map.insert(1, 1.0);
+        map.insert(2, 1.0);
+        map.insert(3, 1.0);
+
+        EXPECT_TRUE(map.contains(1));
+        EXPECT_TRUE(map.contains(2));
+        EXPECT_TRUE(map.contains(3));
+
+        EXPECT_FALSE(map.contains(0));
+        EXPECT_FALSE(map.contains(4));
+    }
+
+    TEST(Array_map, Find) {
+        aul::Array_map<int, float> map;
+
+        map.emplace(1, 1.0);
+        map.emplace(2, 2.0);
+
+        EXPECT_EQ(map[1], 1.0);
+        EXPECT_EQ(map[2], 2.0);
     }
 
 }
