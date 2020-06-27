@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <string>
+#include <iostream>
 
 namespace aul::tests {
 
@@ -272,7 +273,7 @@ namespace aul::tests {
     // Inspection functions
     //=====================================================
 
-    TEST(Array_map, contains) {
+    TEST(Array_map, Contains) {
         aul::Array_map<int, float> map;
 
         map.insert(1, 1.0);
@@ -284,6 +285,17 @@ namespace aul::tests {
         EXPECT_TRUE(map.contains(3));
 
         EXPECT_FALSE(map.contains(0));
+        EXPECT_FALSE(map.contains(4));
+    }
+
+    TEST(Array_map, Find) {
+        aul::Array_map<int, float> map;
+
+        map.emplace(1, 1.0);
+        map.emplace(2, 2.0);
+
+        EXPECT_EQ(map[1], 1.0);
+        EXPECT_EQ(map[2], 2.0);
     }
 
 }

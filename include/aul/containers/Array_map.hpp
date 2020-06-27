@@ -57,9 +57,6 @@ namespace aul {
         using iterator = aul::Random_access_iterator<aul::Allocator_types<allocator_type>, false>;
         using const_iterator = aul::Random_access_iterator<aul::Allocator_types<allocator_type>, true>;
 
-        using reverse_iterator = std::reverse_iterator<iterator>;
-        using const_reverse_iterator = std::reverse_iterator<iterator>;
-
     private:
 
         using val_allocator_type = allocator_type;
@@ -234,40 +231,6 @@ namespace aul {
         [[nodiscard]]
         const_iterator cend() const noexcept {
             return const_cast<const Array_map&>(*this).end();
-        }
-
-        //=================================================
-        // Reverse iterator methods
-        //=================================================
-
-        [[nodiscard]]
-        reverse_iterator rbegin() noexcept {
-            return reverse_iterator{end()};
-        }
-
-        [[nodiscard]]
-        const_reverse_iterator rbegin() const noexcept {
-            return const_iterator{end()};
-        }
-
-        [[nodiscard]]
-        const_reverse_iterator crbegin() const noexcept {
-            return const_cast<const Array_map&>(*this).rbegin();
-        }
-
-        [[nodiscard]]
-        reverse_iterator rend() noexcept {
-            return reverse_iterator{begin()};
-        }
-
-        [[nodiscard]]
-        const_reverse_iterator rend() const noexcept {
-            return const_reverse_iterator{begin()};
-        }
-
-        [[nodiscard]]
-        const_reverse_iterator crend() const noexcept {
-            return const_cast<const Array_map&>(*this).rend();
         }
 
         //=================================================
@@ -482,13 +445,13 @@ namespace aul {
                 val_pointer new_val_ptr = allocation.vals + (new_key_ptr - allocation.keys);
 
                 if (*new_key_ptr == key) {
-                    return std::make_pair(iterator{ new_val_ptr }, false);
+                    return std::make_pair(iterator{new_val_ptr}, false);
                 }
 
                 if (new_key_ptr != keys_end) {
                     //Move construct last element in each array
                     val_alloc_traits::construct(allocator, vals_end, std::move(vals_end[-1]));
-                    auto alloc = key_allocator_type{ allocator };
+                    auto alloc = key_allocator_type{allocator};
                     key_alloc_traits::construct(alloc, keys_end, std::move(keys_end[-1]));
 
                     //Move assign elements 1 slot to the right
@@ -514,10 +477,9 @@ namespace aul {
                 }
 
                 ++elem_count;
-                return std::make_pair(iterator{ new_val_ptr }, true);
+                return std::make_pair(iterator{new_val_ptr}, true);
 
-            }
-            else {
+            } else {
                 Allocation new_allocation = allocate(grow_size(size() + 1));
 
                 key_pointer keys_end = allocation.keys + elem_count;
@@ -528,7 +490,7 @@ namespace aul {
 
                 //Try constructing value and key
                 try {
-                    construct_key(new_key_ptr, key);
+                    construct_key(new_key_ptr, std::move(key));
                 } catch (...) {
                     deallocate(new_allocation);
                     throw;
@@ -542,15 +504,20 @@ namespace aul {
                     throw;
                 }
 
-
                 ///Move objects keys and vals to new allocation
-                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, allocator);
-                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, allocator);
+
+                auto key_alloc = key_allocator_type{allocator};
+                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
+                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
+
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, allocator);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, allocator);
 
                 allocation = std::move(new_allocation);
 
                 ++elem_count;
-                return std::make_pair(iterator{ new_val_ptr }, true);
+                return std::make_pair(iterator{new_val_ptr}, true);
             }
         }
 
@@ -573,31 +540,6 @@ namespace aul {
 
             --elem_count;
             return pos;
-        }
-
-        ///
-        /// \param i Iterator to begining of range
-        /// \param j Iterator to end of range
-        /// \return Iterator to one past remove element
-        iterator erase(const_iterator i, const_iterator j) {
-            auto val_ptr0 = const_cast<val_pointer>(std::addressof(*i));
-            auto val_ptr1 = const_cast<val_pointer>(std::addressof(*j));
-            val_pointer val_end = allocation.vals + elem_count;
-
-            key_pointer key_ptr0 = allocation.keys + (val_ptr0 - allocation.vals);
-            key_pointer key_ptr1 = allocation.keys + (val_ptr1 - allocation.vals);
-            key_pointer key_end = allocation.keys + elem_count;
-
-            size_type n = (j - i);
-
-            //Move elements [j over
-            std::move(val_ptr1, val_end, val_ptr0);
-            std::move(key_ptr1, key_end, key_ptr0);
-
-            //Destroy last n elements
-            aul::destroy(val_end - n, val_end, allocator);
-            aul::destroy(key_end - n, key_end, key_allocator_type{allocator});
-            return iterator{val_ptr0};
         }
 
         ///
@@ -719,7 +661,7 @@ namespace aul {
         }
 
         ///
-        /// \param n
+        /// \param n Number to increase capacity to33
         ///
         void reserve(const size_type n) {
             if (n <= elem_count) {
