@@ -18,13 +18,14 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <stdexcept>
 
 namespace aul {
 
     /// Slot_map
     ///
-    /// A vector like associative container offering constant time look-up,
-    /// insertion, and deletion.
+    /// An associative container offering constant time look-up, insertion, and
+    /// deletion. 
     ///
     /// Much like a vector, elements are stored in a contiguous array and can be
     /// be referenced via their index.
@@ -37,261 +38,187 @@ namespace aul {
     ///
     /// Algorithms such as std::sort and std::reverse may be applied to the
     /// contents of this container however all keys are liable to lose their
-    /// associations. Keys will still map to valid elements however, the 
-    /// resulting mappings are not predictable.
+    /// associations. Keys will still map to valid elements but the resulting
+    /// mappings are not predictable.
     ///
-    /// Unlike std::vector, Slot_map does not have a shrink_to_fit method as
-    /// this could potentially invalidate key associations.
+    /// A default-constructed value of key_type will is very unlikely to map to
+    /// any object and thus can effectively be used as a null key.
     ///
-    /// \tparam T     Element type
-    /// \tparam Alloc Allocator type
-    template<typename T, class Alloc = std::allocator<T>>
+    /// \tparam T Element type
+    /// \tparam A Allocator type
+    template<class T, class A = std::allocator<T>>
     class Slot_map {
-    private:
 
-        struct Allocation;
+        //=================================================
+        // Helper classes
+        //=================================================
 
-        // TODO: Implement C++ 20 Ranges
+        class Allocation;
 
-        //=====================================================================
+        class Metadata;
+
+        class Key {
+            friend class Slot_map;
+            using key_primitive = typename std::allocator_traits<A>::size_type;
+
+            Key() = default;
+            Key(const key_primitive i, const key_primitive v):
+                index(i),
+                version(v) {}
+
+            key_primitive index = std::numeric_limits<key_primitive>::max();
+            key_primitive version = std::numeric_limits<key_primitive>::max();
+        };
+
+        //=================================================
         // Type aliases
-        //=====================================================================
+        //=================================================
 
     public:
 
-        using allocator_type = Alloc;
+        using allocator_type = A;
 
-        using value_type = T;
+        using size_type = typename std::allocator_traits<A>::size_type;
+        using difference_type = typename std::allocator_traits<A>::difference_type;
 
-        using size_type       = typename std::allocator_traits<allocator_type>::size_type;
-        using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
-
-        using pointer       = typename std::allocator_traits<allocator_type>::pointer;
+        using pointer = typename std::allocator_traits<allocator_type>::pointer;
         using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
 
-    private:
+        using value_type = T;
+        using key_type = Key;
 
-        using index_type = aul::Versioned_type<size_type, size_type>;
-        using erase_type = size_type;
-
-        using elems_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<T>;
-        using index_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<index_type>;
-        using erase_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<erase_type>;
-
-        using elems_allocator_traits = std::allocator_traits<elems_allocator_type>;
-        using index_allocator_traits = std::allocator_traits<index_allocator_type>;
-        using erase_allocator_traits = std::allocator_traits<erase_allocator_type>;
-
-        using elems_pointer = pointer;
-        using index_pointer = typename index_allocator_traits::pointer;
-        using erase_pointer = typename erase_allocator_traits::pointer;
-
-    public:
-
-        using key_type = aul::Versioned_type<size_type, size_type>;
-
-        using reference       = T&;
+        using reference = T&;
         using const_reference = const T&;
 
-        using iterator       = Random_access_iterator<typename aul::Allocator_types<Alloc>, false>;
-        using const_iterator = Random_access_iterator<typename aul::Allocator_types<Alloc>, false>;
+        using iterator = Random_access_iterator<typename aul::Allocator_types<A>, false>;
+        using const_iterator = Random_access_iterator<typename aul::Allocator_types<A>, true>;
 
         using reverse_iterator = typename std::reverse_iterator<iterator>;
         using const_reverse_iterator = typename std::reverse_iterator<const_iterator>;
 
-        //=====================================================================
+    private:
+
+        using allocator_traits = std::allocator_traits<allocator_type>;
+
+        using md_allocator_type = typename std::allocator_traits<A>::template rebind_alloc<Metadata>;
+        using md_allocator_traits = std::allocator_traits<md_allocator_type>;
+        using md_pointer = typename md_allocator_traits::pointer;
+
+        //=================================================
         // -ctors
-        //=====================================================================
-        
+        //=================================================
+
     public:
 
         ///
         /// Default constructor
         ///
-        Slot_map() noexcept(noexcept(allocator_type{})) :
-            allocator(),
-            allocation(),
-            elem_count(0),
-            free_index(nullptr) {
-        }
+        Slot_map() noexcept(noexcept(allocator_type{})) = default;
 
-        /// Allocator extended constructor
         ///
         /// \param alloc Allocator to copy-construct internal allocators from
         ///
-        explicit Slot_map(const allocator_type& alloc) noexcept :
-            allocator(alloc),
-            allocation(),
-            elem_count(0),
-            free_index(nullptr) {
-        }
-
-        ///
-        /// \param n     Number of copies made of val
-        /// \param val   Source for copy-construction of elements
-        /// \param alloc Source for copy-construction of internal allocator
-        ///
-        Slot_map(const size_type n, const T& val, const allocator_type& alloc = {}) :
-            allocator(alloc),
-            allocation(allocate(n)),
-            elem_count(n),
-            free_index(nullptr) {
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            aul::uninitialized_fill(allocation.elems_array, allocation.elems_array + n, val, allocator);
-            aul::uninitialized_iota(allocation.index_array, allocation.index_array + n,   0, index_allocator);
-            aul::uninitialized_iota(allocation.erase_array, allocation.erase_array + n,   0, erase_allocator);
-        }
-
-        ///
-        /// \param n     Number of elements to default construct
-        /// \param alloc Source for copy-construction of internal allocator
-        ///
-        explicit Slot_map(const size_type n, const Alloc& alloc = {}) :
-            allocator(alloc),
-            allocation(allocate(n)),
-            elem_count(n),
-            free_index(nullptr) {
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            aul::default_construct(allocation.elems_array, allocation.elems_array + n, allocator);
-            aul::uninitialized_fill(allocation.index_array, allocation.index_array + n, 0, index_allocator);
-            aul::uninitialized_iota(allocation.erase_array, allocation.erase_array + n, 0, erase_allocator);
-        }
-
-        ///
-        /// \param begin Iterator to first element in source range
-        /// \param end   Iterator to one past the last element in source range
-        /// \param alloc Source for copy-construction of internal allocator
-        ///
-        template<class InputIter>
-        Slot_map(InputIter begin, InputIter end, const Alloc& alloc = {}) :
-            allocator(alloc),
-            allocation(allocate(end - begin)),
-            elem_count(allocation.capacity),
-            free_index(nullptr) {
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            aul::uninitialized_copy(begin, end, allocation.elems_array, allocator);
-            aul::uninitialized_iota(allocation.index_array, allocation.index_array + elem_count, 0, index_allocator);
-            aul::uninitialized_iota(allocation.erase_array, allocation.erase_array + elem_count, 0, erase_allocator);
-        }
-
-        /// 
-        /// \param list  Source list for copy construction of elements
-        /// \param alloc Source for copy constructing internal allocators
-        /// 
-        Slot_map(const std::initializer_list<T> list, Alloc allocator = {}) :
-            Slot_map(list.begin(), list.end(), allocator)
-        {}
+        explicit Slot_map(const allocator_type& alloc) noexcept:
+            allocator(alloc) {}
 
         ///
         /// \param right Source object
         ///
-        Slot_map(Slot_map&& right) noexcept :
+        Slot_map(Slot_map&& right) noexcept:
             allocator(std::move(right.allocator)),
             allocation(std::move(right.allocation)),
             elem_count(std::move(right.elem_count)),
-            free_index(std::move(right.free_index)) {
+            free_anchor(std::move(right.free_anchor)) {
 
             right.elem_count = 0;
-            right.free_index = nullptr;
+            right.free_anchor = nullptr;
         }
 
         ///
         /// \param right Source object
         /// \param alloc Source for copy-construction of internal allocator
         ///
-        Slot_map(Slot_map&& right, allocator_type alloc) noexcept :
+        Slot_map(Slot_map&& right, allocator_type alloc) noexcept:
             allocator(alloc),
-            allocation( (alloc == right.get_allocator()) ? std::move(right.allocation) :  allocate(right.capacity())),
+            allocation((alloc == right.get_allocator()) ? std::move(right.allocation) : allocate(right.capacity())),
             elem_count(right.elem_count),
-            free_index(allocation.index_array + (right.free_index - right.allocation.index_array) ) {
+            free_anchor(allocation.metadata + (right.free_anchor - right.allocation.metadata)) {
 
-            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructible.");
+            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructable.");
 
             if (right.allocator != alloc) {
-                aul::uninitialized_move_n(right.allocation.elems_array, elem_count, allocation.elems_array, allocator);
+                aul::uninitialized_move_n(right.allocation.elements, elem_count, allocation.elements, allocator);
             }
 
             right.elem_count = 0;
-            right.free_index = nullptr;
+            right.free_anchor = nullptr;
         }
 
         ///
         /// \param src Source object
         ///
-        Slot_map(const Slot_map& src) :
-            allocator(elems_allocator_traits::select_on_container_copy_construction(src.allocator)),
+        Slot_map(const Slot_map& src):
+            allocator(allocator_traits::select_on_container_copy_construction(src.allocator)),
             allocation(allocate(src.allocation.capacity)),
             elem_count(src.elem_count),
-            free_index(allocation.index_array + (src.free_index - src.allocation.index_array)) {
+            free_anchor(allocation.metadata + (src.free_anchor - src.allocation.metadata)) {
 
-            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructible.");
+            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructable.");
 
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+            auto md_allocator = md_allocator_type{allocator};
 
-            aul::uninitialized_copy(src.allocation.elems_array, src.allocation.elems_array + src.elem_count, allocation.elems_array, allocator);
-            aul::uninitialized_copy(src.allocation.index_array, src.allocation.index_array + src.elem_count, allocation.index_array, index_allocator);
-            aul::uninitialized_copy(src.allocation.erase_array, src.allocation.erase_array + src.elem_count, allocation.erase_array, erase_allocator);
+            aul::uninitialized_copy(src.allocation.elements, src.allocation.elements + src.elem_count, allocation.elements, allocator);
+            aul::uninitialized_copy(src.allocation.metadata, src.allocation.metadata + src.elem_count, allocation.metadata, md_allocator);
         }
 
         ///
         /// \param src Source object
         /// \param alloc Source for copy-construction of internal allocator
-        ///
-        Slot_map(const Slot_map& src, allocator_type alloc) :
+        Slot_map(const Slot_map& src, const allocator_type& alloc):
             allocator(alloc),
             allocation(allocate(src.allocation.capacity)),
             elem_count(src.elem_count),
-            free_index(allocation.index_array + (src.free_index - src.allocation.index_array)) {
+            free_anchor(allocation.metadata + (src.free_anchor - src.allocation.metadata)) {
 
-            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructible.");
+            static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructable.");
 
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+            auto md_allocator = md_allocator_type{allocator};
 
-            aul::uninitialized_copy(src.allocation.elems_array, src.allocation.elems_array + elem_count, allocation.elems_array, allocator);
-            aul::uninitialized_copy(src.allocation.index_array, src.allocation.index_array + elem_count, allocation.index_array, index_allocator);
-            aul::uninitialized_copy(src.allocation.erase_array, src.allocation.erase_array + elem_count, allocation.erase_array, erase_allocator);
+            aul::uninitialized_copy(src.allocation.elements, src.allocation.elements + elem_count, allocation.elements, allocator);
+            aul::uninitialized_copy(src.allocation.metadata, src.allocation.metadata + elem_count, allocation.metadata, md_allocator);
         }
 
         ///
         /// Destructor
         ///
         ~Slot_map() {
-            clear();
+            aul::destroy(allocation.elements, allocation.elements + size(), allocator);
+            aul::destroy(allocation.metadata, allocation.metadata + capacity(), allocator);
+            deallocate(allocation);
         }
 
-        //=====================================================================
+        //=================================================
         // Modifier methods
-        //=====================================================================
+        //=================================================
 
         ///
-        /// Destructs current contents. Reduces capacity to 0.
+        /// Destructs current contents. Reduces capacity to 0. All keys are
+        /// invalidated. Keys issues after a call to clear may be equal to
+        /// previously used keys. It is recommended to discard all previous
+        /// keys immeditaely before making a call to this function.
         ///
         void clear() noexcept {
             if (allocation.capacity) {
-                auto index_allocator = index_allocator_type{allocator};
-                auto erase_allocator = erase_allocator_type{allocator};
+                auto md_allocator = md_allocator_type{allocator};
 
-                aul::destroy(allocation.elems_array, allocation.elems_array + elem_count, allocator);
-                aul::destroy(allocation.index_array, allocation.index_array + allocation.capacity, index_allocator);
-                aul::destroy(allocation.erase_array, allocation.erase_array + elem_count, erase_allocator);
+                aul::destroy(allocation.elements, allocation.elements + elem_count, allocator);
+                aul::destroy(allocation.metadata, allocation.metadata + allocation.capacity, md_allocator);
             }
 
             deallocate(allocation);
 
-            allocation.clear();
             elem_count = 0;
-            free_index = nullptr;
+            free_anchor = nullptr;
         }
 
         /// Replaces the contents of the current object those of src. Also swaps
@@ -300,16 +227,16 @@ namespace aul {
         /// \param src Target object to swap with
         ///
         void swap(Slot_map& src) noexcept (
-            std::allocator_traits<Alloc>::propagate_on_container_swap::value ||
-            std::allocator_traits<Alloc>::is_always_equal::value) {
+            allocator_traits::propagate_on_container_swap::value ||
+            allocator_traits::is_always_equal::value) {
 
-            if constexpr (elems_allocator_traits::propagate_on_container_swap::value) {
+            if constexpr (allocator_traits::propagate_on_container_swap::value) {
                 std::swap(allocator, src.allocator);
             }
 
             std::swap(allocation, src.allocation);
             std::swap(elem_count, src.elem_count);
-            std::swap(free_index, src.free_index);
+            std::swap(free_anchor, src.free_anchor);
         }
 
         ///
@@ -317,71 +244,16 @@ namespace aul {
         /// \param r Right map to swap
         ///
         friend void swap(Slot_map& l, Slot_map& r) {
-            l.swap();
+            l.swap(r);
         }
 
-        //=====================================================================
-        // Assignment methods & operators
-        //=====================================================================
+        //=================================================
+        // Assignment operators
+        //=================================================
 
-        /// Replaces current content with those in list. New contents are copy-
-        /// constructed from originals.
         ///
-        ///
-        /// \param list Source list for elements
-        ///
-        void assign(const std::initializer_list<T> list) {
-            assign(list.begin(), list.end());
-        }
-
-        /// Replaces current contents with those in the range specified by
-        /// [begin, end). New contents are copy-constructed from originals.
-        ///
-        /// \tparam Iter  Iterator type
-        /// \param begin Iterator to first element in source range
-        /// \param end   Iterator to on past last element in source range
-        ///
-        template<typename Iter>
-        void assign(Iter begin, Iter end) {
-            clear();
-            reserve(end - begin);
-
-            free_index = nullptr;
-            elem_count = allocation.capacity;
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            aul::uninitialized_copy(begin, end, allocation.elems_array, allocator);
-            aul::uninitialized_iota(allocation.index_array, allocation.index_array + elem_count, 0, index_allocator);
-            aul::uninitialized_iota(allocation.erase_array, allocation.erase_array + elem_count, 0, erase_allocator);
-        }
-
-        /// Replaces current contents with n copies of val.
-        ///
-        /// \param n   Number of copies made of val
-        /// \param val Source for copy-construction of new elements
-        ///
-        void assign(const size_type n, const T& val) {
-            clear();
-            reserve(n);
-
-            free_index = nullptr;
-            elem_count = n;
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            aul::uninitialized_fill(allocation.elems_array, allocation.elems_array + n, val, allocator);
-            aul::uninitialized_iota(allocation.index_array, allocation.index_array + n,   0, index_allocator);
-            aul::uninitialized_iota(allocation.erase_array, allocation.erase_array + n,   0, erase_allocator);
-        }
-
-        /// Copy assignment operator
-        ///
-        /// \param  src 
+        /// \param  src
         /// \return Current object
-        ///
         Slot_map& operator=(const Slot_map& src) {
             static_assert(std::is_copy_constructible<T>::value, "Type T is not copy-constructible.");
 
@@ -391,19 +263,17 @@ namespace aul {
 
             clear();
 
-            if constexpr (elems_allocator_traits::propagate_on_container_copy_assignment::value) {
+            if constexpr (allocator_traits::propagate_on_container_copy_assignment::value) {
                 allocator = src.allocator;
             }
             allocation = allocate(src.allocation.capacity);
             elem_count = src.elem_count;
-            free_index = allocation.index_array + (src.free_index - src.allocation.index_array);
+            free_anchor = allocation.metadata + (src.free_anchor - src.allocation.metadata);
 
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+            auto md_allocator = md_allocator_type{allocator};
 
-            aul::uninitialized_copy(src.allocation.elems_array, src.allocation.elems_array + elem_count, allocation.elems_array, allocator);
-            aul::uninitialized_copy(src.allocation.index_array, src.allocation.index_array + elem_count, allocation.index_array, index_allocator);
-            aul::uninitialized_copy(src.allocation.erase_array, src.allocation.erase_array + elem_count, allocation.erase_array, erase_allocator);
+            aul::uninitialized_copy(src.allocation.elements, src.allocation.elements + elem_count, allocation.elements, allocator);
+            aul::uninitialized_copy(src.allocation.metadata, src.allocation.metadata + elem_count, allocation.metadata, md_allocator);
 
             return *this;
         }
@@ -411,418 +281,268 @@ namespace aul {
         /// Move assignment operator
         /// \param src Target object to move from
         /// \return Current object
-        ///
-        Slot_map& operator=(Slot_map&& src) noexcept {
+        Slot_map& operator=(Slot_map&& src) noexcept(aul::is_noexcept_movable_v<A>) {
             if (this == &src) {
                 return *this;
             }
 
             clear();
 
-            if constexpr (elems_allocator_traits::propagate_on_container_move_assignment::value) {
+            if constexpr (allocator_traits::propagate_on_container_move_assignment::value) {
                 allocator = std::move(src.allocator);
             }
+
             allocation = std::move(allocation);
             elem_count = std::move(elem_count);
-            free_index = std::move(free_index);
-            
+            free_anchor = std::move(free_anchor);
+
             src.elem_count = 0;
-            src.free_index = nullptr;
+            src.free_anchor = nullptr;
 
             return *this;
         }
 
-        /// Replaces current contents with those of list.
-        ///
-        /// \param list Source for replace
-        /// \return  Current object
-        ///
-        Slot_map& operator=(const std::initializer_list<T> list) {
-            assign(list);
-            return *this;
-        }
-
-        //=====================================================================
-        // Access methods
-        //=====================================================================
+        //=================================================
+        // Element access operators/methods
+        //=================================================
 
         ///
-        /// \return Reference to first element. Undefined if empty
+        /// Undefined behavior if key is not valid
         ///
+        /// \param x Key mapped to desired element
+        /// \return  Reference to element mapped to key x
         [[nodiscard]]
-        reference front() {
-            return allocation.elems_array[0];
+        T& operator[](const key_type key) {
+            size_type index = allocation.metadata[key.index].anchor.data();
+            return allocation.elements[index];
         }
 
         ///
-        /// \return Const reference to first element. Undefined if empty
+        /// Undefined behavior if key is not valid
         ///
+        /// \param x Key mapped to desired element
+        /// \return  Reference to element mapped to key x
         [[nodiscard]]
-        const_reference front() const {
-            return allocation.elems_array[0];
+        const T& operator[](const key_type key) const {
+            size_type index = allocation.metadata[key.index].anchor.data();
+            return allocation.elements[index];
         }
 
-        ///
-        /// \return Reference to last element. Undefined if empty
-        ///
-        [[nodiscard]]
-        reference back() {
-            return allocation.elems_array[elem_count - 1];
-        }
-
-        ///
-        /// \return Const reference to last element. Undefined if empty
-        ///
-        [[nodiscard]]
-        const_reference back() const {
-            return allocation.elems_array[elem_count - 1];
-        }
-
-        ///
-        /// \param x Index of desired element
-        /// \return  Reference to element at index x
-        ///
-        [[nodiscard]]
-        reference at(const size_type x) {
-            if (size() <= x) {
-                throw std::out_of_range("Index out of bounds.");
-            }
-
-            return allocation.elems_array[x];
-        }
-
-        ///
-        /// \param x Index of desired element
-        /// \return  Reference to element at index x
-        ///
-        [[nodiscard]]
-        const_reference at(const size_type x) const {
-            if (size() <= x) {
-                throw std::out_of_range("Index out of bounds.");
-            }
-
-            return allocation.elems_array[x];
-        }
-
-        ///
         /// \param x Key mapped to desired element
         /// \return  Reference to element mapped to key x
         ///
         [[nodiscard]]
-        reference at(const key_type k) {
-            if (size() <= k.data()) {
-                throw std::out_of_range("Index out of bounds.");
+        T& at(const key_type k) {
+            if (!contains(k)) {
+                throw std::runtime_error("aul::Slot_map::operator[] called with invalid key");
             }
 
             return operator[](k);
         }
 
-        ///
         /// \param x Key mapped to desired element
         /// \return  Reference to element mapped to key x
         ///
         [[nodiscard]]
-        const_reference at(const key_type k) const {
-            if (size() <= k.data()) {
-                throw std::out_of_range("Index out of bounds.");
+        const T& at(const key_type k) const {
+            if (!contains(k)) {
+                throw std::runtime_error("aul::Slot_map::operator[] called with invalid key");
             }
 
             return operator[](k);
         }
 
-        //=====================================================================
-        // Access operators
-        //=====================================================================
+        //=================================================
+        // Element addition
+        //=================================================
 
+        /// Constructs an object from a set of parameters at a specified place
+        /// Is stable.
         ///
-        /// \param x Index of desired element
-        /// \return  Reference to element at index x
-        ///
-        [[nodiscard]]
-        reference operator[](const size_type x) {
-            return allocation.elems_array[x];
-        }
-
-        ///
-        /// \param x Index of desired element
-        /// \return  Reference to element at index x
-        ///
-        [[nodiscard]]
-        const_reference operator[](const size_type x) const {
-            return allocation.elems_array[x];
-        }
-
-        ///
-        /// \param x Key mapped to desired element
-        /// \return  Reference to element mapped to key x
-        ///
-        [[nodiscard]]
-        reference operator[](const key_type x) {
-            index_type& index = allocation.index_array[x.data()];
-            return allocation.elems_array[index.data()];
-        }
-
-        ///
-        /// \param x Key mapped to desired element
-        /// \return  Reference to element mapped to key x
-        ///
-        [[nodiscard]]
-        const_reference operator[](const key_type x) const {
-            index_type& index = allocation.index_array[x.data()];
-            return allocation.elems_array[index.data()];
-        }
-
-        //=====================================================================
-        // Element mutators
-        //=====================================================================
-
-        ///
-        /// \param  pos Iterator to position where elements should be inserted
-        /// \param  val Value to copy from to insert new element
-        /// \return Iterator to newly inserted elements
-        ///
-        iterator insert(const_iterator pos, const T& val) {
-            reserve(size() + 1);
-
-            //Edge case: Insert at last position
-            if (pos == (cend() - 1) ) {
-                construct_element(std::addressof(*pos), val);
-                return iterator{std::addressof(*pos)};
+        /// \tparam Args Argument types for constructor call
+        /// \param args  Constructor arguments for construction of new element
+        /// \return      Reference to newly constructed object
+        template<class... Args>
+        key_type emplace(Args&& ... args) {
+            if (size() > max_size() - 1) {
+                throw std::length_error("aul::Slot_map grew beyond max size");
             }
 
-            //Move over last element via move-construction
-            const pointer last_ptr = allocation.elems_array + elem_count;
-            this->move_construct_element(last_ptr - 1, last_ptr);
+            if (size() + 1 <= capacity()) {
+                construct_element(allocation.elements + size(), std::forward<Args>(args)...);
+            } else {
+                //Make new allocation
+                Allocation new_allocation = allocate(grow_size(size() + 1));
 
-            //Move over all elements past pos via move-assignment
-            for (iterator it = end() - 1; it-- != pos;) {
-                it[-1] = it[0];
+                try {
+                    allocator_traits::construct(allocator, new_allocation.elements + size(), std::forward<Args>(args)...);
+                } catch (...) {
+                    deallocate(new_allocation);
+
+                    throw;
+                }
+
+                aul::uninitialized_move(allocation.elements, allocation.elements + size(), new_allocation.elements, allocator);
+
+                //Temporary allocator for indices
+                auto md_allocator = md_allocator_type{allocator};
+
+                free_anchor = extend_metadata(allocation, free_anchor, new_allocation, 1);
+
+                deallocate(allocation);
+                allocation = std::move(new_allocation);
             }
-            
-            //Assign value to pos whose contents have been moved
-            *pos = val;
-            return iterator{std::addressof(*pos)};
-        }
-
-        iterator insert(const_iterator pos, T&& value);
-
-        iterator insert(const_iterator pos, const size_type count, const T& value);
-
-        template<class InputIter>
-        iterator insert(iterator pos, InputIter begin, InputIter end);
-
-        iterator insert(const_iterator pos, std::initializer_list<T> list);
-
-        iterator quick_insert(const_iterator pos, const T& value) {
-            reserve(size() + 1);
-            
-            pointer pos_ptr = std::addressof(*pos);
-
-            move_construct_element(pos_ptr, allocation.elems_array + elem_count);
-            construct_element(pos_ptr, value);
+            md_pointer md = metadata_of(allocation.elements + size());
+            auto md_index = static_cast<size_type>(md - allocation.metadata);
 
             ++elem_count;
+
+            return key_type{md_index, md->anchor.version()};
         }
 
-        ///
-        /// \param pos   Iterator to position to insert at
-        /// \param value Value to move construct from
-        ///
-        iterator quick_insert(const_iterator pos, T&& value) {
-            reserve(size() + 1);
-
-            pointer pos_ptr = std::addressof(*pos);
-
-            move_construct_element(pos_ptr, allocation.elems_array + elem_count);
-            construct_element(pos_ptr, std::forward<T&&>(value));
-
-            ++elem_count;
+        iterator insert(const T& v) {
+            emplace(v);
+            return iterator{allocation.elements + size() - 1};
         }
 
-        ///
-        /// \param pos   Iterator to position to begin inserting at
-        /// \param count Number of elements to be inserted
-        /// \param value Object from which elements are inserted
-        ///
-        iterator insert(const size_type count, const T& value);
-
-        ///
-        /// \tparam Input_iter Type of iterator specifying source range
-        /// \param pos   Iterator to position to begin inserting at
-        /// \param begin Iterator to begining of source range
-        /// \param end   Iterator to end of source range
-        ///
-        template<class Input_iter>
-        iterator insert(Input_iter begin, Input_iter end);
-
-        ///
-        /// \param pos  Iterator to position to begin inserting at
-        /// \param list Initiializer list to copy-construct elements from
-        ///
-        iterator insert(std::initializer_list<T> list) {
-            insert(list.begin(), list.end());
+        iterator insert(T&& v) {
+            emplace(std::forward<T&&>(v));
+            return iterator{ allocation.elements + size() - 1 };
         }
 
-
+        //=================================================
+        // Element removal
+        //=================================================
 
         ///
-        /// \param key Valid key mapping to an element
-        ///
-        void erase(const key_type key) {
-            const size_type pos = allocation.index_array[key.data()];
-            const pointer ptr = allocation.elems_array + pos;
-            swap_elements(ptr, std::addressof(end()[-1]));
-            pop_back();
+        /// \param key Key mapping to element if
+        /// \ret True if an element was removed
+        bool erase(const key_type key) {
+            md_pointer md = allocation.metadata + key.index;
+            if (md->anchor.version() != key.version) {
+                return false;
+            }
+
+            auto ptr = allocation.elements + key.index;
+
+            pointer last_ptr = allocation.elements + size() - 1;
+            md_pointer last_md = metadata_of(last_ptr);
+
+            *ptr = std::move(*last_ptr);
+            last_md->anchor.data() = (ptr - allocation.elements);
+            allocation.metadata[ptr - allocation.elements].anchor_index = (last_md - allocation.metadata);
+
+            allocator_traits::destroy(allocator, last_ptr);
+
+            if (free_anchor) {
+                md->anchor = free_anchor - allocation.metadata;
+            }
+            else {
+                md->anchor = (md - allocation.metadata);
+            }
+            free_anchor = md;
+            --elem_count;
+            return true;
         }
 
         ///
         /// \param it Valid iterator to element to erase
         ///
         void erase(const_iterator it) {
-            swap_elements(std::addressof(*it), std::addressof(end()[-1]));
-            pop_back();
-        }
+            auto ptr = const_cast<pointer>(it.operator->());
+            md_pointer md = metadata_of(ptr);
 
-        ///
-        /// \param val Object to copy-construct from
-        ///
-        key_type push_back(const T& val) {
-            return emplace_back(val);
-        }
+            pointer last_ptr = allocation.elements + size() - 1;
+            md_pointer last_md = metadata_of(last_ptr);
 
-        ///
-        /// \param val Object to move-construct from
-        ///
-        key_type push_back(T&& val) {
-            return emplace_back(std::forward<T&&>(val));
-        }
+            *ptr = std::move(*last_ptr);
+            last_md->anchor.data() = (ptr - allocation.elements);
+            allocation.metadata[ptr - allocation.elements].anchor_index = (last_md - allocation.metadata);
 
-        ///
-        /// Removes the last element in the container. undefined if container
-        /// is empty.
-        ///
-        void pop_back() {
+            allocator_traits::destroy(allocator, last_ptr);
+
+            if (free_anchor) {
+                md->anchor = free_anchor - allocation.metadata;
+            }
+            else {
+                md->anchor = (md - allocation.metadata);
+            }
+            free_anchor = md;
             --elem_count;
-            destroy_element(allocation.elems_array + elem_count);
         }
 
-        ///
-        /// Constructs an object from a set of parameters at the last position
-        /// in the container.
-        ///
-        /// \tparam Args Argument types for constructor call
-        /// \param args  Constructor arguments for construction of new element
-        /// \return      Reference to newly constructed object
-        ///
-        template<class... Args>
-        key_type emplace_back(Args&& ... args) {
-            //TODO: Conditionally provide the strong-exception guarantee
-            //If resize neccessary:
-            //Try:
-            //Make new allocation
-            //Construct new element
-            //Move elements to new allocation
-            //Release previous allocation
-            //Catch:
-            //Undo moving of elements
-            //Release previous allocation
-
-            reserve(size() + 1);
-
-            construct_element(
-                allocation.elems_array + elem_count,
-                std::forward<Args>(args)...
-            );
-
-            ++elem_count;
-            return get_key(end() - 1);
-        }
-
-        ///
-        /// Constructs an object from a set of parameters at a specified place
-        /// Is stable.
-        ///
-        /// \tparam Args Argument types for constructor call
-        /// \param pos   Iterator to desired emplacement point
-        /// \param args  Constructor arguments for construction of new element
-        /// \return      Reference to newly constructed object
-        ///
-        template<class... Args>
-        key_type emplace(const_iterator pos, Args&& ... args);
-
-        //=====================================================================
+        //=================================================
         // Iterator methods
-        //=====================================================================
+        //=================================================
 
         iterator begin() noexcept {
-            return iterator(allocation.elems_array);
+            return iterator(allocation.elements);
         }
 
-        const_iterator end() noexcept {
-            const_iterator it(allocation.elems_array ? allocation.elems_array + elem_count : nullptr);
-            return it;
-        }
-        
-        const_iterator begin() const noexcept {
-            return const_iterator(allocation.elems_array);
+        const_iterator begin() const {
+            return const_iterator(allocation.elements);
         }
 
-
-        iterator end() const noexcept {
-            iterator it(allocation.elems_array ? allocation.elems_array + elem_count : nullptr);
-            return it;
-        }
-
-        const_iterator cbegin() const noexcept {
+        const_iterator cbegin() const {
             return const_cast<const Slot_map&>(*this).begin();
         }
 
-        const_iterator cend() const noexcept {
+        iterator end() {
+            iterator it(allocation.elements ? allocation.elements + elem_count : nullptr);
+            return it;
+        }
+
+        const_iterator end() const {
+            const_iterator it(allocation.elements ? allocation.elements + elem_count : nullptr);
+            return it;
+        }
+
+        const_iterator cend() const {
             return const_cast<const Slot_map&>(*this).end();
         }
 
 
-        reverse_iterator rbegin() noexcept {
+        reverse_iterator rbegin() {
             return reverse_iterator(end());
         }
 
-        reverse_iterator rend() noexcept {
-            return reverse_iterator(begin());
+        const_reverse_iterator rbegin() const {
+            return const_reverse_iterator(end());
         }
 
-        const_reverse_iterator rbegin() const noexcept {
-            return reverse_iterator(end());
-        }
-
-        const_reverse_iterator rend() const noexcept {
-            return reverse_iterator(begin());
-        }
-
-        const_reverse_iterator crbegin() const noexcept {
+        const_reverse_iterator crbegin() const {
             return const_cast<const Slot_map&>(*this).rbegin();
         }
 
-        const_reverse_iterator crend() const noexcept {
+        reverse_iterator rend() {
+            return reverse_iterator(begin());
+        }
+
+        const_reverse_iterator rend() const {
+            return const_reverse_iterator(begin());
+        }
+
+        const_reverse_iterator crend() const {
             return const_cast<const Slot_map&>(*this).rend();
         }
 
-        //=====================================================================
+        //=================================================
         // Size & capacity methods
-        //=====================================================================
+        //=================================================
 
         ///
-        /// \return size() == 0
+        /// \return True if container has no elements
         ///
         [[nodiscard]]
-        bool empty() const noexcept {
-            return size() == 0;
+        bool empty() const {
+            return elem_count == 0;
         }
 
         ///
         /// \return Allocation capacity
         ///
         [[nodiscard]]
-        size_type capacity() const noexcept {
+        size_type capacity() const {
             return allocation.capacity;
         }
 
@@ -830,7 +550,7 @@ namespace aul {
         /// \return Element count
         ///
         [[nodiscard]]
-        size_type size() const noexcept {
+        size_type size() const {
             return elem_count;
         }
 
@@ -838,11 +558,11 @@ namespace aul {
         /// \return Maximum capacity container may reach.
         ///
         [[nodiscard]]
-        size_type max_size() const noexcept {
+        size_type max_size() const {
             constexpr size_type size_type_max = std::numeric_limits<difference_type>::max();
-            const size_type element_max = sizeof(value_type) * elems_allocator_traits::max_size(allocator);
+            const size_type element_max = sizeof(value_type) * allocator_traits::max_size(allocator);
 
-            const size_type memory_max = element_max  / (sizeof(value_type) + sizeof(erase_type) + sizeof(index_type));
+            const size_type memory_max = element_max / (sizeof(value_type) + sizeof(Metadata));
 
             return std::min(size_type_max, memory_max);
         }
@@ -863,59 +583,23 @@ namespace aul {
             }
 
             //Make new allocation
-            Allocation new_memory = allocate(n);
+            Allocation new_allocation = allocate(n);
+
+            //Temporary allocator for indices
+            auto md_allocator = md_allocator_type{allocator};
 
             //Move contents of array if location of arrays has changed
-            {
-                if (new_memory.index_array != allocation.index_array) {
-                    auto index_allocator = index_allocator_type{allocator};
-                    aul::uninitialized_move(allocation.index_array, allocation.index_array + capacity(), new_memory.index_array, index_allocator);
-                }
-
-                if (new_memory.elems_array != allocation.elems_array) {
-                    aul::uninitialized_move(allocation.elems_array, allocation.elems_array + elem_count, new_memory.elems_array, allocator);
-                }
-
-                if (new_memory.erase_array != allocation.erase_array) {
-                    auto erase_allocator = erase_allocator_type{allocator};
-                    aul::uninitialized_move(allocation.erase_array, allocation.erase_array + elem_count, new_memory.erase_array, erase_allocator);
-                }
+            if (new_allocation.elements != allocation.elements) {
+                aul::uninitialized_move(allocation.elements, allocation.elements + elem_count, new_allocation.elements, allocator);
             }
 
-            //Create new empty indices and add to free index list
-            {
-                auto index_allocator = index_allocator_type{allocator};
-
-                //Pointer to first of new indices
-                index_pointer new_indices = new_memory.index_array + allocation.capacity;
-
-                //Number of new indices to be create minus one
-                const size_type new_index_count = (n - capacity()) - 1;
-
-                //Construct new indices except for last
-                size_type data = (new_indices - new_memory.index_array) + 1;
-                for (size_type i = 0; i < new_index_count; ++i, ++data) {
-                    index_allocator_traits::construct(index_allocator, new_indices + i, data, 1);
-                }
-
-                //Pointer to last newly created index
-                const index_pointer new_indices_last = new_indices + new_index_count;
-
-                //Contents of new last new index
-                data = (free_index) ? (free_index - allocation.index_array) : (new_indices_last - new_memory.index_array);
-
-                //Construct new last index
-                index_allocator_traits::construct(index_allocator, new_indices_last, data, 1);
-
-                free_index = new_indices;
-            }
+            free_anchor = extend_metadata(allocation, free_anchor, new_allocation, 0);
 
             deallocate(allocation);
-            allocation = std::move(new_memory);
+            allocation = std::move(new_allocation);
         }
 
-        ///
-        /// Resizes the container to contain exact n many elements. If n is 
+        /// Resizes the container to contain exact n many elements. If n is
         /// less than the current size, the excess objects are deleted. If n is
         /// greater than the current size default constructed elements are
         /// inserted to the end of the container.
@@ -924,35 +608,16 @@ namespace aul {
             resize(n, value_type{});
         }
 
-        ///
-        /// Resizes the container to contain exact n many elements. If n is 
+        /// Resizes the container to contain exact n many elements. If n is
         /// less than the current size, the excess objects are deleted. If n is
         /// greater than the current size copies of val are inserted to the end
         /// of the container.
         ///
-        void resize(const size_type n, const_reference val) {
-            if (size() < n) {
-                for (iterator it = begin() + n; it != end() + n; ++it) {
-                    erase(it);
-                }
+        void resize(const size_type n, const T& val);
 
-                return;
-            }
-
-            if (n < size()) {
-                reserve(n);
-
-                for (size_type i = 0; i != n; ++i) {
-                    emplace_back(val);
-                }
-
-                return;
-            }
-        }
-
-        //=====================================================================
+        //=================================================
         // Comparison operators
-        //=====================================================================
+        //=================================================
 
         [[nodiscard]]
         friend bool operator==(const Slot_map& lhs, const Slot_map& rhs) {
@@ -964,60 +629,36 @@ namespace aul {
             return !operator==(lhs, rhs);
         }
 
-        [[nodiscard]]
-        friend bool operator<(const Slot_map& lhs, const Slot_map& rhs) {
-            return aul::less_than(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        }
-
-        [[nodiscard]]
-        friend bool operator>(const Slot_map& lhs, const Slot_map& rhs) {
-            return aul::greater_than(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        }
-
-        [[nodiscard]]
-        friend bool operator<=(const Slot_map& lhs, const Slot_map& rhs) {
-            return aul::less_than_or_equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        }
-
-        [[nodiscard]]
-        friend bool operator>=(const Slot_map& lhs, const Slot_map& rhs) {
-            return aul::greater_than_or_equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        }
-
-        //=====================================================================
+        //=================================================
         // Misc. methods
-        //=====================================================================
+        //=================================================
 
-        ///
         /// \param it Iterator to element
         /// \return   key corresponding to element pointed to be it
         ///
         [[nodiscard]]
         key_type get_key(const_iterator it) {
-            const_pointer p = std::addressof(*it);
+            const_pointer p = it.operator->();
 
-            return {
-                allocation.erase_array[p - allocation.elems_array],
-                allocation.index_array[p - allocation.elems_array].version()
-            };
+            const size_type x = allocation.metadata[p - allocation.elements].anchor_index;
+            const size_type y = allocation.metadata[p - allocation.elements].anchor.version();
+
+            return key_type{x, y};
         }
 
-        ///
         /// \param x Key to be checked
         /// \return  Returns true if the key maps to a valid element
         ///
         [[nodiscard]]
-        bool contains(key_type x) noexcept {
-            return 
-                x.version() == allocation.index_array[x.data()].version() &&
-                x.data() <= size();
+        bool contains(const key_type x) const {
+            return (x.version == allocation.metadata[x.index].anchor.version());
         }
 
         ///
         /// \return Copy of internal allocator
         ///
         [[nodiscard]]
-        Alloc get_allocator() const noexcept {
+        allocator_type get_allocator() const {
             return allocator;
         }
 
@@ -1025,139 +666,163 @@ namespace aul {
         /// \return Pointer to array containing elements
         ///
         [[nodiscard]]
-        pointer data() noexcept {
-            return allocation.elems_array;
+        pointer data() {
+            return allocation.elements;
         }
 
         ///
         /// \return Pointer to array containing elements
         ///
         [[nodiscard]]
-        const_pointer data() const noexcept {
-            return allocation.elems_array;
+        const_pointer data() const {
+            return allocation.elements;
         }
 
     private:
 
-        //=====================================================================
+        //=================================================
         // Instance members
-        //=====================================================================
+        //=================================================
 
-        allocator_type allocator;
+        allocator_type allocator{};
 
-        Allocation     allocation;
+        Allocation allocation{};
 
-        size_type      elem_count;
+        size_type elem_count = 0;
 
-        index_pointer  free_index;
+        md_pointer free_anchor = nullptr;
 
-        //=====================================================================
-        // Helper functions
-        //=====================================================================
+        //=================================================
+        // Misc. helper methods
+        //=================================================
 
-        /// Increases the capacity of the container via doubling to at least n
-        ///
-        /// \param n Number of elements 
-        ///
-        void grow(size_type n) {
+        size_type grow_size(const size_type n) {
             const size_type double_size = (max_size() / 2) < size() ? max_size() : 2 * capacity();
-            reserve(std::max(n, double_size));
+            return std::max(n, double_size);
         }
 
-        /// Take an free index and populates it to point at the position
+        /// Returns the index associated with the element pointed to by ptr
+        ///
+        /// \param Pointer to element in element array
+        [[nodiscard]]
+        md_pointer metadata_of(const_pointer ptr) const noexcept {
+            return allocation.metadata + allocation.metadata[ptr - allocation.elements].anchor;
+        }
+
+        //=================================================
+        // Anchor index helper methods
+        //=================================================
+
+        /// Takes free index and populates it, making it point to the position
         /// indicated by pos.
         ///
         /// \pre An index that is free must exist. i.e. free_index != nullptr
-        ///
+        /// \param pos Index of element to be held yb metadata
         /// \return Pointer to index that has been consumed.
         ///
-        index_pointer consume_index(const size_type pos) noexcept {
-            const index_pointer free_ptr = free_index;
+        void consume_anchor(const size_type pos) noexcept {
+            const md_pointer free_ptr = free_anchor;
 
             //If free list terminates, assign nullptr to free_index, otherwise
             //assign the next node.
-            if (free_ptr->data() == (free_ptr - allocation.index_array) ) {
-                free_index = nullptr;
+            auto free_achor_index = (free_ptr - allocation.metadata);
+            if (free_ptr->anchor == free_achor_index) {
+                free_anchor = nullptr;
             } else {
-                free_index = allocation.index_array + (free_ptr->data());
+                free_anchor = allocation.metadata + (free_ptr->anchor);
             }
 
-            free_ptr->data() = pos;
-
-            return free_ptr;
+            free_ptr->anchor.data() = pos;
+            allocation.metadata[pos].anchor_index = (free_ptr - allocation.metadata);
         }
 
-        ///
         /// Frees index pointed to by ptr and pushes it onto list of free
         /// indices. Increments index version.
         ///
-        void release_index(const index_pointer ptr) noexcept {
-            if (free_index) {
-                *ptr = free_index - allocation.index_array;
+        void release_anchor(const md_pointer ptr) noexcept {
+            if (free_anchor) {
+                *ptr = free_anchor - allocation.metadata;
             } else {
-                *ptr = ptr - allocation.index_array;
+                *ptr = ptr - allocation.metadata;
             }
-            free_index = ptr;
+            free_anchor = ptr;
+        }
+
+        //=================================================
+        // Element helper methods
+        //=================================================
+
+        ///
+        /// Construct n metadata objects for n elements.
+        ///
+        /// \param n Number of new metadata objects to construct. Must be at least 1
+        void generate_metadata(const size_type n) noexcept {
+            auto md_allocator = md_allocator_type{allocator};
+
+            for (size_type i = 0; i != n; ++i) {
+                md_allocator_traits::construct(md_allocator, allocation.metadata + i, i, i);
+            }
+
+            free_anchor = nullptr;
         }
 
         ///
-        /// Returns the index associated with the element pointed to by ptr
-        /// 
-        /// \param Pointer to element in element array
-        ///
-        [[nodiscard]]
-        index_type& index_of(const_pointer ptr) const noexcept {
-            return allocation.index_array[allocation.erase_array[ptr - allocation.elems_array]];
-        }
+        /// \param a Allocation to move metadata into and then extend. Capacity
+        /// must be greater than that of current allocation
+        /// \param n Number of elements to create metadata for.
+        /// \return Pointer to free anchor point
+        md_pointer extend_metadata(Allocation& from, md_pointer old_free, Allocation& to, const size_type n = 0) noexcept {
+            auto md_allocator = md_allocator_type{allocator};
 
-        /// 
-        /// 
-        /// \param ptr Pointer to element in elems_array
-        ///
-        /// \return Reference to the erase value associated with the 
-        [[nodiscard]]
-        erase_type& erase_of(const_pointer ptr) const noexcept {
-            return allocation.erase_array[ptr - allocation.elems_array];
+            //Move originals
+            for (size_type i = 0; i < from.capacity; ++i) {
+                md_allocator_traits::construct(md_allocator, to.metadata + i, std::move(from.metadata[i]));
+                md_allocator_traits::destroy(md_allocator, from.metadata + i);
+            }
+
+            //Construct new anchors for n elements
+            for (size_type i = from.capacity; i != (from.capacity + n); ++i) {
+                md_allocator_traits::construct(md_allocator, to.metadata + i, i, i);
+            }
+
+            //Construct unused anchors
+            for (size_type i = from.capacity + n; i < (to.capacity - 1); ++i) {
+                md_allocator_traits::construct(md_allocator, to.metadata + i, i + 1);
+            }
+
+            md_pointer new_free_anchor;
+            if (n == (to.capacity - from.capacity)) {
+                new_free_anchor = old_free;
+            } else {
+                size_type old_free_index = (old_free) ? (old_free - from.metadata) : (to.capacity - 1);
+                md_allocator_traits::construct(md_allocator, to.metadata + to.capacity - 1, old_free_index);
+                new_free_anchor = to.metadata + from.capacity + n;
+            }
+
+            return new_free_anchor;
         }
 
         /// Destroys the element pointed to by p through the allocator and
-        /// clears the associated inde value.
+        /// clears the associated index value.
         /// \param p Pointer to element to be destroyed.
         ///
         void destroy_element(pointer p) {
-            release_index(std::addressof(index_of(p)));
-            auto erase_allocator = erase_allocator_type{allocator};
-            erase_allocator_traits::destroy(erase_allocator, std::addressof(erase_of(p)));
-            elems_allocator_traits::destroy(allocator, p);
+            md_pointer md = metadata_of(p);
+            release_anchor(md);
+            allocator_traits::destroy(allocator, p);
         }
 
         /// Constructs an element at the specified position along with the
         /// corresponding erase value and index
         ///
         /// \pre mem.free_head points to an already constructed index object
-        ///
         /// \tparam     Args args type
-        /// \param p    Pointer to desired construction point
-        /// \param args Constructor parameters
+        /// \param pos  Address to construct element at
+        /// \param args Parameters to element constructor
         template<class...Args>
         void construct_element(pointer pos, Args&& ... args) {
-            index_pointer index = free_index;
-
-            consume_index(pos - allocation.elems_array);
-
-            elems_allocator_traits::construct(
-                allocator,
-                pos,
-                std::forward<Args>(args)...
-            );
-
-            auto erase_allocator = erase_allocator_type{allocator};
-
-            erase_allocator_traits::construct(
-                erase_allocator,
-                allocation.erase_array + (pos - allocation.elems_array),
-                index - allocation.index_array
-            );
+            consume_anchor(pos - allocation.elements);
+            allocator_traits::construct(allocator, pos, std::forward<Args>(args)...);
         }
 
         /// Move constructs an element within the container from its current
@@ -1169,176 +834,174 @@ namespace aul {
         /// \param from Pointer to element to move construct from
         /// \param dest Pointer to desired move-construction point
         ///
-        void move_construct_element(pointer from, pointer dest) {
-            //Can probably be micro-optimized
-            index_type& from_index = index_of(from);
-            index_type& dest_index = index_of(dest);
-
-            erase_type& from_erase = erase_of(from);
-            erase_type& dest_erase = erase_of(dest);
-
-            dest_index.data() = std::move(from_index.data());
-            release_index(&from_index);
-
-            auto erase_allocator = erase_allocator_type{allocator};
-            erase_allocator_traits::construct(erase_allocator, &dest_erase, std::move(from_erase));
-            erase_allocator_traits::destroy(erase_allocator, &from_erase);
-
-            elems_allocator_traits::construct(allocator, dest, std::move(*from));
-            elems_allocator_traits::destroy(allocator, from);
-        }
+        void move_construct_element(const pointer from, const pointer dest);
 
         /// Move assigns an element within the container from it's current
         /// position to dest, updates its index, and updates the erase value.
         /// Assumes that dest points to a position in data[] that is currently
-        /// being used by an element. 
-        ///
+        /// being used by an element.
         void move_assign_element(pointer from, pointer dest) {
             *dest = std::move(*from);
-            index_of(dest).data() = index_of(from);
-            erase_of(dest) = std::move(erase_of(from));
-            release_index(&index_of(dest));
+            metadata_of(dest)->anchor = metadata_of(from)->anchor;
+            release_anchor(metadata_of(dest));
         }
 
-        ///
         /// Swaps the position of two elements along with their associated
         /// erase and index values.
         ///
         void swap_elements(pointer a, pointer b) noexcept {
-            std::swap(index_of(a).data(), index_of(b).data());
+            std::swap(metadata_of(a)->anchor_index, metadata_of(b)->anchor_index);
             std::swap(*a, *b);
-            std::swap(erase_of(a), erase_of(b));
         }
+
+        //=================================================
+        // Allocation helper methods
+        //=================================================
 
         [[nodiscard]]
         Allocation allocate(const size_type n) {
             Allocation ret{};
-
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+            auto md_allocator = md_allocator_type{allocator};
 
             try {
-                ret.elems_array = elems_allocator_traits::allocate(allocator, n);
-                ret.index_array = index_allocator_traits::allocate(index_allocator, n);
-                ret.erase_array = erase_allocator_traits::allocate(erase_allocator, n);
+                ret.elements = allocator_traits::allocate(allocator, n);
+                ret.metadata = md_allocator_traits::allocate(md_allocator, n);
                 ret.capacity = n;
             } catch (...) {
-                elems_allocator_traits::deallocate(allocator, ret.elems_array, n);
-                index_allocator_traits::deallocate(index_allocator, ret.index_array, n);
-                erase_allocator_traits::deallocate(erase_allocator, ret.erase_array, n);
-
-                ret.clear();
+                allocator_traits::deallocate(allocator, ret.elements, n);
+                md_allocator_traits::deallocate(md_allocator, ret.metadata, n);
+                ret = {};
+                throw;
             }
 
             return ret;
         }
 
-        ///
         /// \param n     Number of elements to allocate memory for
         /// \param alloc Allocator
         /// \return      Allocation object for new object
         [[nodiscard]]
-        Allocation allocate(const size_type n, Allocation alloc) {
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+        Allocation allocate(const size_type n, const Allocation& hint) {
+            Allocation ret{};
+            auto md_allocator = md_allocator_type{allocator};
 
             try {
-                alloc.elems_array = elems_allocator_traits::allocate(allocator, n, alloc.elems_array);
-                alloc.index_array = index_allocator_traits::allocate(index_allocator, n, alloc.index_array);
-                alloc.erase_array = erase_allocator_traits::allocate(erase_allocator, n, alloc.erase_array);
-                alloc.capacity = n;
+                ret.elements = allocator_traits::allocate(allocator, n, hint.elements);
+                ret.metadata = md_allocator_traits::allocate(md_allocator, n, hint.metadata);
+                ret.capacity = n;
+
             } catch (...) {
-                elems_allocator_traits::deallocate(allocator, alloc.elems_array, n);
-                index_allocator_traits::deallocate(index_allocator, alloc.index_array, n);
-                erase_allocator_traits::deallocate(erase_allocator, alloc.erase_array, n);
-                alloc.clear();
+                allocator_traits::deallocate(allocator, ret.elements, n);
+                md_allocator_traits::deallocate(md_allocator, ret.metadata, n);
+                ret = {};
+
+                throw;
             }
 
-            return alloc;
+            return ret;
         }
 
-        void deallocate(Allocation& alloc) {
-            auto index_allocator = index_allocator_type{allocator};
-            auto erase_allocator = erase_allocator_type{allocator};
+        void deallocate(Allocation& a) {
+            auto md_allocator = md_allocator_type{allocator};
 
-            elems_allocator_traits::deallocate(allocator, alloc.elems_array, alloc.capacity);
-            index_allocator_traits::deallocate(index_allocator, alloc.index_array, alloc.capacity);
-            erase_allocator_traits::deallocate(erase_allocator, alloc.erase_array, alloc.capacity);
+            allocator_traits::deallocate(allocator, a.elements, a.capacity);
+            md_allocator_traits::deallocate(md_allocator, a.metadata, a.capacity);
 
-            alloc.clear();
+            a = {};
         }
 
-        //=====================================================================
-        // Helper classes
-        //=====================================================================
+    };
 
-        struct Allocation {
+    template<class T, class A>
+    class Slot_map<T, A>::Allocation {
+    public:
 
-            //---------------------------------------------
-            // Instance variables
-            //---------------------------------------------
+        //=============================================
+        // Instance variables
+        //=============================================
 
-            index_pointer index_array;
-            elems_pointer elems_array;
-            erase_pointer erase_array;
+        md_pointer metadata = nullptr;
+        pointer elements = nullptr;
 
-            size_type capacity;
+        size_type capacity = 0;
 
-            //---------------------------------------------
-            // -ctors
-            //---------------------------------------------
+        //=============================================
+        // -ctors
+        //=============================================
 
-            Allocation() = default;
-            Allocation(const Allocation&) = default;
-            
-            Allocation(Allocation&& alloc) noexcept :
-                index_array(std::move(alloc.index_array)),
-                elems_array(std::move(alloc.elems_array)),
-                erase_array(std::move(alloc.erase_array)),
-                capacity(std::move(alloc.capacity)) {
+        Allocation() = default;
 
-                alloc.clear();
-            }
+        Allocation(const Allocation&) = delete;
 
-            ~Allocation() = default;
+        Allocation(Allocation&& alloc) noexcept :
+            metadata(std::move(alloc.metadata)),
+            elements(std::move(alloc.elements)),
+            capacity(std::move(alloc.capacity)) {
 
-            //---------------------------------------------
-            // Assignment operators
-            //---------------------------------------------
+            alloc = {};
+        }
 
-            Allocation& operator=(const Allocation&) = default;
+        ~Allocation() = default;
 
-            Allocation& operator=(Allocation&& alloc) noexcept {
-                index_array = std::move(alloc.index_array);
-                elems_array = std::move(alloc.elems_array);
-                erase_array = std::move(alloc.erase_array);
+        //=============================================
+        // Assignment operators
+        //=============================================
 
-                capacity = std::move(alloc.capacity);
+        Allocation& operator=(const Allocation&) = delete;
 
-                alloc.clear();
+        Allocation& operator=(Allocation&& alloc) noexcept {
+            metadata = std::move(alloc.metadata);
+            elements = std::move(alloc.elements);
 
-                return *this;
-            }
+            capacity = std::move(alloc.capacity);
 
-            //---------------------------------------------
-            // Misc. methods
-            //---------------------------------------------
+            alloc.metadata = nullptr;
+            alloc.elements = nullptr;
+            alloc.capacity = 0;
 
-            ///
-            /// Resets all pointers to nullptr and integral values to 0
-            ///
-            void clear() noexcept {
-                index_array = nullptr;
-                elems_array = nullptr;
-                erase_array = nullptr;
+            return *this;
+        }
 
-                capacity = 0;
-            }
+    };
 
-        };// class aul::Slot_map<T, Alloc>::Allocation
+    template<class T, class A>
+    class Slot_map<T, A>::Metadata {
+    public:
 
-    };// class aul::Slot_map<T, Alloc>
+        //=============================================
+        // -ctors
+        //=============================================
 
-}// namespace aul
+        Metadata() = default;
+
+        Metadata(const size_type anchor):
+            anchor(anchor, 1) {}
+
+        Metadata(const size_type anchor, const size_type i):
+            anchor_index(i),
+            anchor(anchor, 1) {}
+
+        Metadata(const Metadata&) = default;
+        Metadata(Metadata&&) = default;
+
+        ~Metadata() = default;
+
+        //=============================================
+        // Assignment operators
+        //=============================================
+
+        Metadata& operator=(const Metadata&) = default;
+        Metadata& operator=(Metadata&&) = default;
+
+        //=============================================
+        // Instance members
+        //=============================================
+
+        size_type anchor_index = 0;
+        aul::Versioned_type<size_type, size_type> anchor{0, 1};
+
+    };
+
+}
 
 #endif
