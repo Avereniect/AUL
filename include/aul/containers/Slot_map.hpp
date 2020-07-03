@@ -57,7 +57,20 @@ namespace aul {
 
         class Metadata;
 
+        ///
+        ///
+        ///
         class Key {
+        public:
+            Key() = default;
+            Key(const Key&) = default;
+            Key(Key&&) = default;
+            ~Key() = default;
+
+            Key& operator=(const Key&) = default;
+            Key& operator=(Key&&)= = default;
+
+        private:
             friend class Slot_map;
             using key_primitive = typename std::allocator_traits<A>::size_type;
 
