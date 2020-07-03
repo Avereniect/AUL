@@ -68,7 +68,7 @@ namespace aul {
             ~Key() = default;
 
             Key& operator=(const Key&) = default;
-            Key& operator=(Key&&)= = default;
+            Key& operator=(Key&&) = default;
 
         private:
             friend class Slot_map;
