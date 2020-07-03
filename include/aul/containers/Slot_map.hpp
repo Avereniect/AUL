@@ -74,7 +74,6 @@ namespace aul {
             friend class Slot_map;
             using key_primitive = typename std::allocator_traits<A>::size_type;
 
-            Key() = default;
             Key(const key_primitive i, const key_primitive v):
                 index(i),
                 version(v) {}
