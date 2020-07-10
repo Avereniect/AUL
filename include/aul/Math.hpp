@@ -1,6 +1,8 @@
 #ifndef AUL_MATH_HPP
 #define AUL_MATH_HPP
 
+#include "Bits.hpp"
+
 #include <type_traits>
 #include <cmath>
 #include <algorithm>
@@ -11,22 +13,6 @@ namespace aul {
     //=====================================================
     // Interpolation functions
     //=====================================================
-
-    // TODO: C++ 20 Remove
-    template<typename T, typename U>
-    U constant_interpolation(const T fac, const U a, const U b) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        return (fac < 1) ? a : b;
-    }
-
-    /// TODO: C++ 20 Remove
-    template<typename T, typename U>
-    U linear_interpolation(T fac, U a, U b) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        return static_cast<U>(a + fac * (b - a));
-    }
 
     template<typename T, typename U>
     U smooth_step(T fac, U a, U b) {
@@ -94,37 +80,82 @@ namespace aul {
 
         return std::pow(dist, 1.0 / p);
     }
+    
+    template<class U, class T>
+    constexpr U normalize_int(const T x) {
+        static_assert(std::is_integral_v<T>);
+        static_assert(std::is_floating_point_v<U>);
 
-
-    /*
-    ///
-    /// Computes binomial coefficients
-    ///
-    /// \tparam T Integral type
-    /// \param n
-    /// \param k
-    /// \return
-    template<typename T>
-    [[nodiscard]]
-    constexpr T choose(const T n, const T k) {
-        if (k < 0 || n < k) {
-            return T{};
-        }
-
-        if (k == 0 || k == n) {
-            return 1;
-        }
-
-
-
+        constexpr U temp = std::numeric_limits<T>::max();
+        return U(x) / static_cast<U>(temp);
     }
 
-    template<typename T>
-    [[nodiscard]]
-    constexpr T permute(const T n, const T k) {
+    ///
+    /// http://burtleburtle.net/bob/c/lookup3.c
+    /// https://github.com/imageworks/OpenShadingLanguage/blob/ffc5303dcfd63cf395d3a1b6fbf6ca3894b44d5e/src/include/OSL/oslnoise.h
+    ///
+    template<class T>
+    constexpr std::uint32_t byte_hash32(const T* data, const std::size_t n) {
+        auto mix = [] (uint32_t& a, uint32_t& b, uint32_t& c) {
+            a -= c; a ^= aul::rotl(c, 4);  c += b;
+            b -= a;  b ^= aul::rotl(a, 6);  a += c;
+            c -= b;  c ^= aul::rotl(b, 8);  b += a;
+            a -= c;  a ^= aul::rotl(c,16);  c += b;
+            b -= a;  b ^= aul::rotl(a,19);  a += c;
+            c -= b;  c ^= aul::rotl(b, 4);  b += a;
+        };
 
+        auto final = [] (const uint32_t& x, const uint32_t& y, const uint32_t& z) -> int32_t {
+            uint32_t a = x;
+            uint32_t b = y;
+            uint32_t c = z;
+
+            c ^= b; c -= aul::rotl(b,14);
+            a ^= c; a -= aul::rotl(c,11);
+            b ^= a; b -= aul::rotl(a,25);
+            c ^= b; c -= aul::rotl(b,16);
+            a ^= c; a -= aul::rotl(c,4);
+            b ^= a; b -= aul::rotl(a,14);
+            c ^= b; c -= aul::rotl(b,24);
+            return c;
+        };
+
+        const char* ptr = reinterpret_cast<const char*>(data);
+        uint32_t a = 0xdeadbeef + n + 13;
+        uint32_t b = a;
+        uint32_t c = a;
+        uint32_t length = n;
+
+        while(length > 3) {
+            a += ptr[0];
+            b += ptr[1];
+            c += ptr[2];
+
+            mix(a, b, c);
+            length -= 3;
+            ptr += 3;
+        }
+
+        switch (length) {
+            case 3:
+                c += ptr[2];
+            case 2:
+                b += ptr[1];
+            case 1:
+                a += ptr[0];
+                c = final(a, b, c);
+            default:
+                ; //Do nothing
+        }
+
+        return c;
     }
-    */
+
+    template<class T>
+    constexpr std::uint32_t byte_hash32(const T& data) {
+        return byte_hash32(std::addressof(data), sizeof(data));
+    }
+
 }
 
 #endif

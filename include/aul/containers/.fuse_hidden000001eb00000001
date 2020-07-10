@@ -57,23 +57,11 @@ namespace aul {
 
         class Metadata;
 
-        ///
-        ///
-        ///
         class Key {
-        public:
-            Key() = default;
-            Key(const Key&) = default;
-            Key(Key&&) = default;
-            ~Key() = default;
-
-            Key& operator=(const Key&) = default;
-            Key& operator=(Key&&) = default;
-
-        private:
             friend class Slot_map;
             using key_primitive = typename std::allocator_traits<A>::size_type;
 
+            Key() = default;
             Key(const key_primitive i, const key_primitive v):
                 index(i),
                 version(v) {}
@@ -102,8 +90,8 @@ namespace aul {
         using reference = T&;
         using const_reference = const T&;
 
-        using iterator = Random_access_iterator<typename aul::allocator_types<A>, false>;
-        using const_iterator = Random_access_iterator<typename aul::allocator_types<A>, true>;
+        using iterator = Random_access_iterator<typename aul::Allocator_types<A>, false>;
+        using const_iterator = Random_access_iterator<typename aul::Allocator_types<A>, true>;
 
         using reverse_iterator = typename std::reverse_iterator<iterator>;
         using const_reverse_iterator = typename std::reverse_iterator<const_iterator>;
@@ -238,7 +226,10 @@ namespace aul {
         ///
         /// \param src Target object to swap with
         ///
-        void swap(Slot_map& src) noexcept (aul::is_noexcept_swappable_v<A>) {
+        void swap(Slot_map& src) noexcept (
+            allocator_traits::propagate_on_container_swap::value ||
+            allocator_traits::is_always_equal::value) {
+
             if constexpr (allocator_traits::propagate_on_container_swap::value) {
                 std::swap(allocator, src.allocator);
             }
