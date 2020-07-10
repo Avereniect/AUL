@@ -54,8 +54,8 @@ namespace aul {
         using size_type = typename std::allocator_traits<allocator_type>::size_type;
         using difference_type = typename std::allocator_traits<allocator_type>::pointer;
 
-        using iterator = aul::Random_access_iterator<aul::Allocator_types<allocator_type>, false>;
-        using const_iterator = aul::Random_access_iterator<aul::Allocator_types<allocator_type>, true>;
+        using iterator = aul::Random_access_iterator<aul::allocator_types<allocator_type>, false>;
+        using const_iterator = aul::Random_access_iterator<aul::allocator_types<allocator_type>, true>;
 
     private:
 
@@ -180,7 +180,7 @@ namespace aul {
         ///
         /// \param rhs
         /// \return
-        Array_map& operator=(Array_map&& rhs) noexcept {
+        Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<Alloc>) {
             clear();
 
             if constexpr (val_alloc_traits::propagate_on_container_move_assignment::value) {
@@ -591,7 +591,7 @@ namespace aul {
         ///
         /// \param rhs Array_amp to swap contents with
         ///
-        void swap(Array_map& rhs) noexcept {
+        void swap(Array_map& rhs) noexcept(aul::is_noexcept_swappable_v<Alloc>) {
             if constexpr (val_alloc_traits::propagate_on_container_swap::value) {
                 std::swap(allocator, rhs.allocator);
             }

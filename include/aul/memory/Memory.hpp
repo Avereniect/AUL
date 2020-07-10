@@ -121,14 +121,16 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class Alloc>
     void uninitialized_move(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& allocator) {
         Forward_iter x = dest;
-
+        Input_iter i = begin;
         try {
-            for (Forward_iter i = begin; i != end; ++i, ++x) {
+            for (; i != end; ++i, ++x) {
                 std::allocator_traits<Alloc>::construct(allocator, std::addressof(*x), std::move(*i));
             }
         } catch (...) {
-            for (; begin <= x; ++begin) {
-                std::allocator_traits<Alloc>::destroy(allocator, std::addressof(*begin));
+            --x;
+            for (; i-- > begin; --x) {
+                *i = std::move(*x);
+                std::allocator_traits<Alloc>::destroy(allocator, std::addressof(*x));
             }
             throw;
         }
@@ -163,13 +165,14 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class Alloc>
     void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
+        Input_iter it = begin;
 
         try {
-            for (Input_iter it = begin; it < end; ++it, ++x) {
+            for (; it < end; ++it, ++x) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *it);
             }
         } catch (...) {
-            aul::destroy(begin, x, alloc);
+            aul::destroy(dest, x, alloc);
             throw;
         }
     }
@@ -250,8 +253,8 @@ namespace aul {
     /// types for a given type T. In practice this typically means using raw
     /// pointers.
     ///
-    template<class T, class Alloc>
-    class Allocator_has_trivial_types {
+    template<class T, class A>
+    class allocator_has_trivial_types {
     private:
         using alloc_traits = std::allocator_traits<T>;
 
@@ -291,7 +294,7 @@ namespace aul {
     /// if two different allocators share the same type aliases
     ///
     template<class Alloc>
-    class Allocator_types {
+    class allocator_types {
     public:
         using value_type = typename std::allocator_traits<Alloc>::value_type;
         using pointer = typename std::allocator_traits<Alloc>::pointer;
@@ -303,6 +306,24 @@ namespace aul {
             using other = typename std::allocator_traits<Alloc>::template rebind_alloc<U>;
         };
     };
+
+    template<class A>
+    struct is_noexcept_movable : public std::bool_constant<
+        std::allocator_traits<A>::propagate_on_container_move_assignment::value ||
+        std::allocator_traits<A>::is_always_equal::value
+    >{};
+
+    template<class A>
+    inline constexpr bool is_noexcept_movable_v = is_noexcept_movable<A>::value;
+
+    template<class A>
+    struct is_noexcept_swappable : public std::bool_constant<
+        std::allocator_traits<A>::propagate_on_container_swap::value ||
+        std::allocator_traits<A>::is_always_equal::value
+    > {};
+
+    template<class A>
+    constexpr bool is_noexcept_swappable_v = is_noexcept_swappable<A>::value;
 
 }
 
