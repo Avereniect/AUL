@@ -253,8 +253,8 @@ namespace aul {
     /// types for a given type T. In practice this typically means using raw
     /// pointers.
     ///
-    template<class T, class Alloc>
-    class Allocator_has_trivial_types {
+    template<class T, class A>
+    class allocator_has_trivial_types {
     private:
         using alloc_traits = std::allocator_traits<T>;
 
@@ -294,7 +294,7 @@ namespace aul {
     /// if two different allocators share the same type aliases
     ///
     template<class Alloc>
-    class Allocator_types {
+    class allocator_types {
     public:
         using value_type = typename std::allocator_traits<Alloc>::value_type;
         using pointer = typename std::allocator_traits<Alloc>::pointer;
@@ -315,6 +315,15 @@ namespace aul {
 
     template<class A>
     inline constexpr bool is_noexcept_movable_v = is_noexcept_movable<A>::value;
+
+    template<class A>
+    struct is_noexcept_swappable : public std::bool_constant<
+        std::allocator_traits<A>::propagate_on_container_swap::value ||
+        std::allocator_traits<A>::is_always_equal::value
+    > {};
+
+    template<class A>
+    constexpr bool is_noexcept_swappable_v = is_noexcept_swappable<A>::value;
 
 }
 
