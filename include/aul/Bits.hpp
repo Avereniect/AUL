@@ -4,6 +4,7 @@
 #include <string>
 #include <type_traits>
 #include <limits>
+#include <climits>
 
 namespace aul {
 
@@ -112,22 +113,6 @@ namespace aul {
         return x ^ mask;
     }
 
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T rotl(const T x, const int rot) {
-        static_assert(std::numeric_limits<T>::is_integer);
-
-        return (x << rot) | x >> (std::numeric_limits<T>::digits - rot);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T rotr(const T x, const int rot) {
-        static_assert(std::numeric_limits<T>::is_integer);
-
-        return (x >> rot) | x << (std::numeric_limits<T>::digits - rot);
-    }
-
     ///
     /// Creates a std::string representing the bit string of x
     ///
@@ -138,18 +123,19 @@ namespace aul {
     [[nodiscard]]
     std::string bits_to_string(const T x) {
         static_assert(std::numeric_limits<T>::is_integer);
-        constexpr auto bit_width = std::numeric_limits<T>::digits;
-        char array[bit_width];
+        constexpr auto bit_width = CHAR_BIT * sizeof(T);
+        char array[bit_width + 1];
 
         T mask = 1;
-        for (int i = 0; i < std::numeric_limits<T>::digits; ++i, mask <<= 1) {
+        for (int i = 0; i < bit_width; ++i, mask <<= 1) {
             array[bit_width - i - 1] = ( (x & mask) ? '1' : '0');
         }
+
+        array[bit_width] = '\0';
 
         return {array};
     }
 
-    /*
     ///
     /// Mods x by 2^n
     ///
@@ -157,38 +143,23 @@ namespace aul {
     /// \param x  Value to mod
     /// \param p  Power of value modding by
     /// \return   Modded value
-    template<typename T, typename U>
+    template<typename T>
     [[nodiscard]]
-    constexpr inline T mod_power(const T x, const U p) noexcept {
-        static_assert(std::is_unsigned<T>::value);
+    constexpr inline T mod_pow2(const T x, const int p) noexcept {
+        static_assert(!std::numeric_limits<T>::is_signed);
 
         return x & ~( (1 << p) - 1);
     }
 
-    template<typename T, typename U>
-    [[nodiscard]]
-    constexpr inline T mod_power(const T x, const U p) noexcept {
-        static_assert(std::is_unsigned<T>::value);
-        static_assert(std::is_unsigned<U>::value);
-
-        //2^p
-        T _2ep = 1;
-        for (U i = 0; i < p; ++i) {
-            _2ep *= 2;
-        }
-
-        return x % _2ep;
-    }
-    */
-
     ///
-    /// \tparam T
-    /// \param v
-    /// \return T rounded to the nearest power of two
+    /// \tparam T An unsigned integral type
+    /// \param v Value to round
+    /// \return v rounded to the nearest power of two equal or greater to it
     template<typename T>
     [[nodiscard]]
     constexpr inline T ceil2(const T v) {
-        static_assert(std::is_unsigned<T>::value);
+        static_assert(!std::numeric_limits<T>::is_signed);
+
         T n = v;
         for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
             n |= (n >> i);
@@ -197,14 +168,47 @@ namespace aul {
         return n;
     }
 
+    ///
+    /// \tparam T An unsigned integral type
+    /// \param v Value to round
+    /// \return v rounded to the nearest power of two equal or less to it
     template<typename T>
     [[nodiscard]]
     constexpr inline T floor2(const T v) {
+        static_assert(!std::numeric_limits<T>::is_signed);
+
         T n = v;
         for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
             n |= (n >> i);
         }
         return n - (n >> 1);
+    }
+
+    template<typename T>
+    [[nodiscard]]
+    constexpr inline T rotl(const T x, const int r) {
+        static_assert(!std::numeric_limits<T>::is_signed);
+
+        constexpr auto digits = std::numeric_limits<T>::digits;
+        const int rot = mod_pow2(r, digits);
+
+        return (x << rot) | x >> (digits - rot);
+    }
+
+    ///
+    /// \tparam T An unsigned integral type
+    /// \param x
+    /// \param r Number of places to rotate by
+    /// \return
+    template<typename T>
+    [[nodiscard]]
+    constexpr inline T rotr(const T x, const int r) {
+        static_assert(!std::numeric_limits<T>::is_signed);
+
+        constexpr auto digits = std::numeric_limits<T>::digits;
+        const int rot = mod_pow2(r, digits);
+
+        return (x >> rot) | x << (digits - rot);
     }
 
 }
