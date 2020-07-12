@@ -1,7 +1,7 @@
 #ifndef AUL_TESTS_ALGORITHMS_TESTS_HPP
 #define AUL_TESTS_ALGORITHMS_TESTS_HPP
 
-#include "../aul/Algorithms.hpp"
+#include <aul/Algorithms.hpp>
 
 #include <gtest/gtest.h>
 

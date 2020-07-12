@@ -1,7 +1,7 @@
 #ifndef AUL_LINEAR_ALLOCATOR_TESTS_HPP
 #define AUL_LINEAR_ALLOCATOR_TESTS_HPP
 
-#include "../../aul/memory/Linear_allocator.hpp"
+#include <aul/memory/Linear_allocator.hpp>
 #include "gtest/gtest.h"
 
 #include <memory>

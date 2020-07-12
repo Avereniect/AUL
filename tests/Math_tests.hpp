@@ -5,7 +5,7 @@
 #ifndef AUL_MATH_TESTS_HPP
 #define AUL_MATH_TESTS_HPP
 
-#include "Math.hpp"
+#include "aul/Math.hpp"
 
 #include <gtest/gtest.h>
 
