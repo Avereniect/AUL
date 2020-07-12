@@ -39,33 +39,24 @@ namespace aul {
         // -ctors
         //=================================================
 
+        Random_access_iterator() = default;
+
         explicit Random_access_iterator(const pointer ptr = pointer{}) noexcept:
             p(ptr) {}
 
-        Random_access_iterator(const Random_access_iterator& itr) noexcept:
-            p(itr.p) {}
+        Random_access_iterator(const Random_access_iterator& itr) = default;
 
-        Random_access_iterator(Random_access_iterator&& itr) noexcept:
-            p(itr.p) {
+        Random_access_iterator(Random_access_iterator&& itr) = default;
 
-            itr.p = pointer{};
-        }
+        ~Random_access_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Random_access_iterator& operator=(const Random_access_iterator& itr) noexcept {
-            p = itr.p;
-            return *this;
-        }
+        Random_access_iterator& operator=(const Random_access_iterator& itr) = default;
 
-        Random_access_iterator& operator=(Random_access_iterator&& itr) noexcept {
-            p = itr.p;
-            itr.p = pointer();
-
-            return *this;
-        }
+        Random_access_iterator& operator=(Random_access_iterator&& itr) = default;
         
         Random_access_iterator& operator+=(const difference_type x) noexcept {
             p += x;
