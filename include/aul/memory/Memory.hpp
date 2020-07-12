@@ -64,7 +64,7 @@ namespace aul {
         constexpr bool condition = std::is_same_v<typename std::iterator_traits<Iter>::iterator_category, std::random_access_iterator_tag>;
 
         if constexpr (condition) {
-            default_construct_n(begin, begin + n, alloc);
+            default_construct_n(begin, n, alloc);
         } else {
             Iter x = begin;
             size_type i = size_type{};
