@@ -149,6 +149,18 @@ namespace aul {
         return {array};
     }
 
+    template<class T>
+    [[nodiscard]]
+    bool is_pow2(const T x) {
+        std::size_t count = 0;
+        T y = x;
+        while (y) {
+            count += (y & 1);
+            y >>= 1;
+        }
+        return count < 2;
+    }
+
     /*
     ///
     /// Mods x by 2^n
