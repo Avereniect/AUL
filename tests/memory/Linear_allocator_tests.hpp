@@ -9,35 +9,30 @@
 
 namespace aul::tests {
 
-    TEST(Linear_allocator, Type_aliases) {
-        using traits = std::allocator_traits<aul::Linear_allocator<int>>;
+    using traits = std::allocator_traits<aul::Linear_allocator<int>>;
 
-        EXPECT_TRUE("std::is_same_v<typename traits::value_type, int>");
-        EXPECT_TRUE("std::is_same_v<typename traits::pointer, int*>");
-        EXPECT_TRUE("std::is_same_v<typename traits::const_pointer, const int*>");
-        EXPECT_TRUE("std::is_same_v<typename traits::void_pointer, void*>");
-        EXPECT_TRUE("std::is_same_v<typename traits::const_void_pointer, const void*>");
-        EXPECT_TRUE("std::is_same_v<typename traits::difference_type, std::ptrdiff_t>");
-        EXPECT_TRUE("std::is_same_v<typename traits::size_type, std::size_t>");
-        EXPECT_TRUE("std::is_same_v<typename traits::propagate_on_container_copy_assignment, std::true_type>");
-        EXPECT_TRUE("std::is_same_v<typename traits::propagate_on_container_move_assignment, std::true_type>");
-        EXPECT_TRUE("std::is_same_v<typename traits::propagate_on_container_swap, std::true_type>");
-        EXPECT_TRUE("std::is_same_v<typename traits::is_always_equal, std::false_type>");
-    }
+    static_assert(std::is_same_v<typename traits::value_type, int>);
+    static_assert(std::is_same_v<typename traits::pointer, int*>);
+    static_assert(std::is_same_v<typename traits::const_pointer, const int*>);
+    static_assert(std::is_same_v<typename traits::void_pointer, void*>);
+    static_assert(std::is_same_v<typename traits::const_void_pointer, const void*>);
+    static_assert(std::is_same_v<typename traits::difference_type, std::ptrdiff_t>);
+    static_assert(std::is_same_v<typename traits::size_type, std::size_t>);
+    static_assert(std::is_same_v<typename traits::propagate_on_container_copy_assignment, std::true_type>);
+    static_assert(std::is_same_v<typename traits::propagate_on_container_move_assignment, std::true_type>);
+    static_assert(std::is_same_v<typename traits::propagate_on_container_swap, std::true_type>);
+    static_assert(std::is_same_v<typename traits::is_always_equal, std::false_type>);
 
-    TEST(Linear_allocator, Rebind) {
-        using rebound_allocator = typename aul::Linear_allocator<float>:: template rebind<long>::other;
-        EXPECT_TRUE("std::is_same_v<rebound_allocator, aul::Linear_allocator<long>>");
-    }
+    using rebound_allocator = typename aul::Linear_allocator<float>:: template rebind<long>::other;
+
+    static_assert(std::is_same_v<rebound_allocator, aul::Linear_allocator<long>>);
 
     TEST(Linear_allocator, Default_constructor) {
         aul::Linear_allocator<int> allocator;
 
-        auto size = allocator.max_size();
-
-        EXPECT_EQ(size, 0);
+        EXPECT_EQ(allocator.max_size(), 0);
         EXPECT_EQ(allocator.allocate(0), nullptr);
-        EXPECT_ANY_THROW(auto* ptr = allocator.allocate(1));
+        EXPECT_THROW(allocator.allocate(1), std::bad_alloc);
     }
 
     TEST(Linear_allocator, Single_allocation) {

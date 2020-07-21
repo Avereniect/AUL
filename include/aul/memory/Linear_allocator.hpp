@@ -209,7 +209,7 @@ namespace aul {
         /// Constructs an allocator holding a memory pool large enough to hold
         /// n many elements of type T.
         ///
-        Linear_allocator(const std::size_t n) {
+        explicit Linear_allocator(const std::size_t n) {
             block = Linear_memory_block::create(n * sizeof(T));
             block->increment_users();
         }
@@ -280,9 +280,6 @@ namespace aul {
                 throw std::bad_alloc();
             }
 
-            const char* name = typeid(T).name();
-            //std::cout << "Linear_allocator.allocate() called with type " << name << std::endl;
-
             auto size = sizeof(T);
             auto alignment = alignof(T);
 
@@ -348,7 +345,7 @@ namespace aul {
             if (block) {
                 block->decrement_users();
                 if (!block->users()) {
-                    Linear_memory_block::destroy(block);
+                    Linear_memory_block::destroy(block);            
                 }
             }
 
