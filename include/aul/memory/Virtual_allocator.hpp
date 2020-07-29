@@ -17,12 +17,12 @@ namespace aul {
     /// \tparam I Backing signed integral type
     /// \tparam S Stride. Must be less than or equal to sizeof(T)
     /// \tparam is_const
-    template<class T, class I, I S = 1, bool is_const = false>
+    template<class T, class I, I Stride = 1, bool is_const = false>
     class Relative_pointer {
 
         static_assert(std::is_signed_v<I>);
-        static_assert(aul::is_pow2(S));
-        static_assert(S <= sizeof(T), "Stride is too large to address consecutive elements of type T");
+        static_assert(aul::is_pow2(Stride));
+        static_assert(Stride <= sizeof(T), "Stride is too large to address consecutive elements of type T");
 
     public:
         //=================================================
@@ -31,41 +31,41 @@ namespace aul {
 
         Relative_pointer() = default;
 
-        Relative_pointer(const std::nullptr_t):
+        explicit Relative_pointer(const std::nullptr_t):
             offset(0) {}
 
-        Relative_pointer(const T* ptr):
-            offset((this - ptr) * sizeof(T) / S) {}
+        explicit Relative_pointer(const T* ptr):
+            offset((reinterpret_cast<char*>(this) - reinterpret_cast<const char*>(ptr)) * sizeof(T) / Stride) {}
 
-        Relative_pointer(const I offset):
+        explicit Relative_pointer(const I offset):
             offset(offset) {}
 
-        Relative_pointer(Relative_pointer&& ptr) :
+        Relative_pointer(Relative_pointer&& ptr) noexcept :
             offset() {}
 
         Relative_pointer(const Relative_pointer& ptr) :
             offset(*this) {}
 
-        ~Relative_pointer();
+        ~Relative_pointer() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
         Relative_pointer& operator=(const Relative_pointer& rhs) {
-            auto* ptr0 = std::addressof(*this);
-            auto* ptr1 = std::addressof(rhs);
+            char* ptr0 = std::addressof(*this);
+            char* ptr1 = std::addressof(rhs);
 
-            offset += (ptr1 - ptr0);
+            offset += sizeof(T) * (ptr1 - ptr0) / Stride;
 
             return *this;
         }
 
         Relative_pointer& operator=(Relative_pointer&& rhs) {
-            auto* ptr0 = std::addressof(*this);
-            auto* ptr1 = std::addressof(rhs);
+            char* ptr0 = std::addressof(*this);
+            char* ptr1 = std::addressof(rhs);
 
-            offset += sizeof(T) / S * (ptr1 - ptr0);
+            offset += sizeof(T) * (ptr1 - ptr0) / Stride;
 
             return *this;
         }
@@ -172,24 +172,24 @@ namespace aul {
         //=================================================
 
         Relative_pointer& operator++() {
-            offset += sizeof(T) / S;
+            offset += sizeof(T) / Stride;
             return *this;
         }
 
         Relative_pointer operator++(int) {
             Relative_pointer temp = *this;
-            offset += sizeof(T) / S;
+            offset += sizeof(T) / Stride;
             return temp;
         }
 
         Relative_pointer& operator--() {
-            offset -= sizeof(T) / S;
+            offset -= sizeof(T) / Stride;
             return *this;
         }
 
         Relative_pointer operator--(int) {
             Relative_pointer temp = *this;
-            offset -= sizeof(T) / S;
+            offset -= sizeof(T) / Stride;
             return temp;
         }
 
@@ -213,8 +213,16 @@ namespace aul {
 
         const T* operator->() const {
             char* ptr[sizeof(T)] = std::addressof(*this);
-            ptr += offset;
+            ptr += offset * Stride;
             return reinterpret_cast<T*>(ptr);
+        }
+
+        //=================================================
+        // Misc. methods
+        //=================================================
+
+        operator bool() {
+            return (offset != 0);
         }
 
     private:
@@ -229,18 +237,20 @@ namespace aul {
 
 }
 
+
+
 namespace std {
 
-    template<class T, class I, I S, bool is_const>
-    class pointer_traits<aul::Relative_pointer<T, I, S, is_const>> {
+    template<class T, class I, I Stride, bool is_const>
+    class pointer_traits<aul::Relative_pointer<T, I, Stride, is_const>> {
     public:
 
-        using pointer = aul::Relative_pointer<T, I, S, is_const>;
+        using pointer = aul::Relative_pointer<T, I, Stride, is_const>;
         using elemment_type = T;
         using difference_type = std::make_unsigned<I>;
 
         template<class U>
-        using rebind = aul::Relative_pointer<U, I, S, is_const>;
+        using rebind = aul::Relative_pointer<U, I, Stride, is_const>;
 
         //TODO: C++20 Make constexpr
         static pointer pointer_to(const T& t) noexcept {
@@ -253,40 +263,68 @@ namespace std {
 
 }
 
+namespace {
+
+    auto alignment = [] (const std::size_t a, const std::size_t b) {
+        return std::max(a, b);
+    };
+
+    template<class T, class Uint, Uint Stride>
+    struct alignas(alignment(Stride, alignof(Uint))) Pool_header {
+        Uint user_count;
+        Uint capacity;
+    };
+
+    template<class T, class Uint, Uint Stride>
+    struct alignas(Stride) Block_header {
+        Uint capacity;
+    };
+
+}
+
 namespace aul {
 
     ///
     /// \tparam T Type to point to
-    /// \tparam I
-    /// \tparam S
-    template<class T, class I, I S>
+    /// \tparam I Unsigned integral type to use for offset pointers
+    /// \tparam Stride Size of gaps between addresses pointer can handle
+    template<class T, class I, I Stride = 1>
     class Virtual_allocator {
+
+        using pool_header = Pool_header<T, I, Stride>;
+        using block_header = Block_header<T, I, Stride>;
+
     public:
 
-        static_assert(std::is_integral_v<T>);
-        static_assert(std::is_signed_v<T>);
-        static_assert(aul::is_pow2(S));
-        static_assert(S <= sizeof(T));
+        static_assert(std::is_integral_v<I>);
+        static_assert(std::is_signed_v<I>);
+        static_assert(aul::is_pow2(Stride));
+        static_assert(Stride <= sizeof(T));
 
         //=================================================
         // Type aliases
         //=================================================
 
-        using pointer = Relative_pointer<T, I, S, false>;
-        using const_pointer = Relative_pointer<T, I, S, true>;
+        using pointer = Relative_pointer<T, I, Stride, false>;
+        using const_pointer = Relative_pointer<T, I, Stride, true>;
 
-        using void_pointer = Relative_pointer<void, I, S, false>;
-        using const_void_pointer = Relative_pointer<void, I, S, true>;
+        using void_pointer = Relative_pointer<void, I, Stride, false>;
+        using const_void_pointer = Relative_pointer<void, I, Stride, true>;
 
         using value_type = T;
 
-        using size_type = std::make_unsigned<I>;
-        using difference_type = I;
+        using size_type = I;
+        using difference_type = std::make_signed<I>;
 
         template<class U>
         class rebind {
-            using other = Virtual_allocator<U, I, S>;
+            using other = Virtual_allocator<U, I, Stride>;
         };
+
+        static constexpr bool is_always_equal = false;
+        static constexpr bool propagate_on_container_copy_assignment = true;
+        static constexpr bool propagate_on_container_move_assignment = true;
+        static constexpr bool propagate_on_container_swap = true;
 
         //=================================================
         // -ctors
@@ -294,8 +332,32 @@ namespace aul {
 
         Virtual_allocator() = default;
 
-        ~Virtual_allocator() {
+        ///
+        /// \param element_count Number of elements to allocate memory for
+        ///
+        Virtual_allocator(const size_type element_count) {
+            auto byte_count = element_count * Stride + sizeof(pool_header) + sizeof(block_header);
+            pool = reinterpret_cast<std::byte*>(aligned_alloc(Stride, byte_count));
 
+
+            pool_header& pool_header = *(new(pool) Virtual_allocator::pool_header);
+            pool_header.user_count = 1;
+            pool_header.capacity = element_count;
+
+            pool += sizeof(pool_header);
+            block_header& first_block_header = *(new(pool) Virtual_allocator::block_header);
+            first_block_header.capacity = element_count - sizeof(pool_header);
+
+            pool += element_count * sizeof(T) - sizeof(pool_header);
+            block_header& last_block_header = *(new(pool) Virtual_allocator::block_header);
+            last_block_header.capacity = 0;
+        }
+
+        ~Virtual_allocator() {
+            --pool_users();
+            if (pool_users()) {
+                free(pool);
+            }
         }
 
         //=================================================
@@ -305,11 +367,52 @@ namespace aul {
         Virtual_allocator& operator=(const Virtual_allocator&);
         Virtual_allocator& operator=(Virtual_allocator&&);
 
+        //=================================================
+        // Allocation methods
+        //=================================================
+
         pointer allocate(const size_type n);
+        pointer allocate(const size_type n, const_pointer hint);
+
         pointer deallocate(pointer);
 
+        //=================================================
+        // Comparison operators
+        //=================================================
+
+        bool operator==(const Virtual_allocator& allocator) {
+            return (pool == allocator.pool);
+        }
+
+        bool operator!=(const Virtual_allocator& allocator) {
+            return (pool != allocator.pool);
+        }
+
+        //=================================================
+        // Misc. methods
+        //=================================================
+
+        size_type max_size() const {
+            constexpr auto diff_max = std::numeric_limits<difference_type>::max();
+            return std::min(static_cast<size_type>(diff_max), capacity());
+        }
+
     private:
-        std::size_t capacity = 0;
+        std::byte* pool = nullptr;
+
+        //=================================================
+        // Helper functions
+        //=================================================
+
+        size_type& capacity() {
+            auto& pool_header = *reinterpret_cast<Virtual_allocator::pool_header*>(pool);
+            return pool_header.capacity;
+        }
+
+        size_type& pool_users() {
+            auto& pool_header = *reinterpret_cast<Virtual_allocator::pool_header*>(pool);
+            return pool_header.user_count;
+        }
 
     };
 

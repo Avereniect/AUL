@@ -17,14 +17,16 @@ namespace aul::tests {
     using short_int_ptr = Relative_pointer<int, short>;
 
     static_assert(std::is_same_v<std::pointer_traits<short_float_ptr>::pointer, short_float_ptr>);
-    static_assert(std::is_same_v<std::pointer_traits<short_float_ptr>::elemment_type , float>);
+    static_assert(std::is_same_v<std::pointer_traits<short_float_ptr>::elemment_type, float>);
     static_assert(std::is_same_v<std::pointer_traits<short_float_ptr>::rebind<int>, short_int_ptr>);
 
    TEST(Relative_pointer, Constructors) {
 
-       float data[16] = {};
+   }
 
-       short_float_ptr ptr();
+   TEST(Virtual_allocator, Default_constructor) {
+       Virtual_allocator<float, std::int16_t> empty_allocator{};
+       Virtual_allocator<float, std::int16_t> allocator{64};
    }
 
 }
