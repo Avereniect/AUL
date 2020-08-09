@@ -21,7 +21,10 @@ namespace aul::tests {
     static_assert(std::is_same_v<std::pointer_traits<short_float_ptr>::rebind<int>, short_int_ptr>);
 
    TEST(Relative_pointer, Constructors) {
-
+       float x;
+       short_float_ptr ptr0;
+       short_float_ptr ptr1 = nullptr;
+       short_float_ptr ptr2 = &x;
    }
 
    TEST(Virtual_allocator, Default_constructor) {

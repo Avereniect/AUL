@@ -31,15 +31,22 @@ namespace aul {
 
         Relative_pointer() = default;
 
-        explicit Relative_pointer(const std::nullptr_t):
+        ///
+        /// Construct pointer null pointer
+        ///
+        Relative_pointer(const std::nullptr_t):
             offset(0) {}
 
-        explicit Relative_pointer(const T* ptr):
+        ///
+        /// \param ptr Primitve pointer to point to. Value is assumed to be an
+        /// address aligned to Stride
+        ///
+        Relative_pointer(const T* ptr):
             offset((reinterpret_cast<char*>(this) - reinterpret_cast<const char*>(ptr)) * sizeof(T) / Stride) {}
 
-        explicit Relative_pointer(const I offset):
-            offset(offset) {}
-
+        ///
+        /// \param ptr
+        ///
         Relative_pointer(Relative_pointer&& ptr) noexcept :
             offset() {}
 
@@ -61,7 +68,7 @@ namespace aul {
             return *this;
         }
 
-        Relative_pointer& operator=(Relative_pointer&& rhs) {
+        Relative_pointer& operator=(Relative_pointer&& rhs) noexcept {
             char* ptr0 = std::addressof(*this);
             char* ptr1 = std::addressof(rhs);
 
@@ -197,32 +204,26 @@ namespace aul {
         // Dereference operators
         //=================================================
 
-        T& operator*() {
+        std::conditional<is_const, const T&, T&> operator*() const {
             return *(this->operator->());
         }
 
-        const T& operator*() const {
-            return *(this->operator->());
-        }
-
-        T* operator->() {
-            char* ptr[sizeof(T)] = std::addressof(*this);
-            ptr += offset;
-            return reinterpret_cast<T*>(ptr);
-        }
-
-        const T* operator->() const {
+        std::conditional<is_const, const T*, T*> operator->() const {
             char* ptr[sizeof(T)] = std::addressof(*this);
             ptr += offset * Stride;
             return reinterpret_cast<T*>(ptr);
         }
 
         //=================================================
-        // Misc. methods
+        // Conversion operator
         //=================================================
 
-        operator bool() {
+        operator bool() const {
             return (offset != 0);
+        }
+
+        explicit operator std::conditional<is_const, const T*, T*>() const {
+            return operator->();
         }
 
     private:
@@ -354,9 +355,11 @@ namespace aul {
         }
 
         ~Virtual_allocator() {
-            --pool_users();
-            if (pool_users()) {
-                free(pool);
+            if (pool) {
+                --pool_users();
+                if (pool_users()) {
+                    free(pool);
+                }
             }
         }
 
