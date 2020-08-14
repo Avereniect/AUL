@@ -659,8 +659,8 @@ namespace aul {
         /// \return  Returns true if the key maps to a valid element
         ///
         [[nodiscard]]
-        bool contains(const key_type x) const {
-            return (x.version == allocation.metadata[x.index].anchor.version());
+        bool contains(const key_type key) const {
+            return (key.index < allocation.capacity) && (key.version == allocation.metadata[key.index].anchor.version());
         }
 
         ///
