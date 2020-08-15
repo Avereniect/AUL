@@ -41,7 +41,7 @@ namespace aul {
 
         Random_access_iterator() = default;
 
-        explicit Random_access_iterator(const pointer ptr = pointer{}) noexcept:
+        explicit Random_access_iterator(const pointer ptr) noexcept:
             p(ptr) {}
 
         Random_access_iterator(const Random_access_iterator& itr) = default;
