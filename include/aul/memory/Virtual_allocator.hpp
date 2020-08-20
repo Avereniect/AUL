@@ -41,7 +41,7 @@ namespace aul {
         /// \param ptr Primitve pointer to point to. Value is assumed to be an
         /// address aligned to Stride
         ///
-        Relative_pointer(const T* ptr):
+        explicit Relative_pointer(const T* ptr):
             offset((reinterpret_cast<char*>(this) - reinterpret_cast<const char*>(ptr)) * sizeof(T) / Stride) {}
 
         ///
@@ -287,7 +287,7 @@ namespace aul {
 
     ///
     /// \tparam T Type to point to
-    /// \tparam I Unsigned integral type to use for offset pointers
+    /// \tparam I A signed integral type to use for offset pointers
     /// \tparam Stride Size of gaps between addresses pointer can handle
     template<class T, class I, I Stride = 1>
     class Virtual_allocator {
@@ -306,13 +306,13 @@ namespace aul {
         // Type aliases
         //=================================================
 
+        using value_type = T;
+
         using pointer = Relative_pointer<T, I, Stride, false>;
         using const_pointer = Relative_pointer<T, I, Stride, true>;
 
         using void_pointer = Relative_pointer<void, I, Stride, false>;
         using const_void_pointer = Relative_pointer<void, I, Stride, true>;
-
-        using value_type = T;
 
         using size_type = I;
         using difference_type = std::make_signed<I>;
@@ -322,10 +322,15 @@ namespace aul {
             using other = Virtual_allocator<U, I, Stride>;
         };
 
-        static constexpr bool is_always_equal = false;
-        static constexpr bool propagate_on_container_copy_assignment = true;
-        static constexpr bool propagate_on_container_move_assignment = true;
-        static constexpr bool propagate_on_container_swap = true;
+        //=================================================
+        // Meta aliases
+        //=================================================
+
+        using is_always_equal = std::false_type;
+
+        using propagate_on_container_copy_assignment = std::true_type;
+        using propagate_on_container_move_assignment = std::true_type;
+        using propagate_on_container_swap = std::true_type;
 
         //=================================================
         // -ctors
@@ -336,10 +341,9 @@ namespace aul {
         ///
         /// \param element_count Number of elements to allocate memory for
         ///
-        Virtual_allocator(const size_type element_count) {
+        explicit Virtual_allocator(const size_type element_count) {
             auto byte_count = element_count * Stride + sizeof(pool_header) + sizeof(block_header);
             pool = reinterpret_cast<std::byte*>(aligned_alloc(Stride, byte_count));
-
 
             pool_header& pool_header = *(new(pool) Virtual_allocator::pool_header);
             pool_header.user_count = 1;
@@ -367,7 +371,10 @@ namespace aul {
         // Assignment operators
         //=================================================
 
-        Virtual_allocator& operator=(const Virtual_allocator&);
+        Virtual_allocator& operator=(const Virtual_allocator&) {
+
+        }
+
         Virtual_allocator& operator=(Virtual_allocator&&);
 
         //=================================================
