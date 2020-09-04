@@ -17,7 +17,7 @@ namespace aul {
     /// \tparam I Backing signed integral type
     /// \tparam S Stride. Must be less than or equal to sizeof(T)
     /// \tparam is_const
-    template<class T, class I, I Stride = 1, bool is_const = false>
+    template<class T, class Int, I Stride = 1, bool is_const = false>
     class Relative_pointer {
 
         static_assert(std::is_signed_v<I>);
@@ -44,9 +44,6 @@ namespace aul {
         explicit Relative_pointer(const T* ptr):
             offset((reinterpret_cast<char*>(this) - reinterpret_cast<const char*>(ptr)) * sizeof(T) / Stride) {}
 
-        ///
-        /// \param ptr
-        ///
         Relative_pointer(Relative_pointer&& ptr) noexcept :
             offset() {}
 
@@ -86,12 +83,12 @@ namespace aul {
         // Arithmetic assignment operators
         //=================================================
 
-        Relative_pointer& operator+=(const I o) {
+        Relative_pointer& operator+=(const Int o) {
             offset += o;
             return *this;
         }
 
-        Relative_pointer& operator-=(const I o) {
+        Relative_pointer& operator-=(const Int o) {
             offset -= o;
             return *this;
         }
@@ -100,25 +97,25 @@ namespace aul {
         // Arithmetic operators
         //=================================================
 
-        Relative_pointer operator+(const I o) const {
+        Relative_pointer operator+(const Int o) const {
             offset += o;
             return *this;
         }
 
-        friend Relative_pointer operator+(const I o, const Relative_pointer& ptr) {
+        friend Relative_pointer operator+(const Int o, const Relative_pointer& ptr) {
             return ptr + o;
         }
 
-        Relative_pointer operator-(const I o) const {
+        Relative_pointer operator-(const Int o) const {
             offset -= o;
             return *this;
         }
 
-        I operator-(const Relative_pointer& rhs) {
+        Int operator-(const Relative_pointer& rhs) {
             return offset - rhs.offset;
         }
 
-        friend I operator-(const std::nullptr_t, const Relative_pointer& rhs) {
+        friend Int operator-(const std::nullptr_t, const Relative_pointer& rhs) {
             return (0 - rhs.offset);
         }
 
@@ -214,14 +211,28 @@ namespace aul {
             return reinterpret_cast<T*>(ptr);
         }
 
+        std::conditional<is_const, const T&, T&> operator[](const Int x) const {
+            return *(*this + x);
+        }
+
         //=================================================
-        // Conversion operator
+        // Conversion operators
         //=================================================
 
+        ///
+        /// Conversion to bool
+        ///
+        /// \return True if value is not equivalent to nullptr
+        ///
         operator bool() const {
             return (offset != 0);
         }
 
+        ///
+        /// Conversion to raw pointer
+        ///
+        /// \return Pointer 
+        ///
         explicit operator std::conditional<is_const, const T*, T*>() const {
             return operator->();
         }
@@ -232,7 +243,10 @@ namespace aul {
         // Instance members
         //=================================================
 
-        I offset;
+        ///
+        /// Offset from address of this object
+        ///
+        Int offset;
 
     };
 
@@ -264,6 +278,9 @@ namespace std {
 
 }
 
+
+
+
 namespace {
 
     auto alignment = [] (const std::size_t a, const std::size_t b) {
@@ -276,24 +293,26 @@ namespace {
         Uint capacity;
     };
 
-    template<class T, class Uint, Uint Stride>
-    struct alignas(Stride) Block_header {
-        Uint capacity;
-    };
-
 }
+
+
 
 namespace aul {
 
     ///
-    /// \tparam T Type to point to
+    /// An allocator which contains a memory pool from which memory is allocated
+    /// using offset pointers.
+    ///
+    /// Note that objects of type Virtual_allocator::pointer are only guaranteed
+    /// to be able to can only point to objects within the memory pool.
+    ///
+    /// \tparam T Type allocator can allocate memory for
     /// \tparam I A signed integral type to use for offset pointers
     /// \tparam Stride Size of gaps between addresses pointer can handle
     template<class T, class I, I Stride = 1>
     class Virtual_allocator {
 
         using pool_header = Pool_header<T, I, Stride>;
-        using block_header = Block_header<T, I, Stride>;
 
     public:
 
@@ -341,22 +360,7 @@ namespace aul {
         ///
         /// \param element_count Number of elements to allocate memory for
         ///
-        explicit Virtual_allocator(const size_type element_count) {
-            auto byte_count = element_count * Stride + sizeof(pool_header) + sizeof(block_header);
-            pool = reinterpret_cast<std::byte*>(aligned_alloc(Stride, byte_count));
-
-            pool_header& pool_header = *(new(pool) Virtual_allocator::pool_header);
-            pool_header.user_count = 1;
-            pool_header.capacity = element_count;
-
-            pool += sizeof(pool_header);
-            block_header& first_block_header = *(new(pool) Virtual_allocator::block_header);
-            first_block_header.capacity = element_count - sizeof(pool_header);
-
-            pool += element_count * sizeof(T) - sizeof(pool_header);
-            block_header& last_block_header = *(new(pool) Virtual_allocator::block_header);
-            last_block_header.capacity = 0;
-        }
+        explicit Virtual_allocator(const size_type element_count);
 
         ~Virtual_allocator() {
             if (pool) {
@@ -371,8 +375,10 @@ namespace aul {
         // Assignment operators
         //=================================================
 
-        Virtual_allocator& operator=(const Virtual_allocator&) {
+        Virtual_allocator& operator=(const Virtual_allocator& allocator) {
 
+
+            return *this;
         }
 
         Virtual_allocator& operator=(Virtual_allocator&&);
