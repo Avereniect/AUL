@@ -7,6 +7,7 @@
 
 #include <cstdarg>
 #include <type_traits>
+#include <array>
 
 namespace aul {
 
@@ -20,24 +21,109 @@ namespace aul {
         return true;
     }
 
+
+
     template<class T, class...U>
     struct first_type {
         using type = T;
     };
 
-    template<class T, class...U>
-    using first_type_t = typename first_type<T, U...>::type;
+    template<class...T>
+    using first_type_t = typename first_type<T...>::type;
 
-    template<class T, class...Args>
-    class are_same_types : public std::bool_constant<
-        std::is_same_v<T, first_type<Args...>::type> && are_same_types<Args...>::value
+
+
+    template<class...Args>
+    struct last_type {
+
+        template<class T>
+        struct identity {using type = T;};
+
+        using type = typename decltype((identity<Args>{}, ...))::type;
+    };
+
+    template<class...Args>
+    using last_type_t = typename last_type<Args...>::type;
+
+
+
+    template<class T = void, class...Args>
+    struct are_same_types : public std::bool_constant<
+        std::is_same_v<T, typename first_type<Args...>::type> && are_same_types<Args...>::value
     > {};
 
     template<class T>
-    class are_same_types<T> : public std::bool_constant<true> {};
+    struct are_same_types<T> : public std::bool_constant<true> {};
 
     template<class...Args>
     constexpr static bool are_same_types_v = are_same_types<Args...>::value;
+
+
+
+    template<class T, class...Args>
+    struct are_convertible_to : public std::bool_constant<
+        std::is_convertible_v<T, last_type_t<Args...>> && are_convertible_to<Args...>::value
+    > {};
+
+    template<class T, class U>
+    struct are_convertible_to<T, U> : public std::bool_constant<std::is_convertible_v<T, U>> {};
+
+    template<class...Args>
+    constexpr static bool are_convertible_to_v = are_convertible_to<Args...>::value;
+
+
+    template<std::size_t N, class...Args>
+    struct is_homogenous_N : public std::bool_constant<
+        aul::are_same_types_v<Args...> && (sizeof...(Args) == N)
+    > {};
+
+    template<std::size_t N, class...Args>
+    constexpr static bool is_homogenous_N_v = is_homogenous_N<N, Args...>::value;
+
+
+
+    template<std::size_t N, class...Args>
+    using enable_if_homogenous_N = std::enable_if_t<aul::is_homogenous_N_v<N, Args...>>;
+
+    template<std::size_t N, class...Args>
+    using enable_if_homogenous_N_t = enable_if_homogenous_N<N, Args...>;
+
+
+
+    ///
+    /// Inserts arguments into an object of std::array with size equal to the
+    /// number of arguments passed to the function
+    ///
+    /// \tparam N Number of arguments to function
+    /// \tparam Args Uniform list of types.
+    /// \param args Objects to pack into array
+    /// \return A std::array object containing the parameters passed to the function
+    template<std::size_t N, class...Args>
+    [[nodiscard]]
+    auto pack_into_array(Args&&...args) {
+        static_assert(N != 0);
+        static_assert(sizeof...(Args) == N);
+        static_assert(are_convertible_to_v<std::decay_t<Args>..., std::decay_t<first_type_t<Args...>>>);
+
+        using U = typename std::decay_t<first_type_t<Args...>>;
+        std::array<U, N> ret;
+
+        U* dim_ptr = ret.data();
+
+        auto assigner = [dim_ptr] (const std::size_t x, ...) {
+            std::va_list varg;
+            va_start(varg, x);
+            for (int i = 0; i < N; ++i) {
+                dim_ptr[i] = va_arg(varg, U);
+            }
+            va_end(varg);
+        };
+
+        assigner(N, args...);
+
+        return ret;
+    }
+
 }
 
 #endif //AUL_UTILITY_HPP
