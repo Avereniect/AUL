@@ -78,30 +78,27 @@ namespace aul {
         //=================================================
 
         ///
-        /// Default constructor
+        /// Constructs an empty Array_map
         ///
         Array_map() noexcept(noexcept(Alloc{})) = default;
 
         ///
         /// \param compare Comparator to use for element comparisons
         /// \param allocator Allocator object to copy from
-        explicit Array_map(const key_compare compare, const allocator_type& alloc = {}) :
+        explicit Array_map(const key_compare compare, const allocator_type& alloc = {}):
             allocator(alloc),
-            allocation(),
             comparator(compare) {}
 
         ///
         /// \param allocator
         ///
-        explicit Array_map(const allocator_type& allocator) :
-            allocator(allocator),
-            allocation(),
-            comparator() {}
+        explicit Array_map(const allocator_type& allocator):
+            allocator(allocator) {}
 
         ///
         /// \param arr
         ///
-        Array_map(const Array_map& arr) :
+        Array_map(const Array_map& arr):
             allocator(val_alloc_traits::select_on_container_copy_construction(arr.allocator)),
             allocation(allocate(arr.size())),
             comparator(arr.comparator),
@@ -115,7 +112,7 @@ namespace aul {
         ///
         /// \param arr
         /// \param allocator
-        Array_map(const Array_map& arr, const allocator_type& allocator) :
+        Array_map(const Array_map& arr, const allocator_type& allocator):
             allocator(allocator),
             allocation(allocate(arr.size())),
             comparator(arr.comparator),
@@ -127,9 +124,9 @@ namespace aul {
         }
 
         ///
-        /// \param arr
+        /// \param arr Array_map to move from
         ///
-        Array_map(Array_map&& arr) noexcept :
+        Array_map(Array_map&& arr) noexcept:
             allocator(std::move(arr.allocator)),
             allocation(std::move(arr.allocation)),
             comparator(std::move(arr.comparator)),
@@ -240,7 +237,7 @@ namespace aul {
         ///
         /// \param rhs Array_map to compare against
         /// \return True if all keys and elements compare equal
-        bool operator==(const Array_map& rhs) const {
+        bool operator==(const Array_map& rhs) const noexcept {
             if (size() != rhs.size()) {
                 return false;
             }
@@ -253,7 +250,7 @@ namespace aul {
         ///
         /// \param rhs Array_map to compare against
         /// \return True if at least one key or element does not compare equal
-        bool operator!=(const Array_map& rhs) const {
+        bool operator!=(const Array_map& rhs) const noexcept {
             if (size() != rhs.size()) {
                 return true;
             }
@@ -267,6 +264,7 @@ namespace aul {
         // Element access
         //=================================================
 
+        [[nodiscard]]
         T& at(const key_type& key) {
             const key_pointer pos = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
 
@@ -277,6 +275,7 @@ namespace aul {
             return allocation.vals[pos - allocation.keys];
         }
 
+        [[nodiscard]]
         const T& at(const key_type& key) const {
             const key_pointer pos = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
 
@@ -287,22 +286,49 @@ namespace aul {
             return allocation.vals[pos - allocation.keys];
         }
 
-        T& operator[](const key_type& key) {
+        [[nodiscard]]
+        T& at(key_type&& key) {
+            const key_pointer pos = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
+
+            if (!elem_count || !pos || pos == (allocation.keys + elem_count) || *pos != key) {
+                throw std::out_of_range("aul::Array_map::at() called with invalid key");
+            }
+
+            return allocation.vals[pos - allocation.keys];
+        }
+
+        [[nodiscard]]
+        const T& at(const key_type&& key) const {
+            const key_pointer pos = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
+
+            if (!elem_count || !pos || pos == (allocation.keys + elem_count) || *pos != key) {
+                throw std::out_of_range("aul::Array_map::at() called with invalid key");
+            }
+
+            return allocation.vals[pos - allocation.keys];
+        }
+
+
+        [[nodiscard]]
+        T& operator[](const key_type& key) noexcept {
             const key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
             return allocation.vals[key_ptr - allocation.keys];
         }
 
-        const T& operator[](const key_type& key) const {
+        [[nodiscard]]
+        const T& operator[](const key_type& key) const noexcept {
             const key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
             return allocation.vals[key_ptr - allocation.keys];
         }
 
-        T& operator[](key_type&& key) {
+        [[nodiscard]]
+        T& operator[](key_type&& key) noexcept {
             const key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
             return allocation.vals[key_ptr - allocation.keys];
         }
 
-        const T& operator[](key_type&& key) const {
+        [[nodiscard]]
+        const T& operator[](key_type&& key) const noexcept {
             const key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
             return allocation.vals[key_ptr - allocation.keys];
         }
@@ -311,6 +337,8 @@ namespace aul {
         // Insertion & emplacement methods
         //=================================================
 
+        ///
+        /// Provides the strong exception guarantee
         ///
         /// \param key Key to associate with val
         /// \param val Value
@@ -333,10 +361,18 @@ namespace aul {
         }
 
         ///
+        /// Constructs element with an association with key
         ///
+        /// Provide the strong exception guarantee
         ///
-        template<class...Val_args>
-        std::pair<iterator, bool> emplace(const key_type& key, Val_args&&...args) {
+        /// \tparam Args Argument types to value constructor
+        /// \param key Rvalue reference ot key
+        /// \param args Arguments to value constructor
+        /// \return Pair containing iterator to element and boolean indicating
+        ///     whether a new element was added
+        ///
+        template<class...Args>
+        std::pair<iterator, bool> emplace(const key_type& key, Args&&...args) {
             if (size() > max_size() - 1) {
                 throw std::length_error("aul::Array_map grew too big");
             }
@@ -367,7 +403,7 @@ namespace aul {
                 }
 
                 try {
-                    construct_val(new_val_ptr, std::forward<Val_args>(args)...);
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
                     construct_key(new_key_ptr, key);
                 } catch (...) {
                     //Move keys and vals back to their original positions
@@ -401,7 +437,7 @@ namespace aul {
                 }
 
                 try {
-                    construct_val(new_val_ptr, std::forward<Val_args>(args)...);
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
                 } catch (...) {
                     destroy_key(new_key_ptr);
                     deallocate(new_allocation);
@@ -426,13 +462,18 @@ namespace aul {
         }
 
         ///
+        /// Constructs element with an association with key
         ///
-        /// \tparam Val_args
-        /// \param key
-        /// \param args
-        /// \return
-        template<class...Val_args>
-        std::pair<iterator, bool> emplace(key_type&& key, Val_args&&...args) {
+        /// Provide the strong exception guarantee
+        ///
+        /// \tparam Args Argument types to value constructor
+        /// \param key Rvalue reference ot key
+        /// \param args Arguments to value constructor
+        /// \return Pair containing iterator to element and boolean indicating
+        ///     whether a new element was added
+        ///
+        template<class...Args>
+        std::pair<iterator, bool> emplace(key_type&& key, Args&&...args) {
             if (size() > max_size() - 1) {
                 throw std::length_error("aul::Array_map grew too big");
             }
@@ -463,7 +504,7 @@ namespace aul {
                 }
 
                 try {
-                    construct_val(new_val_ptr, std::forward<Val_args>(args)...);
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
                     construct_key(new_key_ptr, key);
                 } catch (...) {
                     //Move keys and vals back to their original positions
@@ -497,7 +538,7 @@ namespace aul {
                 }
 
                 try {
-                    construct_val(new_val_ptr, std::forward<Val_args>(args)...);
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
                 } catch (...) {
                     destroy_key(new_key_ptr);
                     deallocate(new_allocation);
@@ -526,9 +567,9 @@ namespace aul {
         //=================================================
 
         ///
-        /// \param pos Iterator to element
-        /// \return
-        iterator erase(iterator pos) {
+        /// \param pos Valid iterator to element
+        /// \return Iterator to element which replaced the removed element
+        iterator erase(iterator pos) noexcept {
             val_pointer val_ptr = std::addressof(*pos);
             key_pointer key_ptr = allocation.keys + (val_ptr - allocation.vals);
 
@@ -544,11 +585,14 @@ namespace aul {
 
         ///
         /// \param key Key mapping to element to erase
-        /// \return True if element was removed. False otherwise
-        iterator erase(const key_type& key) {
+        /// \return Iterator to element which replaced the removed element.
+        ///     Equal to end() if did not exist
+        iterator erase(const key_type& key) noexcept {
             auto it = find(key);
-            if (!it || it == end()) {
-                return end();
+
+            const iterator e = end();
+            if (it == e) {
+                return e;
             }
             return erase(it);
         }
@@ -559,29 +603,30 @@ namespace aul {
 
         ///
         /// \param key Key to search for
-        /// \return
+        /// \return Iterator to element corresponding to key. end() if no such
+        ///     element exists
         [[nodiscard]]
-        iterator find(const key_type& key) {
-            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key)};
-            return (*ptr == key) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+        iterator find(const key_type& key) noexcept {
+            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+            return (ptr && *ptr == key) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
         /// \param key Key to search for
         /// \return Iterator to element. end() if not found
         [[nodiscard]]
-        const_iterator find(const key_type& key) const {
-            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key)};
-            return (*ptr == key) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+        const_iterator find(const key_type& key) const noexcept {
+            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+            return (ptr && *ptr == key) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
         /// \param key Key to search for
         /// \returns True if key maps to an element
         [[nodiscard]]
-        bool contains(const key_type& key) const {
-            key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key);
-            return (*ptr == key);
+        bool contains(const key_type& key) const noexcept {
+            key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
+            return (ptr && *ptr == key);
         }
 
         //=================================================
@@ -589,7 +634,7 @@ namespace aul {
         //=================================================
 
         ///
-        /// \param rhs Array_amp to swap contents with
+        /// \param rhs Array_map to swap contents with
         ///
         void swap(Array_map& rhs) noexcept(aul::is_noexcept_swappable_v<Alloc>) {
             if constexpr (val_alloc_traits::propagate_on_container_swap::value) {
@@ -600,7 +645,7 @@ namespace aul {
             std::swap(comparator, rhs.comparator);
         }
 
-        friend void swap(Array_map& lhs, Array_map& rhs) {
+        friend void swap(Array_map& lhs, Array_map& rhs) noexcept(noexcept(lhs.swap)) {
             lhs.swap(rhs);
         }
 
@@ -661,7 +706,7 @@ namespace aul {
         }
 
         ///
-        /// \param n Number to increase capacity to33
+        /// \param n Number to increase capacity to
         ///
         void reserve(const size_type n) {
             if (n <= elem_count) {
@@ -679,8 +724,8 @@ namespace aul {
                 }
 
                 if (new_allocation.keys != allocation.keys) {
-                    key_allocator_type alloc{allocator};
-                    aul::uninitialized_move_n(allocation.keys, elem_count, new_allocation.keys, alloc);
+                    key_allocator_type key_alloc{allocator};
+                    aul::uninitialized_move_n(allocation.keys, elem_count, new_allocation.keys, key_alloc);
                 }
             }
 

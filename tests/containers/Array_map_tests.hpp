@@ -216,7 +216,12 @@ namespace aul::tests {
         EXPECT_EQ(arr[8], 48);
     }
 
-    TEST(Array_map, Erase_all) {
+    TEST(Array_map, Erase) {
+        aul::Array_map<int, float> arr{};
+        EXPECT_EQ(arr.end(), arr.erase(0));
+    }
+
+    TEST(Array_map, Erase_with_iterators_all) {
         aul::Array_map<int, int> arr{};
 
         arr.insert(16, 160);
@@ -290,12 +295,17 @@ namespace aul::tests {
 
     TEST(Array_map, Find) {
         aul::Array_map<int, float> map;
+        map.reserve(3);
 
         map.emplace(1, 1.0);
         map.emplace(2, 2.0);
+        map.emplace(3, 3.0);
+        map.emplace(4, 4.0);
 
-        EXPECT_EQ(map[1], 1.0);
-        EXPECT_EQ(map[2], 2.0);
+        EXPECT_EQ(*map.find(1), 1.0);
+        EXPECT_EQ(*map.find(2), 2.0);
+        EXPECT_EQ(*map.find(3), 3.0);
+        EXPECT_EQ(*map.find(4), 4.0);
     }
 
 }
