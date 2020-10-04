@@ -193,6 +193,30 @@ namespace aul::tests {
     // Element mutators
     //=====================================================
 
+    TEST(Array_map, Emplace) {
+        aul::Array_map<int, float> arr{};
+        arr.emplace(0, 0.0);
+        arr.emplace(1, 1.0);
+        arr.emplace(2, 2.0);
+
+        EXPECT_EQ(arr[0], 0.0);
+        EXPECT_EQ(arr[1], 1.0);
+        EXPECT_EQ(arr[2], 2.0);
+
+        arr.clear();
+        arr.reserve(8);
+
+        arr.emplace(0, 0.0);
+        arr.emplace(1, 1.0);
+        arr.emplace(2, 2.0);
+        arr.emplace(3, 3.0);
+
+        EXPECT_EQ(arr[0], 0.0);
+        EXPECT_EQ(arr[1], 1.0);
+        EXPECT_EQ(arr[2], 2.0);
+        EXPECT_EQ(arr[3], 3.0);
+    }
+
     TEST(Array_map, Insert) {
         aul::Array_map<int, int> arr{};
         arr.reserve(16);
@@ -216,7 +240,24 @@ namespace aul::tests {
         EXPECT_EQ(arr[8], 48);
     }
 
-    TEST(Array_map, Erase_all) {
+    TEST(Array_map, Erase) {
+        aul::Array_map<int, float> arr{};
+        EXPECT_EQ(arr.end(), arr.erase(0));
+
+        arr.emplace(1, 56.0);
+        EXPECT_EQ(arr.end(), arr.erase(0));
+        EXPECT_EQ(arr.begin(), arr.erase(1));
+
+        arr.emplace(0, 24.0);
+        arr.emplace(1, 48.0);
+        arr.emplace(2, 96.0);
+
+        EXPECT_EQ(arr.end() - 1, arr.erase(2));
+        EXPECT_EQ(arr.end() - 1, arr.erase(1));
+        EXPECT_EQ(arr.end() - 1, arr.erase(0));
+    }
+
+    TEST(Array_map, Erase_with_iterators_all) {
         aul::Array_map<int, int> arr{};
 
         arr.insert(16, 160);
@@ -269,6 +310,33 @@ namespace aul::tests {
         EXPECT_TRUE(map.begin() == map.end());
     }
 
+    TEST(Array_map, For_each) {
+        aul::Array_map<int, float> map;
+
+        for (auto x : map) {
+            // Just making sure this doesn't segfault
+        }
+
+        map.emplace(0, 0.0);
+        map.emplace(1, 1.0);
+        map.emplace(2, 2.0);
+        map.emplace(3, 3.0);
+
+        std::vector<int> results;
+        for (auto x : map) {
+            results.push_back(x);
+        }
+
+        for (std::size_t i = 0; i < map.size(); ++i) {
+            results[i] = map.data()[i];
+        }
+
+        map.clear();
+        for (auto x : map) {
+            // Just making sure this doesn't segfault
+        }
+    }
+
     //=====================================================
     // Inspection functions
     //=====================================================
@@ -290,12 +358,17 @@ namespace aul::tests {
 
     TEST(Array_map, Find) {
         aul::Array_map<int, float> map;
+        map.reserve(3);
 
         map.emplace(1, 1.0);
         map.emplace(2, 2.0);
+        map.emplace(3, 3.0);
+        map.emplace(4, 4.0);
 
-        EXPECT_EQ(map[1], 1.0);
-        EXPECT_EQ(map[2], 2.0);
+        EXPECT_EQ(*map.find(1), 1.0);
+        EXPECT_EQ(*map.find(2), 2.0);
+        EXPECT_EQ(*map.find(3), 3.0);
+        EXPECT_EQ(*map.find(4), 4.0);
     }
 
 }
