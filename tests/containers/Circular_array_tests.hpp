@@ -5,7 +5,7 @@
 #ifndef AUL_CIRCULAR_ARRAY_TESTS_HPP
 #define AUL_CIRCULAR_ARRAY_TESTS_HPP
 
-#include "../../aul/containers/Circular_array.hpp"
+#include <aul/containers/Circular_array.hpp>
 
 #include <iostream>
 #include <gtest/gtest.h>
