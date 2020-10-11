@@ -102,8 +102,8 @@ namespace aul {
         using reference = T&;
         using const_reference = const T&;
 
-        using iterator = Random_access_iterator<typename aul::Allocator_types<A>, false>;
-        using const_iterator = Random_access_iterator<typename aul::Allocator_types<A>, true>;
+        using iterator = Random_access_iterator<typename aul::allocator_types<A>, false>;
+        using const_iterator = Random_access_iterator<typename aul::allocator_types<A>, true>;
 
         using reverse_iterator = typename std::reverse_iterator<iterator>;
         using const_reverse_iterator = typename std::reverse_iterator<const_iterator>;
@@ -238,10 +238,7 @@ namespace aul {
         ///
         /// \param src Target object to swap with
         ///
-        void swap(Slot_map& src) noexcept (
-            allocator_traits::propagate_on_container_swap::value ||
-            allocator_traits::is_always_equal::value) {
-
+        void swap(Slot_map& src) noexcept (aul::is_noexcept_swappable_v<A>) {
             if constexpr (allocator_traits::propagate_on_container_swap::value) {
                 std::swap(allocator, src.allocator);
             }
@@ -662,8 +659,8 @@ namespace aul {
         /// \return  Returns true if the key maps to a valid element
         ///
         [[nodiscard]]
-        bool contains(const key_type x) const {
-            return (x.version == allocation.metadata[x.index].anchor.version());
+        bool contains(const key_type key) const {
+            return (key.index < allocation.capacity) && (key.version == allocation.metadata[key.index].anchor.version());
         }
 
         ///

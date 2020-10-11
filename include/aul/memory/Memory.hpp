@@ -324,6 +324,7 @@ namespace aul {
 
     template<class A>
     constexpr bool is_noexcept_swappable_v = is_noexcept_swappable<A>::value;
+
 }
 
 #endif
