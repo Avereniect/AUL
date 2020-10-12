@@ -160,6 +160,7 @@ namespace aul {
         /// \param rhs
         /// \return
         Array_map& operator=(const Array_map& rhs) {
+            //TODO: Offer strong-exception guarantee
             clear();
 
             comparator = rhs.comparator;
@@ -180,6 +181,7 @@ namespace aul {
         /// \param rhs
         /// \return Reference to *this;
         Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<Alloc>) {
+            //TODO: Offer strong-exception guarantee
             clear();
 
             if constexpr (val_alloc_traits::propagate_on_container_move_assignment::value) {
@@ -366,7 +368,7 @@ namespace aul {
         ///
         /// Constructs element with an association with key
         ///
-        /// Provide the strong exception guarantee
+        /// Provides the strong exception guarantee
         ///
         /// \tparam Args Argument types to value constructor
         /// \param key Reference ot key
@@ -471,7 +473,7 @@ namespace aul {
         ///
         /// Constructs element with an association with key
         ///
-        /// Provide the strong exception guarantee
+        /// Provides the strong exception guarantee
         ///
         /// \tparam Args Argument types to value constructor
         /// \param key Rvalue reference ot key
@@ -619,7 +621,7 @@ namespace aul {
         [[nodiscard]]
         iterator find(const key_type& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && *ptr == key) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -628,7 +630,21 @@ namespace aul {
         [[nodiscard]]
         const_iterator find(const key_type& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && *ptr == key) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (*ptr == key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+        }
+
+        template<class K2>
+        [[nodiscard]]
+        iterator find(const K2& key) noexcept {
+            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+        }
+
+        template<class K2>
+        [[nodiscard]]
+        const_iterator find(const K2& key) const noexcept {
+            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -637,7 +653,7 @@ namespace aul {
         [[nodiscard]]
         bool contains(const key_type& key) const noexcept {
             key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            return (ptr && *ptr == key);
+            return (ptr && (*ptr == key));
         }
 
         //=================================================
