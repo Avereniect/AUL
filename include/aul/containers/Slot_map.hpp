@@ -27,22 +27,23 @@ namespace aul {
     /// An associative container offering constant time look-up, insertion, and
     /// deletion. 
     ///
-    /// Much like a vector, elements are stored in a contiguous array and can be
-    /// be referenced via their index.
+    /// Much like a vector, elements are stored in a contiguous array and
+    /// iterating through the container is therefore cache-friendly.
     ///
     /// Additionally, each element is mapped to a unique key object from its
-    /// construction to its destruction. This key can be retrieved via the
-    /// get_key() method. A key becomes invalid once the element that it was
-    /// mapped to no longer exists within the container. The validity of a key
-    /// can be checked via the contains() method.
+    /// construction to its destruction. This key is returned by the emplace()
+    /// method and can be retrieved from an iterator via the get_key() method.
+    /// A key is invalidated once the element that it was mapped to no longer
+    /// exists within the container. The validity of a key can be checked via
+    /// the contains() method.
     ///
     /// Algorithms such as std::sort and std::reverse may be applied to the
     /// contents of this container however all keys are liable to lose their
     /// associations. Keys will still map to valid elements but the resulting
     /// mappings are not predictable.
     ///
-    /// A default-constructed value of key_type will is very unlikely to map to
-    /// any object and thus can effectively be used as a null key.
+    /// A default-constructed value of key_type is very unlikely to map to
+    /// any object at any time and thus can effectively be used as a null key.
     ///
     /// \tparam T Element type
     /// \tparam A Allocator type
@@ -105,9 +106,6 @@ namespace aul {
         using iterator = Random_access_iterator<typename aul::allocator_types<A>, false>;
         using const_iterator = Random_access_iterator<typename aul::allocator_types<A>, true>;
 
-        using reverse_iterator = typename std::reverse_iterator<iterator>;
-        using const_reverse_iterator = typename std::reverse_iterator<const_iterator>;
-
     private:
 
         using allocator_traits = std::allocator_traits<allocator_type>;
@@ -130,7 +128,7 @@ namespace aul {
         ///
         /// \param alloc Allocator to copy-construct internal allocators from
         ///
-        explicit Slot_map(const allocator_type& alloc) noexcept:
+        explicit Slot_map(const allocator_type& alloc):
             allocator(alloc) {}
 
         ///
@@ -150,7 +148,7 @@ namespace aul {
         /// \param right Source object
         /// \param alloc Source for copy-construction of internal allocator
         ///
-        Slot_map(Slot_map&& right, allocator_type alloc) noexcept:
+        Slot_map(Slot_map&& right, allocator_type alloc):
             allocator(alloc),
             allocation((alloc == right.get_allocator()) ? std::move(right.allocation) : allocate(right.capacity())),
             elem_count(right.elem_count),
@@ -176,6 +174,7 @@ namespace aul {
             free_anchor(allocation.metadata + (src.free_anchor - src.allocation.metadata)) {
 
             static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructable.");
+            //TODO: Provide strong-exception guarantee
 
             auto md_allocator = md_allocator_type{allocator};
 
@@ -193,6 +192,7 @@ namespace aul {
             free_anchor(allocation.metadata + (src.free_anchor - src.allocation.metadata)) {
 
             static_assert(std::is_copy_constructible<T>::value, "Type T is not copy constructable.");
+            //TODO: Provide strong exception guarantee
 
             auto md_allocator = md_allocator_type{allocator};
 
@@ -217,7 +217,7 @@ namespace aul {
         /// Destructs current contents. Reduces capacity to 0. All keys are
         /// invalidated. Keys issues after a call to clear may be equal to
         /// previously used keys. It is recommended to discard all previous
-        /// keys immeditaely before making a call to this function.
+        /// keys immediately before making a call to this function.
         ///
         void clear() noexcept {
             if (allocation.capacity) {
@@ -252,7 +252,7 @@ namespace aul {
         /// \param l Left map to swap
         /// \param r Right map to swap
         ///
-        friend void swap(Slot_map& l, Slot_map& r) {
+        friend void swap(Slot_map& l, Slot_map& r) noexcept (aul::is_noexcept_swappable_v<A>) {
             l.swap(r);
         }
 
@@ -269,6 +269,7 @@ namespace aul {
             if (this == &src) {
                 return *this;
             }
+            //TODO: Provide strong-exception guarantee
 
             clear();
 
@@ -295,6 +296,7 @@ namespace aul {
                 return *this;
             }
 
+            //TODO: Provide strong exception guarantee when not noexcept
             clear();
 
             if constexpr (allocator_traits::propagate_on_container_move_assignment::value) {
@@ -373,6 +375,7 @@ namespace aul {
         /// \return      Reference to newly constructed object
         template<class... Args>
         key_type emplace(Args&& ... args) {
+            //TODO: Provide strong exception guarantee
             if (size() > max_size() - 1) {
                 throw std::length_error("aul::Slot_map grew beyond max size");
             }
@@ -426,7 +429,7 @@ namespace aul {
         ///
         /// \param key Key mapping to element if
         /// \ret True if an element was removed
-        bool erase(const key_type key) {
+        bool erase(const key_type key) noexcept {
             md_pointer md = allocation.metadata + key.index;
             if (md->anchor.version() != key.version) {
                 return false;
@@ -457,7 +460,7 @@ namespace aul {
         ///
         /// \param it Valid iterator to element to erase
         ///
-        void erase(const_iterator it) {
+        void erase(const_iterator it) noexcept {
             auto ptr = const_cast<pointer>(it.operator->());
             md_pointer md = metadata_of(ptr);
 
@@ -510,31 +513,6 @@ namespace aul {
             return const_cast<const Slot_map&>(*this).end();
         }
 
-
-        reverse_iterator rbegin() {
-            return reverse_iterator(end());
-        }
-
-        const_reverse_iterator rbegin() const {
-            return const_reverse_iterator(end());
-        }
-
-        const_reverse_iterator crbegin() const {
-            return const_cast<const Slot_map&>(*this).rbegin();
-        }
-
-        reverse_iterator rend() {
-            return reverse_iterator(begin());
-        }
-
-        const_reverse_iterator rend() const {
-            return const_reverse_iterator(begin());
-        }
-
-        const_reverse_iterator crend() const {
-            return const_cast<const Slot_map&>(*this).rend();
-        }
-
         //=================================================
         // Size & capacity methods
         //=================================================
@@ -567,7 +545,7 @@ namespace aul {
         /// \return Maximum capacity container may reach.
         ///
         [[nodiscard]]
-        size_type max_size() const {
+        size_type max_size() const noexcept {
             constexpr size_type size_type_max = std::numeric_limits<difference_type>::max();
             const size_type element_max = sizeof(value_type) * allocator_traits::max_size(allocator);
 
@@ -583,6 +561,8 @@ namespace aul {
         /// \param n Number of elements to allocate memory for
         ///
         void reserve(const size_type n) {
+            //TODO: Provide strong exception guarantee
+
             if (n <= capacity()) {
                 return;
             }
@@ -622,7 +602,7 @@ namespace aul {
         /// greater than the current size copies of val are inserted to the end
         /// of the container.
         ///
-        void resize(const size_type n, const T& val);
+        void resize(const size_type n, const T& val); //TODO: Implement
 
         //=================================================
         // Comparison operators
@@ -646,7 +626,7 @@ namespace aul {
         /// \return   key corresponding to element pointed to be it
         ///
         [[nodiscard]]
-        key_type get_key(const_iterator it) {
+        key_type get_key(const_iterator it) noexcept {
             const_pointer p = it.operator->();
 
             const size_type x = allocation.metadata[p - allocation.elements].anchor_index;
@@ -659,7 +639,7 @@ namespace aul {
         /// \return  Returns true if the key maps to a valid element
         ///
         [[nodiscard]]
-        bool contains(const key_type key) const {
+        bool contains(const key_type key) const noexcept {
             return (key.index < allocation.capacity) && (key.version == allocation.metadata[key.index].anchor.version());
         }
 
@@ -675,7 +655,7 @@ namespace aul {
         /// \return Pointer to array containing elements
         ///
         [[nodiscard]]
-        pointer data() {
+        pointer data() noexcept {
             return allocation.elements;
         }
 
@@ -683,7 +663,7 @@ namespace aul {
         /// \return Pointer to array containing elements
         ///
         [[nodiscard]]
-        const_pointer data() const {
+        const_pointer data() const noexcept {
             return allocation.elements;
         }
 
@@ -705,7 +685,7 @@ namespace aul {
         // Misc. helper methods
         //=================================================
 
-        size_type grow_size(const size_type n) {
+        size_type grow_size(const size_type n) noexcept {
             const size_type double_size = (max_size() / 2) < size() ? max_size() : 2 * capacity();
             return std::max(n, double_size);
         }
@@ -815,7 +795,7 @@ namespace aul {
         /// clears the associated index value.
         /// \param p Pointer to element to be destroyed.
         ///
-        void destroy_element(pointer p) {
+        void destroy_element(pointer p) noexcept {
             md_pointer md = metadata_of(p);
             release_anchor(md);
             allocator_traits::destroy(allocator, p);
@@ -833,17 +813,6 @@ namespace aul {
             consume_anchor(pos - allocation.elements);
             allocator_traits::construct(allocator, pos, std::forward<Args>(args)...);
         }
-
-        /// Move constructs an element within the container from its current
-        /// position to dest, and updates the associated index and erase
-        /// values. Assumes that dest points to a position in data[] that is
-        /// currently unused. Assumes that from points to a position in data[]
-        /// that is in use.
-        ///
-        /// \param from Pointer to element to move construct from
-        /// \param dest Pointer to desired move-construction point
-        ///
-        void move_construct_element(const pointer from, const pointer dest);
 
         /// Move assigns an element within the container from it's current
         /// position to dest, updates its index, and updates the erase value.
