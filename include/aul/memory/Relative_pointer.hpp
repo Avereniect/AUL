@@ -7,15 +7,14 @@
 
 #include "../Math.hpp"
 
-#include <type_traits>
 #include <memory>
 
 namespace aul {
 
     ///
     /// \tparam T Type pointer points to
-    /// \tparam I Backing signed integral type
-    /// \tparam S Stride. Must be less than or equal to sizeof(T)
+    /// \tparam Int Backing signed integral type
+    /// \tparam stride Distance between consecutive addresses which may be represented.
     /// \tparam is_const
     template<class T, class Int, Int stride = 1, bool is_const = false>
     class Relative_pointer_impl {
@@ -38,6 +37,8 @@ namespace aul {
         /// first member.
         ///
         static constexpr Int null_offset = (stride > sizeof(Int)) ? 1 : 0;
+
+        using absolute_pointer = std::conditional<is_const, const T*, T*>;
 
     public:
 
@@ -84,6 +85,15 @@ namespace aul {
         Relative_pointer_impl& operator=(Relative_pointer_impl&& rhs) noexcept {
             auto* ptr0 = reinterpret_cast<char*>(this);
             auto* ptr1 = reinterpret_cast<char*>(std::addressof(rhs));
+
+            offset += (ptr1 - ptr0) * sizeof(T) / stride;
+
+            return *this;
+        }
+
+        Relative_pointer_impl& operator=(absolute_pointer ptr) {
+            auto* ptr0 = reinterpret_cast<const char*>(this);
+            auto* ptr1 = reinterpret_cast<const char*>(ptr);
 
             offset += (ptr1 - ptr0) * sizeof(T) / stride;
 
@@ -159,7 +169,7 @@ namespace aul {
             return (this->operator->() >= ptr.operator->());
         }
 
-        bool operator>=(const std::nullptr_t ptr) const {
+        bool operator>=(const std::nullptr_t) const {
             return (offset >= null_offset);
         }
 
@@ -167,7 +177,7 @@ namespace aul {
             return (this->operator->() <= ptr.operator->());
         }
 
-        bool operator<=(const std::nullptr_t ptr) const {
+        bool operator<=(const std::nullptr_t) const {
             return (offset <= null_offset);
         }
 
@@ -175,7 +185,7 @@ namespace aul {
             return (this->operator->() > ptr.operator->());
         }
 
-        bool operator>(const std::nullptr_t ptr) const {
+        bool operator>(const std::nullptr_t) const {
             return (offset > null_offset);
         }
 
@@ -183,7 +193,7 @@ namespace aul {
             return (this->operator->() < ptr.operator->());
         }
 
-        bool operator<(const std::nullptr_t ptr) const {
+        bool operator<(const std::nullptr_t) const {
             return (offset < null_offset);
         }
 
@@ -221,10 +231,10 @@ namespace aul {
             return *(this->operator->());
         }
 
-        std::conditional<is_const, const T*, T*> operator->() const {
+        absolute_pointer operator->() const {
             char* ptr[sizeof(T)] = std::addressof(*this);
             ptr += offset * stride;
-            return reinterpret_cast<T*>(ptr);
+            return reinterpret_cast<absolute_pointer>(ptr);
         }
 
         std::conditional<is_const, const T&, T&> operator[](const Int x) const {
@@ -251,6 +261,10 @@ namespace aul {
         ///
         explicit operator std::conditional<is_const, const T*, T*>() const {
             return operator->();
+        }
+
+        operator Relative_pointer_impl<T, Int, stride, true>() const {
+            return {offset};
         }
 
     private:
