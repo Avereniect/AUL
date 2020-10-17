@@ -2,8 +2,8 @@
 // Created by avereniect on 7/19/20.
 //
 
-#ifndef AUL_VIRTUAL_ALLOCATOR_HPP
-#define AUL_VIRTUAL_ALLOCATOR_HPP
+#ifndef AUL_RELATIVE_POINTER_HPP
+#define AUL_RELATIVE_POINTER_HPP
 
 #include "../Math.hpp"
 
@@ -18,64 +18,80 @@ namespace aul {
     /// \tparam S Stride. Must be less than or equal to sizeof(T)
     /// \tparam is_const
     template<class T, class Int, Int stride = 1, bool is_const = false>
-    class Relative_pointer {
+    class Relative_pointer_impl {
 
         static_assert(std::is_signed_v<Int>);
         static_assert(aul::is_pow2(stride));
         static_assert(stride <= sizeof(T), "Stride is too large to address consecutive elements of type T");
 
+        //=================================================
+        // Static details
+        //=================================================
+
+        ///
+        /// Offset value to be used to represent a null pointer. If the
+        /// pointer's stride is larger than Relative_pointer then an offset of
+        /// 1 is never a valid address as it points to the middle of the
+        /// current object. Otherwise, an offset of 0 is ued. Note that an
+        /// offset of 0 may not allow node structs to point to themselves if the
+        /// relative pointer which is meant to point to the node is the node's
+        /// first member.
+        ///
+        static constexpr Int null_offset = (stride > sizeof(Int)) ? 1 : 0;
+
     public:
+
         //=================================================
         // -ctors
         //=================================================
 
-        Relative_pointer() = default;
+        Relative_pointer_impl() = default;
 
         ///
         /// Construct pointer null pointer
         ///
-        Relative_pointer(const std::nullptr_t):
-            offset(0) {}
+        Relative_pointer_impl(const std::nullptr_t):
+            offset(null_offset) {}
 
         ///
         /// \param ptr Primitve pointer to point to. Value is assumed to be an
         /// address aligned to Stride
         ///
-        explicit Relative_pointer(const T* ptr):
-            offset((reinterpret_cast<char*>(this) - reinterpret_cast<const char*>(ptr)) * sizeof(T) / stride) {}
+        explicit Relative_pointer_impl(const T* ptr):
+            offset((reinterpret_cast<char*>(ptr) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
 
-        Relative_pointer(Relative_pointer&& ptr) noexcept :
-            offset() {}
+        Relative_pointer_impl(Relative_pointer_impl&& ptr) noexcept :
+            offset((reinterpret_cast<char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
 
-        Relative_pointer(const Relative_pointer& ptr) :
-            offset(*this) {}
+        Relative_pointer_impl(const Relative_pointer_impl& ptr) :
+            offset((reinterpret_cast<char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
 
-        ~Relative_pointer() = default;
+        ~Relative_pointer_impl() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Relative_pointer& operator=(const Relative_pointer& rhs) {
-            char* ptr0 = std::addressof(*this);
-            char* ptr1 = std::addressof(rhs);
+        Relative_pointer_impl& operator=(const Relative_pointer_impl& rhs) {
+            auto* ptr0 = reinterpret_cast<char*>(this);
+            auto* ptr1 = reinterpret_cast<const char*>(std::addressof(rhs));
 
-            offset += sizeof(T) * (ptr1 - ptr0) / stride;
-
-            return *this;
-        }
-
-        Relative_pointer& operator=(Relative_pointer&& rhs) noexcept {
-            char* ptr0 = std::addressof(*this);
-            char* ptr1 = std::addressof(rhs);
-
-            offset += sizeof(T) * (ptr1 - ptr0) / stride;
+            offset += (ptr1 - ptr0) * sizeof(T) / stride;
 
             return *this;
         }
 
-        Relative_pointer& operator=(const std::nullptr_t) {
-            offset = 0;
+        Relative_pointer_impl& operator=(Relative_pointer_impl&& rhs) noexcept {
+            auto* ptr0 = reinterpret_cast<char*>(this);
+            auto* ptr1 = reinterpret_cast<char*>(std::addressof(rhs));
+
+            offset += (ptr1 - ptr0) * sizeof(T) / stride;
+
+            return *this;
+        }
+
+        Relative_pointer_impl& operator=(const std::nullptr_t) {
+            offset = null_offset;
             return *this;
         }
 
@@ -83,12 +99,12 @@ namespace aul {
         // Arithmetic assignment operators
         //=================================================
 
-        Relative_pointer& operator+=(const Int o) {
+        Relative_pointer_impl& operator+=(const Int o) {
             offset += o;
             return *this;
         }
 
-        Relative_pointer& operator-=(const Int o) {
+        Relative_pointer_impl& operator-=(const Int o) {
             offset -= o;
             return *this;
         }
@@ -97,102 +113,102 @@ namespace aul {
         // Arithmetic operators
         //=================================================
 
-        Relative_pointer operator+(const Int o) const {
+        Relative_pointer_impl operator+(const Int o) const {
             offset += o;
             return *this;
         }
 
-        friend Relative_pointer operator+(const Int o, const Relative_pointer& ptr) {
+        friend Relative_pointer_impl operator+(const Int o, const Relative_pointer_impl& ptr) {
             return ptr + o;
         }
 
-        Relative_pointer operator-(const Int o) const {
+        Relative_pointer_impl operator-(const Int o) const {
             offset -= o;
             return *this;
         }
 
-        Int operator-(const Relative_pointer& rhs) {
+        Int operator-(const Relative_pointer_impl& rhs) {
             return offset - rhs.offset;
         }
 
-        friend Int operator-(const std::nullptr_t, const Relative_pointer& rhs) {
-            return (0 - rhs.offset);
+        friend Int operator-(const std::nullptr_t, const Relative_pointer_impl& rhs) {
+            return (null_offset - rhs.offset);
         }
 
         //=================================================
         // Comparison operators
         //=================================================
 
-        bool operator==(const Relative_pointer& ptr) {
+        bool operator==(const Relative_pointer_impl& ptr) {
             return (this->operator->() == ptr.operator->());
         }
 
         bool operator==(const std::nullptr_t) {
-            return (offset == 0);
+            return (offset == null_offset);
         }
 
-        bool operator!=(const Relative_pointer& ptr) {
+        bool operator!=(const Relative_pointer_impl& ptr) {
             return (this->operator->() != ptr.operator->());
         }
 
         bool operator!=(const std::nullptr_t) {
-            return (offset != 0);
+            return (offset != null_offset);
         }
 
-        bool operator>=(const Relative_pointer& ptr) const {
+        bool operator>=(const Relative_pointer_impl& ptr) const {
             return (this->operator->() >= ptr.operator->());
         }
 
         bool operator>=(const std::nullptr_t ptr) const {
-            return (offset >= 0);
+            return (offset >= null_offset);
         }
 
-        bool operator<=(const Relative_pointer& ptr) const {
+        bool operator<=(const Relative_pointer_impl& ptr) const {
             return (this->operator->() <= ptr.operator->());
         }
 
         bool operator<=(const std::nullptr_t ptr) const {
-            return (offset <= 0);
+            return (offset <= null_offset);
         }
 
-        bool operator>(const Relative_pointer& ptr) const {
+        bool operator>(const Relative_pointer_impl& ptr) const {
             return (this->operator->() > ptr.operator->());
         }
 
         bool operator>(const std::nullptr_t ptr) const {
-            return (offset > 0);
+            return (offset > null_offset);
         }
 
-        bool operator<(const Relative_pointer& ptr) const {
+        bool operator<(const Relative_pointer_impl& ptr) const {
             return (this->operator->() < ptr.operator->());
         }
 
         bool operator<(const std::nullptr_t ptr) const {
-            return (offset < 0);
+            return (offset < null_offset);
         }
 
         //=================================================
         // Increment/decrement operators
         //=================================================
 
-        Relative_pointer& operator++() {
+        Relative_pointer_impl& operator++() {
             offset += sizeof(T) / stride;
             return *this;
         }
 
-        Relative_pointer operator++(int) {
-            Relative_pointer temp = *this;
+        Relative_pointer_impl operator++(int) {
+            Relative_pointer_impl temp = *this;
             offset += sizeof(T) / stride;
             return temp;
         }
 
-        Relative_pointer& operator--() {
+        Relative_pointer_impl& operator--() {
             offset -= sizeof(T) / stride;
             return *this;
         }
 
-        Relative_pointer operator--(int) {
-            Relative_pointer temp = *this;
+        Relative_pointer_impl operator--(int) {
+            Relative_pointer_impl temp = *this;
             offset -= sizeof(T) / stride;
             return temp;
         }
@@ -225,7 +241,7 @@ namespace aul {
         /// \return True if value is not equivalent to nullptr
         ///
         operator bool() const {
-            return (offset != 0);
+            return (offset != null_offset);
         }
 
         ///
@@ -250,6 +266,12 @@ namespace aul {
 
     };
 
+    template<class T, class Int, Int stride = 1>
+    using Relative_pointer = Relative_pointer_impl<T, Int, stride, true>;
+
+    template<class T, class Int, Int stride = 1>
+    using Const_relative_pointer = Relative_pointer_impl<T, Int, stride, true>;
+
 }
 
 
@@ -257,15 +279,15 @@ namespace aul {
 namespace std {
 
     template<class T, class I, I Stride, bool is_const>
-    class pointer_traits<aul::Relative_pointer<T, I, Stride, is_const>> {
+    class pointer_traits<aul::Relative_pointer_impl<T, I, Stride, is_const>> {
     public:
 
-        using pointer = aul::Relative_pointer<T, I, Stride, is_const>;
+        using pointer = aul::Relative_pointer_impl<T, I, Stride, is_const>;
         using elemment_type = T;
         using difference_type = std::make_unsigned<I>;
 
         template<class U>
-        using rebind = aul::Relative_pointer<U, I, Stride, is_const>;
+        using rebind = aul::Relative_pointer_impl<U, I, Stride, is_const>;
 
         //TODO: C++20 Make constexpr
         static pointer pointer_to(const T& t) noexcept {
@@ -278,21 +300,4 @@ namespace std {
 
 }
 
-
-
-
-namespace {
-
-    auto alignment = [] (const std::size_t a, const std::size_t b) {
-        return std::max(a, b);
-    };
-
-    template<class T, class Uint, Uint Stride>
-    struct alignas(alignment(Stride, alignof(Uint))) Pool_header {
-        Uint user_count;
-        Uint capacity;
-    };
-
-}
-
-#endif //AUL_VIRTUAL_ALLOCATOR_HPP
+#endif //AUL_RELATIVE_POINTER_HPP
