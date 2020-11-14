@@ -18,6 +18,7 @@ namespace aul {
     /// \tparam is_const
     template<class T, class Int, Int stride = 1, bool is_const = false>
     class Relative_pointer_impl {
+    private:
 
         static_assert(std::is_signed_v<Int>);
         static_assert(aul::is_pow2(stride));
@@ -38,7 +39,12 @@ namespace aul {
         ///
         static constexpr Int null_offset = (stride > sizeof(Int)) ? 1 : 0;
 
-        using absolute_pointer = std::conditional<is_const, const T*, T*>;
+        ///
+        /// Value to add to offset when incrementing/decrementing the pointer.
+        ///
+        static constexpr auto delta = sizeof(T) / stride;
+
+        using absolute_pointer = std::conditional_t<is_const, const T*, T*>;
 
     public:
 
@@ -47,6 +53,13 @@ namespace aul {
         //=================================================
 
         Relative_pointer_impl() = default;
+
+    private:
+
+        explicit Relative_pointer_impl(const Int offset):
+            offset(offset) {}
+
+    public:
 
         ///
         /// Construct pointer null pointer
@@ -59,13 +72,13 @@ namespace aul {
         /// address aligned to Stride
         ///
         explicit Relative_pointer_impl(const T* ptr):
-            offset((reinterpret_cast<char*>(ptr) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
+            offset((reinterpret_cast<const char*>(ptr) - reinterpret_cast<const char*>(this)) / stride) {}
 
         Relative_pointer_impl(Relative_pointer_impl&& ptr) noexcept :
-            offset((reinterpret_cast<char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
+            offset(ptr.offset + (reinterpret_cast<char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) / stride) {}
 
         Relative_pointer_impl(const Relative_pointer_impl& ptr) :
-            offset((reinterpret_cast<char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) * sizeof(T) / stride) {}
+            offset(ptr.offset + (reinterpret_cast<const char*>(std::addressof(ptr)) - reinterpret_cast<const char*>(this)) / stride) {}
 
         ~Relative_pointer_impl() = default;
 
@@ -77,7 +90,7 @@ namespace aul {
             auto* ptr0 = reinterpret_cast<char*>(this);
             auto* ptr1 = reinterpret_cast<const char*>(std::addressof(rhs));
 
-            offset += (ptr1 - ptr0) * sizeof(T) / stride;
+            offset = rhs.offset + (ptr1 - ptr0) / stride;
 
             return *this;
         }
@@ -86,7 +99,7 @@ namespace aul {
             auto* ptr0 = reinterpret_cast<char*>(this);
             auto* ptr1 = reinterpret_cast<char*>(std::addressof(rhs));
 
-            offset += (ptr1 - ptr0) * sizeof(T) / stride;
+            offset = rhs.offset + (ptr1 - ptr0) / stride;
 
             return *this;
         }
@@ -124,7 +137,8 @@ namespace aul {
         //=================================================
 
         Relative_pointer_impl operator+(const Int o) const {
-            offset += o;
+            auto ret = *this;
+            ret.offset += o;
             return *this;
         }
 
@@ -202,43 +216,44 @@ namespace aul {
         //=================================================
 
         Relative_pointer_impl& operator++() {
-            offset += sizeof(T) / stride;
+            offset += delta;
             return *this;
         }
 
         Relative_pointer_impl operator++(int) {
-            Relative_pointer_impl temp = *this;
-            offset += sizeof(T) / stride;
-            return temp;
+            offset += delta;
+            return {offset - delta};
         }
 
         Relative_pointer_impl& operator--() {
-            offset -= sizeof(T) / stride;
+            offset -= delta;
             return *this;
         }
 
         Relative_pointer_impl operator--(int) {
-            Relative_pointer_impl temp = *this;
-            offset -= sizeof(T) / stride;
-            return temp;
+            offset -= delta;
+            return {offset + delta};
         }
 
         //=================================================
         // Dereference operators
         //=================================================
 
-        std::conditional<is_const, const T&, T&> operator*() const {
+        std::conditional_t<is_const, const T&, T&> operator*() const {
             return *(this->operator->());
         }
 
         absolute_pointer operator->() const {
-            char* ptr[sizeof(T)] = std::addressof(*this);
-            ptr += offset * stride;
+            auto ptr = (char*)(this);
+            auto tmp = offset * stride;
+            ptr += tmp;
             return reinterpret_cast<absolute_pointer>(ptr);
         }
 
-        std::conditional<is_const, const T&, T&> operator[](const Int x) const {
-            return *(*this + x);
+        std::conditional_t<is_const, const T&, T&> operator[](const Int n) const {
+            auto ptr = (char*)(this);
+            ptr += (n + offset) * stride;
+            return *reinterpret_cast<absolute_pointer>(ptr);
         }
 
         //=================================================
@@ -259,15 +274,13 @@ namespace aul {
         ///
         /// \return Pointer 
         ///
-        explicit operator std::conditional<is_const, const T*, T*>() const {
-            return operator->();
+        explicit operator absolute_pointer() const {
+            return this->operator->();
         }
 
         operator Relative_pointer_impl<T, Int, stride, true>() const {
             return {offset};
         }
-
-    private:
 
         //=================================================
         // Instance members
@@ -281,7 +294,7 @@ namespace aul {
     };
 
     template<class T, class Int, Int stride = 1>
-    using Relative_pointer = Relative_pointer_impl<T, Int, stride, true>;
+    using Relative_pointer = Relative_pointer_impl<T, Int, stride, false>;
 
     template<class T, class Int, Int stride = 1>
     using Const_relative_pointer = Relative_pointer_impl<T, Int, stride, true>;
