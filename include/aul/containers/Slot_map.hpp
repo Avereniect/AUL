@@ -22,6 +22,86 @@
 
 namespace aul {
 
+    template<class T, class A>
+    class Slot_map;
+
+
+    ///
+    /// A class representing a key used by an aul::Slot_map container.
+    ///
+    /// \tparam T An integral type
+    template<class T>
+    class Slot_map_key {
+        static_assert(std::numeric_limits<T>::is_integer);
+
+        template<class U, class A>
+        friend class Slot_map;
+
+    public:
+
+        //=================================================
+        // -ctors
+        //=================================================
+
+        Slot_map_key(const T index, const T version):
+            index(index),
+            version(version) {}
+
+        Slot_map_key() = default;
+        Slot_map_key(const Slot_map_key&) = default;
+        Slot_map_key(Slot_map_key&&) noexcept = default;
+        ~Slot_map_key() = default;
+
+        //=================================================
+        // Assignment operators
+        //=================================================
+
+        Slot_map_key& operator=(const Slot_map_key&) = default;
+        Slot_map_key& operator=(Slot_map_key&&) noexcept = default;
+
+        //=================================================
+        // Comparison operators
+        //=================================================
+
+        bool operator==(const Slot_map_key& key) const {
+            return (this->index == key.index) && (this->version == key.version);
+        }
+
+        bool operator!=(const Slot_map_key& key) const {
+            return (this->index != key.index) && (this->version == key.version);
+        }
+
+        bool operator<(const Slot_map_key& key) const {
+            return (this->index < key.index) || (this->version < key.version);
+        }
+
+        bool operator>(const Slot_map_key& key) const {
+            return (this->index > key.index) || (this->version > key.version);
+        }
+
+        bool operator<=(const Slot_map_key& key) const {
+            return (this->index <= key.index) || (this->version <= key.version);
+        }
+
+        bool operator>=(const Slot_map_key& key) const {
+            return (this->index >= key.index) || (this->version >= key.version);
+        }
+
+    private:
+
+        //=================================================
+        // Instance members
+        //=================================================
+
+        T index = std::numeric_limits<T>::max();
+        T version = std::numeric_limits<T>::max();
+
+    };
+
+
+
+
+
     /// Slot_map
     ///
     /// An associative container offering constant time look-up, insertion, and
@@ -58,31 +138,6 @@ namespace aul {
 
         class Metadata;
 
-        ///
-        ///
-        ///
-        class Key {
-        public:
-            Key() = default;
-            Key(const Key&) = default;
-            Key(Key&&) = default;
-            ~Key() = default;
-
-            Key& operator=(const Key&) = default;
-            Key& operator=(Key&&) = default;
-
-        private:
-            friend class Slot_map;
-            using key_primitive = typename std::allocator_traits<A>::size_type;
-
-            Key(const key_primitive i, const key_primitive v):
-                index(i),
-                version(v) {}
-
-            key_primitive index = std::numeric_limits<key_primitive>::max();
-            key_primitive version = std::numeric_limits<key_primitive>::max();
-        };
-
         //=================================================
         // Type aliases
         //=================================================
@@ -98,7 +153,7 @@ namespace aul {
         using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
 
         using value_type = T;
-        using key_type = Key;
+        using key_type = Slot_map_key<size_type>;
 
         using reference = T&;
         using const_reference = const T&;

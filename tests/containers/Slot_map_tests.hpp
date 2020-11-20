@@ -20,8 +20,6 @@ namespace aul::tests {
         EXPECT_TRUE(map.empty());
         EXPECT_EQ(map.begin(), map.end());
         EXPECT_EQ(map.end() - map.begin(), 0);
-        EXPECT_EQ(map.rbegin(), map.rend());
-        EXPECT_EQ(map.rend() - map.rbegin(), 0);
     }
 
     TEST(Slot_map, Allocator_extended_default_contructor) {
