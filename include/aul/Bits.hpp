@@ -8,118 +8,13 @@
 
 namespace aul {
 
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline bool get_bit(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        return (1 << pos) & x;
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T set_bit(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        return x | (1 << pos);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T clear_bit(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        return x & (~(1 << pos));
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T toggle_bit(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        return x ^ (1 << pos);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T clear_rightmost1(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        using U = typename std::make_unsigned<T>::type;
-
-        U y = static_cast<U>(x);
-        return y & (y - 1);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T set_rightmost0(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        using U = typename std::make_unsigned<T>::type;
-
-        U y = static_cast<U>(x);
-        return y | (y + 1);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T clear_trailing1s(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        using U = typename std::make_unsigned<T>::type;
-
-        U y = static_cast<U>(x);
-        return y & (y + 1);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T set_trailing0s(const T x, const int pos) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        using U = typename std::make_unsigned<T>::type;
-
-        U y = static_cast<U>(x);
-        return y | (y - 1);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T get_bit_range(const T x, const unsigned from, const unsigned to) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        constexpr T full = ~0;
-        return (x >> from) & ~(full << to);
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T set_bit_range(const T x, const unsigned from, const unsigned to) {
-        static_assert(std::numeric_limits<T>::is_integer);
-        constexpr T full = ~0;
-        int mask = (full << from) & (full >> (std::numeric_limits<T>::digits - to) ) ;
-        return x | mask;
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T clear_bit_range(const T x, const unsigned from, const unsigned to) {
-        static_assert(std::numeric_limits<T>::is_integer);
-
-        constexpr T full = ~0;
-        int mask = (full << from) & (full >> (std::numeric_limits<T>::digits - to) ) ;
-        return x & ~mask;
-    }
-
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T toggle_bit_range(const T x, const unsigned from, const unsigned to) {
-        static_assert(std::numeric_limits<T>::is_integer);
-
-        constexpr T full = ~0;
-        int mask = (full << from) & (full >> (std::numeric_limits<T>::digits - to) ) ;
-        return x ^ mask;
-    }
-
     ///
     /// Creates a std::string representing the bit string of x
     ///
     /// \tparam T Integral type
     /// \param x  Value to convert
     /// \return   std::string conversion of x
-    template<typename T>
+    template<class T>
     [[nodiscard]]
     std::string bits_to_string(const T x) {
         static_assert(std::numeric_limits<T>::is_integer);
@@ -137,78 +32,89 @@ namespace aul {
     }
 
     ///
-    /// Mods x by 2^n
+    /// Mods x by 2^p
     ///
     /// \tparam T Unsigned integral type
     /// \param x  Value to mod
     /// \param p  Power of value modding by
     /// \return   Modded value
-    template<typename T>
+    template<class T>
     [[nodiscard]]
     constexpr inline T mod_pow2(const T x, const int p) noexcept {
         static_assert(!std::numeric_limits<T>::is_signed);
 
-        return x & ~( (1 << p) - 1);
+        return x & ( (1 << p) - 1);
     }
+
+    ///
+    /// \tparam T An arbitrary integral type
+    /// \param v An arbitrary value
+    /// \return True if v is a power of 2. False otherwise
+    template<class T>
+    [[nodiscard]]
+    constexpr bool is_pow2(const T v) {
+        return v && !(v & (v - 1));
+    }
+
+    template<class T>
+    [[nodiscard]]
+    constexpr inline unsigned pop_cnt(const T v) {
+        unsigned sum = 0;
+        for (; v; sum++) {
+            v &= v - 1;
+        }
+        return sum;
+    }
+
 
     ///
     /// \tparam T An unsigned integral type
     /// \param v Value to round
     /// \return v rounded to the nearest power of two equal or greater to it
-    template<typename T>
+    template<class T>
     [[nodiscard]]
-    constexpr inline T ceil2(const T v) {
-        static_assert(!std::numeric_limits<T>::is_signed);
-
-        T n = v;
-        for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
-            n |= (n >> i);
-        }
-
-        return n;
-    }
+    constexpr inline T ceil2(const T v);
 
     ///
     /// \tparam T An unsigned integral type
     /// \param v Value to round
     /// \return v rounded to the nearest power of two equal or less to it
-    template<typename T>
+    template<class T>
     [[nodiscard]]
-    constexpr inline T floor2(const T v) {
+    constexpr inline T floor2(const T v);
+
+    ///
+    /// \tparam T An unsigned integral type
+    /// \param x An arbitrary integral value
+    /// \param r Number of positions to rotate. Must be less than number of bits
+    ///     in T. Undefined behavior otherwise
+    /// \return x with its bits rotated left
+    template<class T>
+    [[nodiscard]]
+    constexpr inline T rotl(const T x, const unsigned r) {
         static_assert(!std::numeric_limits<T>::is_signed);
 
-        T n = v;
-        for (int i = 1; i < std::numeric_limits<T>::digits; i <<= 1) {
-            n |= (n >> i);
-        }
-        return n - (n >> 1);
-    }
+        constexpr std::size_t bit_count = sizeof(T) * CHAR_BIT;
+        const int rot = mod_pow2(r, bit_count);
 
-    template<typename T>
-    [[nodiscard]]
-    constexpr inline T rotl(const T x, const int r) {
-        static_assert(!std::numeric_limits<T>::is_signed);
-
-        constexpr auto digits = std::numeric_limits<T>::digits;
-        const int rot = mod_pow2(r, digits);
-
-        return (x << rot) | x >> (digits - rot);
+        return (x << rot) | x >> (bit_count - rot);
     }
 
     ///
     /// \tparam T An unsigned integral type
-    /// \param x
-    /// \param r Number of places to rotate by
-    /// \return
-    template<typename T>
+    /// \param x An arbitrary integral value
+    /// \param r Number of positions to rotate. Must be less than number of bits
+    ///     in T. Undefined behavior otherwise
+    /// \return x with its bits rotated right
+    template<class T>
     [[nodiscard]]
-    constexpr inline T rotr(const T x, const int r) {
+    constexpr inline T rotr(const T x, const unsigned r) {
         static_assert(!std::numeric_limits<T>::is_signed);
 
-        constexpr auto digits = std::numeric_limits<T>::digits;
-        const int rot = mod_pow2(r, digits);
+        constexpr auto bit_count = sizeof(T) * CHAR_BIT;
+        const int rot = mod_pow2(r, bit_count);
 
-        return (x >> rot) | x << (digits - rot);
+        return (x >> rot) | x << (bit_count - rot);
     }
 
 }
