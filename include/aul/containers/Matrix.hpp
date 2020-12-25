@@ -14,6 +14,7 @@
 #include <numeric>
 #include <functional>
 #include <cstdint>
+#include <stdexcept>
 
 namespace aul {
 
@@ -80,7 +81,7 @@ namespace aul {
         //=================================================
 
         Matrix_view& operator=(const Matrix_view&) = default;
-        Matrix_view& operator=(Matrix_view&&) = default;
+        Matrix_view& operator=(Matrix_view&&) noexcept = default;
 
         //=================================================
         // Access methods
@@ -207,7 +208,7 @@ namespace aul {
             dims(matrix.dims),
             ptr(allocate(dims)) {
 
-            aul::uninitialized_copy_n(matrix.allocation, size(), ptr, allocator);
+            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
         }
 
         Matrix(const Matrix& matrix, const A& allocator):
@@ -215,21 +216,25 @@ namespace aul {
             dims(matrix.dims),
             ptr(allocate(dims)) {
 
-            aul::uninitialized_copy_n(matrix.allocation, size(), ptr, allocator);
+            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
         }
 
         Matrix(Matrix&& matrix) noexcept:
             allocator(std::move(matrix.allocator)),
             dims(std::move(matrix.dims)),
-            ptr(std::move(matrix.dims)) {}
+            ptr(ptr) {
+        
+            matrix.dims = {};
+            matrix.ptr = nullptr;
+        }
 
         Matrix(Matrix&& matrix, const A& allocator):
             allocator(allocator),
             dims(std::move(matrix.dims)),
-            ptr((matrix.allocator == allocator) ? std::exchange(std::move(matrix.allocation), nullptr) : allocate(dims)) {
+            ptr((matrix.allocator == allocator) ? std::exchange(matrix.ptr, nullptr) : allocate(dims)) {
 
             if (!(matrix.allocator == allocator)) {
-                aul::uninitialized_move_n(matrix.allocation, size(), ptr, allocator);
+                aul::uninitialized_move_n(matrix.ptr, size(), ptr, allocator);
             }
         }
 
@@ -250,7 +255,7 @@ namespace aul {
 
             dims = matrix.dims;
             ptr = allocate(dims);
-            aul::uninitialized_copy_n(matrix.allocation, size(), ptr, allocator);
+            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
 
             return *this;
         }
@@ -260,8 +265,8 @@ namespace aul {
                 allocator = std::move(matrix.allocator);
             }
 
-            dims = std::exchange(std::move(matrix.dims), {});
-            ptr = std::exchange(matrix.allocation, nullptr);
+            dims = std::exchange(matrix.dims, {});
+            ptr = std::exchange(matrix.ptr, nullptr);
 
             return *this;
         }
@@ -270,12 +275,16 @@ namespace aul {
         // Comparison operators
         //=================================================
 
-        Matrix& operator==(const Matrix& matrix) {
-            return (this->dimensions() == matrix.dimensions()) && std::equal(begin(), end(), matrix.begin());
+        bool operator==(const Matrix& matrix) const {
+            return
+                (dims == matrix.dims) &&
+                std::equal(begin(), end(), matrix.begin());
         }
 
-        Matrix& operator!=(const Matrix& matrix) {
-            return (this->dimensions() != matrix.dimensions()) || !std::equal(begin(), end(), matrix.begin());
+        bool operator!=(const Matrix& matrix) const {
+            return
+                (dims != matrix.dims) ||
+                !std::equal(begin(), end(), matrix.begin());
         }
 
         //=================================================
@@ -307,7 +316,7 @@ namespace aul {
         }
 
         //=================================================
-        // Subscript operators
+        // Element accessors
         //=================================================
 
         subscript_return_type operator[](const size_type n) {
@@ -324,15 +333,72 @@ namespace aul {
                 return ptr[n];
             } else {
                 size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{ptr + offset, dims.data() + 1};
+                return lower_dimensional_view{const_cast<lower_dimensional_view::pointer>(ptr + offset), dims.data() + 1};
             }
+        }
+
+        reference at(const std::array<size_type, N>& pos) {
+            for (std::size_t i = 0; i < N; ++i) {
+                if (dims[i] <= pos[i]) {
+                    throw std::out_of_range("Index out of range in call to aul::Matrix::at().");
+                }
+            }
+
+            size_type offset = 0;
+
+            size_type coefficient = 1;
+            for (std::size_t i = 0; i < N; ++i) {
+                offset += coefficient * dims[i];
+            }
+
+            return ptr[offset];
+        }
+
+        const_reference at(const std::array<size_type, N>& pos) const {
+            for (std::size_t i = 0; i < N; ++i) {
+                if (dims[i] <= pos[i]) {
+                    throw std::out_of_range("Index out of range in call to aul::Matrix::at().");
+                }
+            }
+
+            size_type offset = 0;
+
+            size_type coefficient = 1;
+            for (std::size_t i = 0; i < N; ++i) {
+                offset += coefficient * dims[i];
+            }
+
+            return ptr[offset];
         }
 
         //=================================================
         // Size methods
         //=================================================
 
-        void resize(const std::array<size_type, N>& new_dimensions);
+        void resize(const std::array<size_type, N>& new_dimensions) {
+            if (!dimension_safety(new_dimensions)) {
+                throw std::length_error("Length error i call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
+            }
+
+            pointer new_ptr = allocate(new_dimensions);
+
+            Matrix_view<T, N, A> view{new_ptr, new_dimensions};
+            std::array<size_type, N> counters{};
+
+            for (;counters != new_dimensions;) {
+
+            }
+        }
+
+        void clear() {
+            const size_type num_elems = size();
+            for (size_type i = 0; i < num_elems; ++i) {
+                std::allocator_traits<A>::destroy(allocator, ptr + i);
+            }
+
+            std::allocator_traits<A>::deallocate(allocator, ptr, num_elems);
+            ptr = nullptr;
+        }
 
         ///
         /// \return Number of elements in matrix.
@@ -377,7 +443,9 @@ namespace aul {
         //=================================================
 
         A allocator{};
+
         std::array<size_type, N> dims{};
+
         pointer ptr = nullptr;
 
         //=================================================
@@ -387,6 +455,18 @@ namespace aul {
         pointer allocate(const std::array<size_type, N>& dimensions) {
             size_type allocation_size = std::reduce(dimensions.data(), dimensions.data() + N, 1, std::multiplies<size_type>{});
             return std::allocator_traits<A>::allocate(allocator, allocation_size);
+        }
+
+        bool dimension_safety(const std::array<size_type, N>& dimensions) {
+            constexpr size_type max = std::numeric_limits<size_type>::max();
+
+            size_type quotient = max / dimensions[0];
+
+            for (std::size_t i = 1; i < dimensions.size(); ++i) {
+                quotient /= dimensions[i];
+            }
+
+            return (quotient != 0);
         }
 
     };
