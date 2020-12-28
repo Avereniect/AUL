@@ -333,7 +333,7 @@ namespace aul {
                 return ptr[n];
             } else {
                 size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{const_cast<lower_dimensional_view::pointer>(ptr + offset), dims.data() + 1};
+                return lower_dimensional_view{ptr + offset, dims.data() + 1};
             }
         }
 
@@ -375,7 +375,8 @@ namespace aul {
         // Size methods
         //=================================================
 
-        void resize(const std::array<size_type, N>& new_dimensions) {
+        //TODO: Complete implementation
+        void resize(const std::array<size_type, N>& new_dimensions); /*{
             if (!dimension_safety(new_dimensions)) {
                 throw std::length_error("Length error i call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
             }
@@ -386,9 +387,15 @@ namespace aul {
             std::array<size_type, N> counters{};
 
             for (;counters != new_dimensions;) {
+                view.at(counters) = this->at(counters);
 
+                //Increment
+                for (std::size_t i  = 0; i < N; ++i) {
+
+                }
             }
         }
+        */
 
         void clear() {
             const size_type num_elems = size();
@@ -398,6 +405,7 @@ namespace aul {
 
             std::allocator_traits<A>::deallocate(allocator, ptr, num_elems);
             ptr = nullptr;
+            std::fill_n(dims.data(), N, size_type{});
         }
 
         ///

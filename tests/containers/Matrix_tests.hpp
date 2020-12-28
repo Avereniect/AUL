@@ -67,7 +67,7 @@ namespace aul::tests {
         EXPECT_EQ(mat1[1][1], 4);
     }
 
-    TEST(Matrix, At_method) {
+    TEST(Matrix, At) {
         aul::Matrix<int, 2> mat{{4, 4}};
         mat.at({2, 2});
 
@@ -92,8 +92,44 @@ namespace aul::tests {
         EXPECT_EQ(mat.at({3, 3}), 0);
     }
 
-    TEST(Matrix, clear) {
+    TEST(Matrix, Const_at) {
+        const aul::Matrix<int, 2> mat{{4, 4}};
 
+        EXPECT_EQ(mat.at({0, 0}), 0);
+        EXPECT_EQ(mat.at({0, 1}), 0);
+        EXPECT_EQ(mat.at({0, 2}), 0);
+        EXPECT_EQ(mat.at({0, 3}), 0);
+
+        EXPECT_EQ(mat.at({1, 0}), 0);
+        EXPECT_EQ(mat.at({1, 1}), 0);
+        EXPECT_EQ(mat.at({1, 2}), 0);
+        EXPECT_EQ(mat.at({1, 3}), 0);
+
+        EXPECT_EQ(mat.at({2, 0}), 0);
+        EXPECT_EQ(mat.at({2, 1}), 0);
+        EXPECT_EQ(mat.at({2, 2}), 0);
+        EXPECT_EQ(mat.at({2, 3}), 0);
+
+        EXPECT_EQ(mat.at({3, 0}), 0);
+        EXPECT_EQ(mat.at({3, 1}), 0);
+        EXPECT_EQ(mat.at({3, 2}), 0);
+        EXPECT_EQ(mat.at({3, 3}), 0);
+    }
+
+    TEST(Matrix, clear) {
+        aul::Matrix<int, 4> mat{{4, 4, 4, 4}};
+
+        mat.clear();
+
+        EXPECT_EQ(mat.size(), 0);
+
+        auto dims = mat.dimensions();
+        EXPECT_EQ(dims[0], 0);
+        EXPECT_EQ(dims[1], 0);
+        EXPECT_EQ(dims[2], 0);
+        EXPECT_EQ(dims[3], 0);
+
+        EXPECT_ANY_THROW(mat.at({0, 0, 0, 0}));
     }
 
 }
