@@ -71,6 +71,29 @@ namespace aul::tests {
         aul::Matrix<int, 2> mat{{4, 4}};
         mat.at({2, 2});
 
+        EXPECT_EQ(mat.at({0, 0}), 0);
+        EXPECT_EQ(mat.at({0, 1}), 0);
+        EXPECT_EQ(mat.at({0, 2}), 0);
+        EXPECT_EQ(mat.at({0, 3}), 0);
+
+        EXPECT_EQ(mat.at({1, 0}), 0);
+        EXPECT_EQ(mat.at({1, 1}), 0);
+        EXPECT_EQ(mat.at({1, 2}), 0);
+        EXPECT_EQ(mat.at({1, 3}), 0);
+
+        EXPECT_EQ(mat.at({2, 0}), 0);
+        EXPECT_EQ(mat.at({2, 1}), 0);
+        EXPECT_EQ(mat.at({2, 2}), 0);
+        EXPECT_EQ(mat.at({2, 3}), 0);
+
+        EXPECT_EQ(mat.at({3, 0}), 0);
+        EXPECT_EQ(mat.at({3, 1}), 0);
+        EXPECT_EQ(mat.at({3, 2}), 0);
+        EXPECT_EQ(mat.at({3, 3}), 0);
+    }
+
+    TEST(Matrix, clear) {
+
     }
 
 }

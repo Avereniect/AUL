@@ -409,7 +409,7 @@ namespace aul {
         }
 
         ///
-        /// \return A std::array a=object containing the matrix's dimensions
+        /// \return A std::array object containing the matrix's dimensions
         ///
         [[nodiscard]]
         std::array<size_type, N> dimensions() const {
