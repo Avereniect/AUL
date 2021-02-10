@@ -45,6 +45,12 @@ namespace aul::tests {
         EXPECT_EQ(mat2.size(), 6);
     }
 
+    TEST(Matrix, Constuctor_with_dimensions_and_allocator) {
+        std::allocator<int> alloc;
+
+        aul::Matrix<int, 1> mat0{{1}, alloc};
+    }
+
     TEST(Matrix, Subscript_operator) {
         aul::Matrix<int, 1> mat0{{4}};
 
@@ -54,7 +60,7 @@ namespace aul::tests {
         EXPECT_EQ(mat0[3], 0);
 
 
-        aul::Matrix<int, 2> mat1{{2,4}};
+        aul::Matrix<int, 2> mat1{{2, 4}};
 
         mat1[0][0] = 1;
         mat1[0][1] = 2;

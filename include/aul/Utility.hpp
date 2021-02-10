@@ -100,28 +100,45 @@ namespace aul {
     /// \return A std::array object containing the parameters passed to the function
     template<std::size_t N, class...Args>
     [[nodiscard]]
-    auto pack_into_array(Args&&...args) {
+    auto array_from(Args...args) {
         static_assert(N != 0);
         static_assert(sizeof...(Args) == N);
         static_assert(are_convertible_to_v<std::decay_t<Args>..., std::decay_t<first_type_t<Args...>>>);
 
         using U = typename std::decay_t<first_type_t<Args...>>;
-        std::array<U, N> ret;
 
-        U* dim_ptr = ret.data();
+        std::array<U, N> ret{static_cast<U>(args)...};
+        return ret;
+    }
 
-        auto assigner = [dim_ptr] (const std::size_t x, ...) {
-            std::va_list varg;
-            va_start(varg, x);
-            for (int i = 0; i < N; ++i) {
-                dim_ptr[i] = va_arg(varg, U);
-            }
-            va_end(varg);
+    template<std::size_t N, class T, class...Args>
+    [[nodiscard]]
+    auto array_from_T(Args...args) {
+        static_assert(N != 0);
+        static_assert(sizeof...(Args) == N);
+        static_assert(are_convertible_to_v<std::decay_t<Args>..., T>);
+
+        std::array<T, N> ret{static_cast<T>(args)...};
+        return ret;
+    }
+
+
+
+    namespace {
+
+        template<std::size_t N, class T, class U>
+        struct Array_and_value {
+            std::array<T, N> arr;
+            U x;
         };
 
-        assigner(N, args...);
+    }
 
-        return ret;
+    template<std::size_t N, class T, class U, class...Args>
+    [[nodiscard]]
+    std::pair<std::array<T, N>, U> array_and_value(Args...args) {
+        Array_and_value<N, T, U> ret = {args...};
+        return std::pair<std::array<T, N>, U>{ret.arr, ret.x};
     }
 
 }
