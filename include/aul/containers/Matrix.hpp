@@ -29,7 +29,7 @@ namespace aul {
         static_assert(N > 0);
 
         //=================================================
-        // Type alises
+        // Type aliases
         //=================================================
 
         using value_type = T;
@@ -45,6 +45,8 @@ namespace aul {
 
         using iterator = aul::Random_access_iterator<A, false>;
         using const_iterator = aul::Random_access_iterator<A, true>;
+
+        using dimension_type = std::array<size_type, N>;
 
     private:
 
@@ -62,15 +64,16 @@ namespace aul {
 
         Matrix_view() = default;
 
-        Matrix_view(pointer data, const_size_type_ptr dimensions) noexcept:
-            ptr(data) {
+        explicit Matrix_view(pointer ptr, const dimension_type& dims):
+            ptr(ptr),
+            dims(dims) {}
 
-            std::copy_n(dimensions, N, dims.begin());
+        explicit Matrix_view(pointer ptr, const_size_type_ptr dim_ptr):
+            ptr(ptr),
+            dims() {
+
+            std::copy_n(dim_ptr, N, dims.data());
         }
-
-        Matrix_view(pointer data, const std::array<size_type, N>& dimensions) noexcept:
-            ptr(data),
-            dims(dimensions) {}
 
         Matrix_view(const Matrix_view&) = default;
         Matrix_view(Matrix_view&&) noexcept = default;
@@ -105,6 +108,11 @@ namespace aul {
             }
         }
 
+        template<class...Args, class = typename aul::enable_if_homogenous_N_t<N + 1, size_type, Args...>>
+        reference at(Args...args) {
+            return at(aul::array_from_T<N, size_type>(args...));
+        }
+
         reference at(const std::array<size_type, N>& pos) {
             for (std::size_t i = 0; i < N; ++i) {
                 if (dims[i] <= pos[i]) {
@@ -120,6 +128,11 @@ namespace aul {
             }
 
             return ptr + offset;
+        }
+
+        template<class...Args, class = typename aul::enable_if_homogenous_N_t<N + 1, size_type, Args...>>
+        const_reference at(Args...args) const {
+            return at(aul::array_from_T<N, size_type>(args...));
         }
 
         const_reference at(const std::array<size_type, N>& pos) const {
@@ -158,7 +171,7 @@ namespace aul {
         static_assert(std::is_same_v<T, typename std::allocator_traits<A>::value_type>);
 
         //=================================================
-        // Type alises
+        // Type aliases
         //=================================================
 
         using value_type = T;
@@ -176,6 +189,8 @@ namespace aul {
         using const_iterator = aul::Random_access_iterator<A, true>;
 
         using allocator_type = A;
+
+        using dimension_type = std::array<size_type, N>;
 
     private:
 
@@ -195,14 +210,26 @@ namespace aul {
         explicit Matrix(const A& a):
             allocator(a) {}
 
-        explicit Matrix(const std::array<size_type, N>& dimensions, const allocator_type& a = {}) noexcept:
-            allocator(a),
-            dims(dimensions),
+        explicit Matrix(const dimension_type& dims):
+            allocator(),
+            dims(dims),
             ptr(allocate(dims)) {
 
             aul::default_construct_n(ptr, size(), allocator);
         }
 
+        Matrix(const dimension_type& dims, const allocator_type& a):
+            allocator(a),
+            dims(dims),
+            ptr(allocate(dims)) {
+
+            aul::default_construct_n(ptr, size(), allocator);
+        }
+
+        ///
+        /// Copy constructor
+        ///
+        /// \param matrix
         Matrix(const Matrix& matrix):
             allocator(alloc_traits::select_on_container_copy_construction(matrix.allocator)),
             dims(matrix.dims),
@@ -223,7 +250,7 @@ namespace aul {
             allocator(std::move(matrix.allocator)),
             dims(std::move(matrix.dims)),
             ptr(ptr) {
-        
+
             matrix.dims = {};
             matrix.ptr = nullptr;
         }
@@ -333,11 +360,11 @@ namespace aul {
                 return ptr[n];
             } else {
                 size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{ptr + offset, dims.data() + 1};
+                return lower_dimensional_view{const_cast<typename lower_dimensional_view::pointer>(ptr + offset), dims.data() + 1};
             }
         }
 
-        reference at(const std::array<size_type, N>& pos) {
+        reference at(const dimension_type& pos) {
             for (std::size_t i = 0; i < N; ++i) {
                 if (dims[i] <= pos[i]) {
                     throw std::out_of_range("Index out of range in call to aul::Matrix::at().");
@@ -354,7 +381,7 @@ namespace aul {
             return ptr[offset];
         }
 
-        const_reference at(const std::array<size_type, N>& pos) const {
+        const_reference at(const dimension_type& pos) const {
             for (std::size_t i = 0; i < N; ++i) {
                 if (dims[i] <= pos[i]) {
                     throw std::out_of_range("Index out of range in call to aul::Matrix::at().");
@@ -375,8 +402,7 @@ namespace aul {
         // Size methods
         //=================================================
 
-        //TODO: Complete implementation
-        void resize(const std::array<size_type, N>& new_dimensions); /*{
+        void resize(const dimension_type& new_dimensions) {
             if (!dimension_safety(new_dimensions)) {
                 throw std::length_error("Length error i call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
             }
@@ -384,18 +410,12 @@ namespace aul {
             pointer new_ptr = allocate(new_dimensions);
 
             Matrix_view<T, N, A> view{new_ptr, new_dimensions};
-            std::array<size_type, N> counters{};
+            dimension_type counters{};
 
             for (;counters != new_dimensions;) {
-                view.at(counters) = this->at(counters);
 
-                //Increment
-                for (std::size_t i  = 0; i < N; ++i) {
-
-                }
             }
         }
-        */
 
         void clear() {
             const size_type num_elems = size();
@@ -405,7 +425,7 @@ namespace aul {
 
             std::allocator_traits<A>::deallocate(allocator, ptr, num_elems);
             ptr = nullptr;
-            std::fill_n(dims.data(), N, size_type{});
+            dims.fill(0);
         }
 
         ///
@@ -417,10 +437,10 @@ namespace aul {
         }
 
         ///
-        /// \return A std::array object containing the matrix's dimensions
+        /// \return A std::array a=object containing the matrix's dimensions
         ///
         [[nodiscard]]
-        std::array<size_type, N> dimensions() const {
+        dimension_type dimensions() const {
             return dims;
         }
 
@@ -452,7 +472,7 @@ namespace aul {
 
         A allocator{};
 
-        std::array<size_type, N> dims{};
+        dimension_type dims{};
 
         pointer ptr = nullptr;
 
@@ -460,12 +480,12 @@ namespace aul {
         // Helper functions
         //=================================================
 
-        pointer allocate(const std::array<size_type, N>& dimensions) {
+        pointer allocate(const dimension_type& dimensions) {
             size_type allocation_size = std::reduce(dimensions.data(), dimensions.data() + N, 1, std::multiplies<size_type>{});
             return std::allocator_traits<A>::allocate(allocator, allocation_size);
         }
 
-        bool dimension_safety(const std::array<size_type, N>& dimensions) {
+        bool dimension_safety(const dimension_type& dimensions) {
             constexpr size_type max = std::numeric_limits<size_type>::max();
 
             size_type quotient = max / dimensions[0];
@@ -478,7 +498,6 @@ namespace aul {
         }
 
     };
-
 
 }
 
