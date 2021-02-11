@@ -151,7 +151,7 @@ namespace aul {
 
     template<class T>
     [[nodiscard]]
-    bool is_pow2(const T x) {
+    constexpr bool is_pow2(const T x) {
         std::size_t count = 0;
         T y = x;
         while (y) {
