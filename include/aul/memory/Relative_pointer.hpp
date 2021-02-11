@@ -2,10 +2,10 @@
 // Created by avereniect on 7/19/20.
 //
 
-#ifndef AUL_VIRTUAL_ALLOCATOR_HPP
-#define AUL_VIRTUAL_ALLOCATOR_HPP
+#ifndef AUL_RELATIVE_POINTER_HPP
+#define AUL_RELATIVE_POINTER_HPP
 
-#include "../Math.hpp"
+#include "../Bits.hpp"
 
 #include <type_traits>
 #include <memory>
@@ -295,143 +295,4 @@ namespace {
 
 }
 
-
-
-namespace aul {
-
-    ///
-    /// An allocator which contains a memory pool from which memory is allocated
-    /// using offset pointers.
-    ///
-    /// Note that objects of type Virtual_allocator::pointer are only guaranteed
-    /// to be able to can only point to objects within the memory pool.
-    ///
-    /// \tparam T Type allocator can allocate memory for
-    /// \tparam I A signed integral type to use for offset pointers
-    /// \tparam Stride Size of gaps between addresses pointer can handle
-    template<class T, class I, I Stride = 1>
-    class Virtual_allocator {
-
-        using pool_header = Pool_header<T, I, Stride>;
-
-    public:
-
-        static_assert(std::is_integral_v<I>);
-        static_assert(std::is_signed_v<I>);
-        static_assert(aul::is_pow2(Stride));
-        static_assert(Stride <= sizeof(T));
-
-        //=================================================
-        // Type aliases
-        //=================================================
-
-        using value_type = T;
-
-        using pointer = Relative_pointer<T, I, Stride, false>;
-        using const_pointer = Relative_pointer<T, I, Stride, true>;
-
-        using void_pointer = Relative_pointer<void, I, Stride, false>;
-        using const_void_pointer = Relative_pointer<void, I, Stride, true>;
-
-        using size_type = I;
-        using difference_type = std::make_signed<I>;
-
-        template<class U>
-        class rebind {
-            using other = Virtual_allocator<U, I, Stride>;
-        };
-
-        //=================================================
-        // Meta aliases
-        //=================================================
-
-        using is_always_equal = std::false_type;
-
-        using propagate_on_container_copy_assignment = std::true_type;
-        using propagate_on_container_move_assignment = std::true_type;
-        using propagate_on_container_swap = std::true_type;
-
-        //=================================================
-        // -ctors
-        //=================================================
-
-        Virtual_allocator() = default;
-
-        ///
-        /// \param element_count Number of elements to allocate memory for
-        ///
-        explicit Virtual_allocator(const size_type element_count);
-
-        ~Virtual_allocator() {
-            if (pool) {
-                --pool_users();
-                if (pool_users()) {
-                    free(pool);
-                }
-            }
-        }
-
-        //=================================================
-        // Assignment operators
-        //=================================================
-
-        Virtual_allocator& operator=(const Virtual_allocator& allocator) {
-
-
-            return *this;
-        }
-
-        Virtual_allocator& operator=(Virtual_allocator&&);
-
-        //=================================================
-        // Allocation methods
-        //=================================================
-
-        pointer allocate(const size_type n);
-        pointer allocate(const size_type n, const_pointer hint);
-
-        pointer deallocate(pointer);
-
-        //=================================================
-        // Comparison operators
-        //=================================================
-
-        bool operator==(const Virtual_allocator& allocator) {
-            return (pool == allocator.pool);
-        }
-
-        bool operator!=(const Virtual_allocator& allocator) {
-            return (pool != allocator.pool);
-        }
-
-        //=================================================
-        // Misc. methods
-        //=================================================
-
-        size_type max_size() const {
-            constexpr auto diff_max = std::numeric_limits<difference_type>::max();
-            return std::min(static_cast<size_type>(diff_max), capacity());
-        }
-
-    private:
-        std::byte* pool = nullptr;
-
-        //=================================================
-        // Helper functions
-        //=================================================
-
-        size_type& capacity() {
-            auto& pool_header = *reinterpret_cast<Virtual_allocator::pool_header*>(pool);
-            return pool_header.capacity;
-        }
-
-        size_type& pool_users() {
-            auto& pool_header = *reinterpret_cast<Virtual_allocator::pool_header*>(pool);
-            return pool_header.user_count;
-        }
-
-    };
-
-}
-
-#endif //AUL_VIRTUAL_ALLOCATOR_HPP
+#endif //AUL_RELATIVE_POINTER_HPP
