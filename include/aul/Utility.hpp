@@ -124,6 +124,29 @@ namespace aul {
         return ret;
     }
 
+    ///
+    /// Member value is true if an only if a pointer to T may potentially alias
+    /// objects of types besides T.
+    ///
+    /// \tparam T An arbitrary type
+    template<class T>
+    class is_aliasing_type : public std::bool_constant<false>{};
+
+    template<class T>
+    constexpr bool is_aliasing_type_v = is_aliasing_type<T>::value;
+
+    template<>
+    class is_aliasing_type<unsigned char> : public std::bool_constant<true>{};
+
+    template<>
+    class is_aliasing_type<signed char> : public std::bool_constant<true>{};
+
+    template<>
+    class is_aliasing_type<char> : public std::bool_constant<true>{};
+
+    template<>
+    class is_aliasing_type<std::byte> : public std::bool_constant<true>{};
+
 }
 
 #endif //AUL_UTILITY_HPP
