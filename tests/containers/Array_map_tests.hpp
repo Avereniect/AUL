@@ -150,9 +150,22 @@ namespace aul::tests {
         arr0.insert(2, 2.0);
         arr0.insert(3, 3.0);
 
+        auto begin = arr0.begin();
+        auto end = arr0.end();
+
         aul::Array_map<int, float> arr1;
-        arr1.insert(4, 4.0);
-        arr1.insert(5, 5.0);
+        arr1 = std::move(arr0);
+
+        EXPECT_EQ(arr1[0], 0.0);
+        EXPECT_EQ(arr1[1], 1.0);
+        EXPECT_EQ(arr1[2], 2.0);
+        EXPECT_EQ(arr1[3], 3.0);
+
+        EXPECT_EQ(arr1.size(), 4);
+        EXPECT_EQ(arr1.get_allocator(), arr0.get_allocator());
+
+        EXPECT_EQ(arr1.begin(), begin);
+        EXPECT_EQ(arr1.end(), end);
     }
 
     TEST(Array_map, Copy_assignment) {
@@ -252,9 +265,20 @@ namespace aul::tests {
         arr.emplace(1, 48.0);
         arr.emplace(2, 96.0);
 
-        EXPECT_EQ(arr.end() - 1, arr.erase(2));
-        EXPECT_EQ(arr.end() - 1, arr.erase(1));
-        EXPECT_EQ(arr.end() - 1, arr.erase(0));
+        auto temp0 = arr.end() - 1;
+        auto temp1 = arr.erase(2);
+
+        EXPECT_EQ(temp0, temp1);
+
+        temp0 = arr.end() - 1;
+        temp1 = arr.erase(1);
+        EXPECT_EQ(temp0, temp1);
+
+        temp0 = arr.end() - 1;
+        temp1 = arr.erase(0);
+        EXPECT_EQ(temp0, temp1);
+
+        EXPECT_EQ(arr.size(), 0);
     }
 
     TEST(Array_map, Erase_with_iterators_all) {
