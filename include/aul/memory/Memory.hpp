@@ -10,8 +10,8 @@ namespace aul {
     ///
     /// Allocator extended version of std::destroy
     ///
-    template<class Forward_iter, class Alloc>
-    void destroy(Forward_iter first, Forward_iter last, Alloc& alloc) {
+    template<class Iter, class Alloc>
+    void destroy(Iter first, Iter last, Alloc& alloc) noexcept {
         for (; first != last; ++first) {
             std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*first));
         }
@@ -20,19 +20,24 @@ namespace aul {
     ///
     /// Allocator extended version of std::destroy_n
     ///
-    template<class Forward_iter, class size_type, class Alloc>
-    void destroy_n(Forward_iter first, size_type n, Alloc& alloc) {
-        for (size_type i = size_type{}; i != n; ++i, ++first) {
-            std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*first));
+    template<class Iter, class size_type, class Alloc>
+    void destroy_n(Iter begin, size_type n, Alloc& alloc) noexcept{
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Iter>::iterator_category, std::random_access_iterator_tag>;
+        if constexpr (condition) {
+            destroy(begin, begin + n, alloc);
+        } else {
+            for (size_type i = size_type{}; i != n; ++i, ++begin) {
+                std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*begin));
+            }
         }
     }
 
     ///
     /// Allocator extended version of std::uninitialized_default_construct
     ///
-    template<class Forward_iter, class Alloc>
-    void default_construct(Forward_iter begin, Forward_iter end, Alloc& alloc) {
-        Forward_iter x = begin;
+    template<class Iter, class Alloc>
+    void default_construct(Iter begin, Iter end, Alloc& alloc) {
+        Iter x = begin;
         try {
             for (; x != end; ++x) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x));
@@ -48,20 +53,30 @@ namespace aul {
     ///
     /// Element count version of aul::uninitialized_default_construct
     ///
-    template<class Forward_iter, class size_type, class Alloc>
-    void default_construct_n(Forward_iter begin, size_type n, Alloc& alloc) {
-        Forward_iter x = begin;
-        size_type i = size_type{};
+    /// \tparam Iter
+    /// \tparam size_type
+    /// \tparam Alloc
+    /// \param begin
+    /// \param n
+    /// \param alloc
+    template<class Iter, class size_type, class Alloc>
+    void default_construct_n(Iter begin, const size_type n, Alloc& alloc) {
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Iter>::iterator_category, std::random_access_iterator_tag>;
 
-        try {
-            for (; i != n; ++i, ++x) {
+        if constexpr (condition) {
+            default_construct_n(begin, n, alloc);
+        } else {
+            Iter x = begin;
+            size_type i = size_type{};
 
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x));
+            try {
+                for (; i != n; ++i, ++x) {
+                    std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x));
+                }
+            } catch (...) {
+                aul::destroy_n(begin, i, alloc);
+                throw;
             }
-        } catch (...) {
-            aul::destroy_n(begin, i, alloc);
-
-            throw;
         }
     }
 
@@ -76,27 +91,30 @@ namespace aul {
             for (; x != end; ++x) {
                 std::allocator_traits<Alloc>::construct(allocator, std::addressof(*x), value);
             }
-
         } catch (...) {
             aul::destroy(begin, x, allocator);
-
             throw;
         }
     }
 
-    template<class Forward_iter, class size_type, class T, class Alloc>
-    void uninitialized_fill_n(Forward_iter begin, const size_type n, const T& value, Alloc& alloc) {
-        Forward_iter x = begin;
-        size_type i = size_type{};
+    template<class Iter, class size_type, class T, class Alloc>
+    void uninitialized_fill_n(Iter begin, const size_type n, const T& value, Alloc& alloc) {
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Iter>::iterator_category, std::random_access_iterator_tag>;
 
-        try {
-            for (; i != n; ++i, ++x) {
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), value);
+        if constexpr (condition) {
+            uninitialized_fill(begin, begin + n, value, alloc);
+        } else {
+            Iter x = begin;
+            size_type i = size_type{};
+
+            try {
+                for (; i != n; ++i, ++x) {
+                    std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), value);
+                }
+            } catch (...) {
+                aul::destroy_n(begin, i, alloc);
+                throw;
             }
-        } catch (...) {
-            aul::destroy_n(begin, i, alloc);
-
-            throw;
         }
     }
 
@@ -108,37 +126,36 @@ namespace aul {
             for (; i != end; ++i, ++x) {
                 std::allocator_traits<Alloc>::construct(allocator, std::addressof(*x), std::move(*i));
             }
-
         } catch (...) {
             --x;
             for (; i-- > begin; --x) {
                 *i = std::move(*x);
                 std::allocator_traits<Alloc>::destroy(allocator, std::addressof(*x));
             }
-
             throw;
         }
     }
 
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
-    void uninitialized_move_n(Input_iter begin, size_type n, Forward_iter dest, Alloc& alloc) {
-        Forward_iter it = begin;
-        size_type i = size_type{};
+    void uninitialized_move_n(Input_iter begin, const size_type n, Forward_iter dest, Alloc& alloc) {
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Input_iter>::iterator_category, std::random_access_iterator_tag>;
 
-        try {
-            for (; i != n; ++i, ++it, ++dest) {
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*dest), std::move(*it));
+        if constexpr (condition) {
+            uninitialized_move(begin, begin + n, dest, alloc);
+        } else {
+            Forward_iter it = begin;
+            size_type i = size_type{};
+
+            try {
+                for (; i != n; ++i, ++it) {
+                    std::allocator_traits<Alloc>::construct(alloc, std::addressof(*it), std::move(*it));
+                }
+            } catch (...) {
+                for (; begin <= it; ++begin) {
+                    std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*begin));
+                }
+                throw;
             }
-
-        } catch (...) {
-            --it;
-            --dest;
-            for (; i-- > 0; --it, --dest) {
-                *it = std::move(*dest);
-                std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*begin));
-            }
-
-            throw;
         }
     }
 
@@ -146,7 +163,7 @@ namespace aul {
     /// Allocator-aware version of std::uninitialized_copy
     ///
     template<class Input_iter, class Forward_iter, class Alloc>
-    constexpr void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
+    void uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
         Input_iter it = begin;
 
@@ -154,10 +171,8 @@ namespace aul {
             for (; it < end; ++it, ++x) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *it);
             }
-
         } catch (...) {
             aul::destroy(dest, x, alloc);
-
             throw;
         }
     }
@@ -166,38 +181,40 @@ namespace aul {
     /// Allocator-aware version of std::uninitialized_copy_n
     ///
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
-    constexpr void uninitialized_copy_n(Input_iter begin, size_type n, Forward_iter dest, Alloc& alloc) {
-        Forward_iter x = dest;
-        Forward_iter y = begin;
-        size_type i = size_type{};
+    void uninitialized_copy_n(Input_iter begin, const size_type n, Forward_iter dest, Alloc& alloc) {
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Input_iter>::iterator_category, std::random_access_iterator_tag>;
 
-        try {
-            for (; i != n;++i, ++x, ++y) {
-                std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *y);
+        if constexpr (condition) {
+            uninitialized_copy(begin, begin + n, dest, alloc);
+        } else {
+            Forward_iter x = dest;
+            Forward_iter y = begin;
+            size_type i = size_type{};
+
+            try {
+                for (; i != n; ++i, ++x, ++y) {
+                    std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), *y);
+                }
+            } catch (...) {
+                aul::destroy_n(begin, i, alloc);
+                throw;
             }
-        } catch (...) {
-            aul::destroy_n(begin, i, alloc);
-
-            throw;
         }
     }
-
 
     ///
     /// Allocator-aware hybridization of std::uninitialized_fill and std::iota
     /// Provides the weak guarantee
     ///
     template<class Forward_iter, class T, class Alloc>
-    void uninitialized_iota(Forward_iter begin, Forward_iter end, T val, Alloc& alloc) {
+    void uninitialized_iota(Forward_iter begin, Forward_iter end, const T& val, Alloc& alloc) {
         Forward_iter x = begin;
         try {
             for (; x < end; ++x, ++val) {
                 std::allocator_traits<Alloc>::construct(alloc, std::addressof(*x), val);
             }
-
         } catch (...) {
             aul::destroy(begin, x, alloc);
-
             throw;
         }
     }
@@ -206,18 +223,24 @@ namespace aul {
     /// Counted version of aul::uninitialized_iota
     /// Provides the weak guarantee
     ///
-    template<class Forward_iter, class T, class size_type, class Alloc>
-    void uninitialized_iota_n(Forward_iter begin, size_type n, T val, Alloc& alloc) {
-        Forward_iter x = begin;
-        size_type i = size_type{};
+    template<class Iter, class T, class size_type, class Alloc>
+    void uninitialized_iota_n(Iter begin, const size_type n, const T& val, Alloc& alloc) {
+        constexpr bool condition = std::is_same_v<typename std::iterator_traits<Iter>::iterator_category, std::random_access_iterator_tag>;
 
-        try {
-            for (;i != n;++i, ++x, ++val) {
-                std::allocator_traits<Alloc>::construct(std::addressof(*x), val);
+        if constexpr(condition) {
+            uninitialized_iota(begin, begin + n, val, alloc);
+        } else {
+            Iter x = begin;
+            size_type i = size_type{};
+
+            try {
+                for (;i != n;++i, ++x, ++val) {
+                    std::allocator_traits<Alloc>::construct(std::addressof(*x), val);
+                }
+            } catch (...) {
+                aul::destroy(begin, i, alloc);
+                throw;
             }
-        } catch (...) {
-            aul::destroy(begin, i, alloc);
-            throw;
         }
     }
 
@@ -230,8 +253,8 @@ namespace aul {
     /// types for a given type T. In practice this typically means using raw
     /// pointers.
     ///
-    template<typename T, class Alloc>
-    class Allocator_has_trivial_types {
+    template<class T, class A>
+    class allocator_has_trivial_types {
     private:
         using alloc_traits = std::allocator_traits<T>;
 
@@ -270,8 +293,8 @@ namespace aul {
     /// Meant to reduce template code bloat by allowing iterators to be reused
     /// if two different allocators share the same type aliases
     ///
-    template<typename Alloc>
-    class Allocator_types {
+    template<class Alloc>
+    class allocator_types {
     public:
         using value_type = typename std::allocator_traits<Alloc>::value_type;
         using pointer = typename std::allocator_traits<Alloc>::pointer;
@@ -292,6 +315,15 @@ namespace aul {
 
     template<class A>
     inline constexpr bool is_noexcept_movable_v = is_noexcept_movable<A>::value;
+
+    template<class A>
+    struct is_noexcept_swappable : public std::bool_constant<
+        std::allocator_traits<A>::propagate_on_container_swap::value ||
+        std::allocator_traits<A>::is_always_equal::value
+    > {};
+
+    template<class A>
+    constexpr bool is_noexcept_swappable_v = is_noexcept_swappable<A>::value;
 
 }
 
