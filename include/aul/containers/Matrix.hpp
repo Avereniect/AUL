@@ -1,7 +1,3 @@
-//
-// Created by avereniect on 9/23/20.
-//
-
 #ifndef AUL_MATRIX_HPP
 #define AUL_MATRIX_HPP
 
@@ -22,7 +18,7 @@ namespace aul {
     /// \tparam T Type of matrix elements
     /// \tparam N Number of dimensions to matrix
     /// \tparam A Allocator type to get aliases from
-    template<class T, std::size_t N, class A = std::allocator<T>>
+    template<class T, std::size_t N, class A = std::allocator<T>, bool is_const = false>
     class Matrix_view {
     public:
 
@@ -50,11 +46,25 @@ namespace aul {
 
     private:
 
-        using lower_dimensional_view = Matrix_view<T, N - 1, A>;
+        using lower_dimensional_view = Matrix_view<T, N - 1, A, false>;
+        using const_lower_dimensional_ivew = Matrix_view<T, N - 1, A, true>;
 
-        using const_size_type_ptr = typename std::pointer_traits<const_pointer>::template rebind<size_type>;
+        using const_size_type_ptr = const typename std::pointer_traits<const_pointer>::template rebind<size_type>;
 
-        using subscript_return_type = std::conditional_t<N == 1, reference, lower_dimensional_view>;
+        using Ptr = std::conditional_t<is_const, const_pointer, pointer>;
+        using Ref = std::conditional_t<is_const, const_reference, reference>;
+
+        using subscript_return_type = std::conditional_t<
+            N == 1,
+            Ref,
+            lower_dimensional_view
+        >;
+
+        using const_subscript_return_type = std::conditional_t<
+            N == 1,
+            const_reference,
+            const_lower_dimensional_ivew
+        >;
 
     public:
 
@@ -64,11 +74,11 @@ namespace aul {
 
         Matrix_view() = default;
 
-        explicit Matrix_view(pointer ptr, const dimension_type& dims):
+        explicit Matrix_view(Ptr ptr, const dimension_type& dims):
             ptr(ptr),
             dims(dims) {}
 
-        explicit Matrix_view(pointer ptr, const_size_type_ptr dim_ptr):
+        explicit Matrix_view(Ptr ptr, const typename dimension_type::size_type* dim_ptr):
             ptr(ptr),
             dims() {
 
@@ -99,7 +109,7 @@ namespace aul {
             }
         }
 
-        const subscript_return_type operator[](const size_type n) const {
+        const_subscript_return_type operator[](const size_type n) const {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
@@ -109,11 +119,11 @@ namespace aul {
         }
 
         template<class...Args, class = typename aul::enable_if_homogenous_N_t<N + 1, size_type, Args...>>
-        reference at(Args...args) {
+        Ref at(Args...args) {
             return at(aul::array_from_T<N, size_type>(args...));
         }
 
-        reference at(const std::array<size_type, N>& pos) {
+        Ref at(const std::array<size_type, N>& pos) {
             for (std::size_t i = 0; i < N; ++i) {
                 if (dims[i] <= pos[i]) {
                     throw std::out_of_range("Index out of range in call to aul::Matrix_view::at().");
@@ -152,8 +162,14 @@ namespace aul {
             return ptr + offset;
         }
 
+        //=================================================
+        // Instance members
+        //=================================================
+
     private:
-        pointer ptr;
+
+        Ptr ptr;
+
         std::array<size_type, N> dims;
     };
 
@@ -195,9 +211,21 @@ namespace aul {
     private:
 
         using alloc_traits = typename std::allocator_traits<A>;
-        using lower_dimensional_view = Matrix_view<T, N - 1, A>;
 
-        using subscript_return_type = std::conditional_t<N == 1, reference, lower_dimensional_view>;
+        using lower_dimensional_view = Matrix_view<T, N - 1, A, false>;
+        using const_lower_dimensional_ivew = Matrix_view<T, N - 1, A, true>;
+
+        using subscript_return_type = std::conditional_t<
+            N == 1,
+            reference,
+            lower_dimensional_view
+        >;
+
+        using const_subscript_return_type = std::conditional_t<
+            N == 1,
+            const_reference,
+            const_lower_dimensional_ivew
+        >;
 
     public:
 
@@ -350,17 +378,19 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{ptr + offset, dims.data() + 1};
+                size_type offset = n * dims[0];
+                return lower_dimensional_view{ptr + offset, dims.data()};
             }
         }
 
-        const subscript_return_type operator[](const size_type n) const {
+        const_subscript_return_type operator[](const size_type n) const {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{const_cast<typename lower_dimensional_view::pointer>(ptr + offset), dims.data() + 1};
+                return const_subscript_return_type{
+                    ptr + n * dims[0],
+                    dims.data()
+                };
             }
         }
 
