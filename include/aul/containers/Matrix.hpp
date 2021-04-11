@@ -112,7 +112,6 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * dims[0];
                 return lower_dimensional_view{ptr + compute_offset(n, dims), dims.data()};
             }
         }
@@ -130,10 +129,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr + offset;
@@ -152,10 +151,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr + offset;
@@ -449,10 +448,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr[offset];
@@ -466,10 +465,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr[offset];
