@@ -46,7 +46,7 @@ namespace aul {
 
     private:
 
-        using lower_dimensional_view = Matrix_view<T, N - 1, A, false>;
+        using lower_dimensional_view = Matrix_view<T, N - 1, A, is_const>;
         using const_lower_dimensional_ivew = Matrix_view<T, N - 1, A, true>;
 
         using const_size_type_ptr = const typename std::pointer_traits<const_pointer>::template rebind<size_type>;
@@ -104,8 +104,7 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{ptr + offset, dims.data() + 1};
+                return lower_dimensional_view{ptr + compute_offset(n, dims), dims.data()};
             }
         }
 
@@ -113,8 +112,8 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * std::reduce(dims.data() + 1, dims.data() + N, 1, std::multiplies<size_type>{});
-                return lower_dimensional_view{ptr + offset, dims.data() + 1};
+                size_type offset = n * dims[0];
+                return lower_dimensional_view{ptr + compute_offset(n, dims), dims.data()};
             }
         }
 
@@ -171,6 +170,19 @@ namespace aul {
         Ptr ptr;
 
         std::array<size_type, N> dims;
+
+        //=================================================
+        // Helper functions
+        //=================================================
+
+        size_type compute_offset(size_type s, dimension_type d) const {
+            size_type ret = s;
+            for (int i = 1; i < d.size(); ++i) {
+                ret *= d[i];
+            }
+            return ret;
+        }
+
     };
 
 
@@ -294,9 +306,7 @@ namespace aul {
         }
 
         ~Matrix() {
-            if (!empty()) {
-                std::allocator_traits<A>::deallocate(allocator, ptr, size());
-            }
+            clear();
         }
 
         //=================================================
@@ -378,8 +388,7 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * dims[0];
-                return lower_dimensional_view{ptr + offset, dims.data()};
+                return subscript_return_type{ptr + compute_offset(n, dims), dims.data() + 1};
             }
         }
 
@@ -387,10 +396,7 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                return const_subscript_return_type{
-                    ptr + n * dims[0],
-                    dims.data()
-                };
+                return const_subscript_return_type{ptr + compute_offset(n, dims), dims.data() + 1};
             }
         }
 
@@ -442,6 +448,7 @@ namespace aul {
             Matrix_view<T, N, A> view{new_ptr, new_dimensions};
             dimension_type counters{};
 
+            //TODO: Complete implementation
             for (;counters != new_dimensions;) {
 
             }
@@ -525,6 +532,14 @@ namespace aul {
             }
 
             return (quotient != 0);
+        }
+
+        size_type compute_offset(size_type s, dimension_type d) const {
+            size_type ret = s;
+            for (int i = 1; i < d.size(); ++i) {
+                ret *= d[i];
+            }
+            return ret;
         }
 
     };
