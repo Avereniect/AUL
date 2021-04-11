@@ -112,7 +112,6 @@ namespace aul {
             if constexpr (N == 1) {
                 return ptr[n];
             } else {
-                size_type offset = n * dims[0];
                 return lower_dimensional_view{ptr + compute_offset(n, dims), dims.data()};
             }
         }
@@ -130,10 +129,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr + offset;
@@ -152,13 +151,45 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr + offset;
+        }
+
+        //=================================================
+        // Size methods
+        //=================================================
+
+        [[nodiscard]]
+        dimension_type dimensions() const {
+            return dims;
+        }
+
+        [[nodiscard]]
+        size_type size() const {
+            size_type ret = 1;
+
+            for (int i = 0; i < dims.size(); ++i) {
+                ret *= dims[i];
+            }
+
+            return ret;
+        }
+
+        //=================================================
+        // Misc. methods
+        //=================================================
+
+        pointer data() {
+            return ptr;
+        }
+
+        const_pointer data() const {
+            return ptr;
         }
 
         //=================================================
@@ -336,6 +367,15 @@ namespace aul {
             return *this;
         }
 
+        template<bool const_view>
+        Matrix& operator=(Matrix_view<T, N, A, const_view>& mat) {
+            resize(mat.dimensions());
+
+            std::copy_n(mat.data(), mat.size(), data());
+
+            return *this;
+        }
+
         //=================================================
         // Comparison operators
         //=================================================
@@ -408,10 +448,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr[offset];
@@ -425,10 +465,10 @@ namespace aul {
             }
 
             size_type offset = 0;
-
             size_type coefficient = 1;
-            for (std::size_t i = 0; i < N; ++i) {
-                offset += coefficient * dims[i];
+            for (std::size_t i = N; i-- > 0;) {
+                offset += (coefficient * pos[i]);
+                coefficient *= dims[i];
             }
 
             return ptr[offset];
@@ -499,6 +539,14 @@ namespace aul {
             std::swap(allocator, matrix.allocator);
             std::swap(dims, matrix.dims);
             std::swap(ptr, matrix.ptr);
+        }
+
+        pointer data() {
+            return ptr;
+        }
+
+        const_pointer data() const {
+            return ptr;
         }
 
     private:
