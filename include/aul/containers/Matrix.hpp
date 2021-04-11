@@ -162,6 +162,38 @@ namespace aul {
         }
 
         //=================================================
+        // Size methods
+        //=================================================
+
+        [[nodiscard]]
+        dimension_type dimensions() const {
+            return dims;
+        }
+
+        [[nodiscard]]
+        size_type size() const {
+            size_type ret = 1;
+
+            for (int i = 0; i < dims.size(); ++i) {
+                ret *= dims[i];
+            }
+
+            return ret;
+        }
+
+        //=================================================
+        // Misc. methods
+        //=================================================
+
+        pointer data() {
+            return ptr;
+        }
+
+        const_pointer data() const {
+            return ptr;
+        }
+
+        //=================================================
         // Instance members
         //=================================================
 
@@ -336,6 +368,15 @@ namespace aul {
             return *this;
         }
 
+        template<bool const_view>
+        Matrix& operator=(Matrix_view<T, N, A, const_view>& mat) {
+            resize(mat.dimensions());
+
+            std::copy_n(mat.data(), mat.size(), data());
+
+            return *this;
+        }
+
         //=================================================
         // Comparison operators
         //=================================================
@@ -499,6 +540,14 @@ namespace aul {
             std::swap(allocator, matrix.allocator);
             std::swap(dims, matrix.dims);
             std::swap(ptr, matrix.ptr);
+        }
+
+        pointer data() {
+            return ptr;
+        }
+
+        const_pointer data() const {
+            return ptr;
         }
 
     private:
