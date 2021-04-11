@@ -367,6 +367,7 @@ namespace aul {
             return *this;
         }
 
+        /*
         template<bool const_view>
         Matrix& operator=(Matrix_view<T, N, A, const_view>& mat) {
             resize(mat.dimensions());
@@ -375,6 +376,7 @@ namespace aul {
 
             return *this;
         }
+        */
 
         //=================================================
         // Comparison operators
@@ -478,6 +480,8 @@ namespace aul {
         // Size methods
         //=================================================
 
+        //TODO: Test and finish implementation
+        /*
         void resize(const dimension_type& new_dimensions) {
             if (!dimension_safety(new_dimensions)) {
                 throw std::length_error("Length error i call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
@@ -488,11 +492,27 @@ namespace aul {
             Matrix_view<T, N, A> view{new_ptr, new_dimensions};
             dimension_type counters{};
 
-            //TODO: Complete implementation
-            for (;counters != new_dimensions;) {
+            dimension_type bounds;
+            for (int i = 0; i < bounds.size(); ++i) {
+                bounds[i] = std::min(dims[i], new_dimensions[i]);
+            }
 
+            for (;counters != new_dimensions;) {
+                //Copy elements
+
+                view.at(counters) = this->at(counters);
+
+                //Increment counters
+                counters[counter.size() - 1] += 1;
+                for (int i = counters.size(); i-- > 0;) {
+                    if (counters[i] == bounds[i]) {
+                        counters[i] = 0;
+                        counters[i - 1] -= 1;
+                    }
+                }
             }
         }
+        */
 
         void clear() {
             const size_type num_elems = size();
