@@ -201,15 +201,15 @@ namespace aul {
         /// \param rhs Object to move from
         /// \return *this
         Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<Alloc>) {
-            //If allocator is not propagated, do not compare equal, new allocation must bed made.
+            //If allocator is not propagated and allocators do not compare equal a new allocation must be made.
             constexpr bool use_new_allocation = (!aul::is_noexcept_movable_v<Alloc> && (rhs.allocator != allocator));
             if (use_new_allocation) {
                 Allocation new_allocation = allocate(allocator, rhs.size());
 
                 try {
-                    aul::uninitialized_copy_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
+                    aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
                     auto key_alloc = key_allocator_type{allocator};
-                    aul::uninitialized_copy_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
+                    aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
                 } catch (...) {
                     deallocate(allocator, new_allocation);
                     throw;
