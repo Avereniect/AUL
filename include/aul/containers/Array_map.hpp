@@ -206,17 +206,11 @@ namespace aul {
             if (use_new_allocation) {
                 Allocation new_allocation = allocate(allocator, rhs.size());
 
-                try {
-                    aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
-                    auto key_alloc = key_allocator_type{allocator};
-                    aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
-                } catch (...) {
-                    deallocate(allocator, new_allocation);
-                    throw;
-                }
+                aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
+                auto key_alloc = key_allocator_type{allocator};
+                aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
 
                 aul::destroy_n(allocation.vals, size(), allocator);
-                auto key_alloc = key_allocator_type{allocator};
                 aul::destroy_n(allocation.keys, size(), key_alloc);
 
                 deallocate(allocator, allocation);
