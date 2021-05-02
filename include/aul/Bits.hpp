@@ -73,7 +73,17 @@ namespace aul {
     /// \return v rounded to the nearest power of two equal or greater to it
     template<class T>
     [[nodiscard]]
-    constexpr inline T ceil2(const T v);
+    constexpr inline T ceil2(T x) {
+        constexpr unsigned bits = CHAR_BIT * sizeof(T);
+
+        x--;
+
+        for (int i = 0; i < bits; ++i) {
+            x |= (x >> (1 << i));
+        }
+
+        return x + 1;
+    }
 
     ///
     /// \tparam T An unsigned integral type
@@ -81,7 +91,15 @@ namespace aul {
     /// \return v rounded to the nearest power of two equal or less to it
     template<class T>
     [[nodiscard]]
-    constexpr inline T floor2(const T v);
+    constexpr inline T floor2(T x) {
+        constexpr unsigned bits = CHAR_BIT * sizeof(T);
+
+        for (int i = 0; i < bits; ++i) {
+            x |= (x >> (1 << i));
+        }
+
+        return x - (x >> 1);
+    }
 
     ///
     /// \tparam T An unsigned integral type
