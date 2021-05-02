@@ -138,9 +138,8 @@ namespace aul {
     }
 
     template<class...Args>
-    void no_op(const Args&...args) {
-        sizeof...(args);
-    }
+    void no_op(const Args&...) {}
+
 }
 
 #endif //AUL_ALGORITHMS_HPP
