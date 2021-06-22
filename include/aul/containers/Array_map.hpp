@@ -12,6 +12,7 @@
 #include <functional>
 #include <tuple>
 #include <stdexcept>
+#include <span>
 
 namespace aul {
 
@@ -824,12 +825,22 @@ namespace aul {
             return allocation.vals;
         }
 
+        [[nodiscard]]
+        key_pointer key_data() const noexcept {
+            return allocation.keys;
+        }
+
         ///
-        /// \return Pointer to internal key array
+        /// \return Span over key array
         ///
         [[nodiscard]]
-        key_pointer keys() const noexcept {
-            return allocation.keys;
+        std::span<key_type> keys() const noexcept {
+            return {allocation.keys, elem_count};
+        }
+
+        [[nodiscard]]
+        std::span<value_type> values() const noexcept {
+            return {allocation.vals, elem_count};
         }
 
     private:
