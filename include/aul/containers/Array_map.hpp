@@ -12,6 +12,7 @@
 #include <functional>
 #include <tuple>
 #include <stdexcept>
+#include <span>
 
 namespace aul {
 
@@ -206,17 +207,11 @@ namespace aul {
             if (use_new_allocation) {
                 Allocation new_allocation = allocate(allocator, rhs.size());
 
-                try {
-                    aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
-                    auto key_alloc = key_allocator_type{allocator};
-                    aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
-                } catch (...) {
-                    deallocate(allocator, new_allocation);
-                    throw;
-                }
+                aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
+                auto key_alloc = key_allocator_type{allocator};
+                aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
 
                 aul::destroy_n(allocation.vals, size(), allocator);
-                auto key_alloc = key_allocator_type{allocator};
                 aul::destroy_n(allocation.keys, size(), key_alloc);
 
                 deallocate(allocator, allocation);
@@ -830,12 +825,22 @@ namespace aul {
             return allocation.vals;
         }
 
+        [[nodiscard]]
+        key_pointer key_data() const noexcept {
+            return allocation.keys;
+        }
+
         ///
-        /// \return Pointer to internal key array
+        /// \return Span over key array
         ///
         [[nodiscard]]
-        key_pointer keys() const noexcept {
-            return allocation.keys;
+        std::span<key_type> keys() const noexcept {
+            return {allocation.keys, elem_count};
+        }
+
+        [[nodiscard]]
+        std::span<value_type> values() const noexcept {
+            return {allocation.vals, elem_count};
         }
 
     private:
