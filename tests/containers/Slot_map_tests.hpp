@@ -1,7 +1,6 @@
 #ifndef AUL_SLOT_MAP_TESTS_HPP
 #define AUL_SLOT_MAP_TESTS_HPP
 
-#include  <aul/memory/Linear_allocator.hpp>
 #include <aul/containers/Slot_map.hpp>
 
 #include <gtest/gtest.h>
@@ -20,18 +19,6 @@ namespace aul::tests {
         EXPECT_TRUE(map.empty());
         EXPECT_EQ(map.begin(), map.end());
         EXPECT_EQ(map.end() - map.begin(), 0);
-    }
-
-    TEST(Slot_map, Allocator_extended_default_contructor) {
-        aul::Linear_allocator<double> allocator(1024);
-        aul::Slot_map<double, decltype(allocator)> map(allocator);
-
-        EXPECT_EQ(map.size(), 0);
-        EXPECT_EQ(map.capacity(), 0);
-        EXPECT_TRUE(map.empty());
-        EXPECT_EQ(map.begin(), map.end());
-        EXPECT_EQ(map.end() - map.begin(), 0);
-        EXPECT_EQ(map.get_allocator(), allocator);
     }
 
     TEST(Slot_map, Move_constructor) {

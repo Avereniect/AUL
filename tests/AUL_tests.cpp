@@ -2,7 +2,7 @@
 //#include "containers/Circular_array_tests.hpp"
 //#include "containers/Matrix_tests.hpp"
 //#include "containers/Random_access_iterator_tests.hpp"
-//#include "containers/Slot_map_tests.hpp"
+#include "containers/Slot_map_tests.hpp"
 
 //#include "memory/Memory_tests.hpp"
 

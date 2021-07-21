@@ -31,13 +31,12 @@ namespace aul {
     ///
     /// \tparam T An integral type
     template<class T>
-    class Slot_map_key {
+    struct Slot_map_key {
         static_assert(std::numeric_limits<T>::is_integer);
+        static_assert(!std::numeric_limits<T>::is_signed);
 
         template<class U, class A>
         friend class Slot_map;
-
-    public:
 
         //=================================================
         // -ctors
@@ -86,8 +85,6 @@ namespace aul {
         bool operator>=(const Slot_map_key& key) const {
             return (this->index >= key.index) || (this->version >= key.version);
         }
-
-    private:
 
         //=================================================
         // Instance members
