@@ -52,20 +52,31 @@ namespace aul {
     /// \return True if v is a power of 2. False otherwise
     template<class T>
     [[nodiscard]]
-    constexpr bool is_pow2(const T v) {
+    constexpr inline bool is_pow2(const T v) {
         return v && !(v & (v - 1));
     }
 
     template<class T>
     [[nodiscard]]
-    constexpr inline unsigned pop_cnt(const T v) {
+    constexpr inline unsigned pop_cnt(const T x) {
         unsigned sum = 0;
-        for (; v; sum++) {
-            v &= v - 1;
+        for (; x; sum++) {
+            x &= x - 1;
         }
         return sum;
     }
 
+    template<class T>
+    [[nodiscard]]
+    constexpr inline T log2(T x) {
+        T ret = 0;
+        while (x != 0) {
+            x >>= 1;
+            ++ret;
+        }
+
+        return ret;
+    }
 
     ///
     /// \tparam T An unsigned integral type
@@ -101,38 +112,22 @@ namespace aul {
         return x - (x >> 1);
     }
 
-    ///
-    /// \tparam T An unsigned integral type
-    /// \param x An arbitrary integral value
-    /// \param r Number of positions to rotate. Must be less than number of bits
-    ///     in T. Undefined behavior otherwise
-    /// \return x with its bits rotated left
     template<class T>
     [[nodiscard]]
-    constexpr inline T rotl(const T x, const unsigned r) {
-        static_assert(!std::numeric_limits<T>::is_signed);
-
-        constexpr std::size_t bit_count = sizeof(T) * CHAR_BIT;
-        const int rot = mod_pow2(r, bit_count);
-
-        return (x << rot) | x >> (bit_count - rot);
+    constexpr inline T fill_bits(unsigned begin, unsigned end) {
+        static_assert(std::is_integral_v<T>);
+        constexpr auto bits_per_int = sizeof(T) * CHAR_BIT;
+        T ret = (~T{0} >> (bits_per_int - (end - begin))) << begin;
+        return ret;
     }
 
-    ///
-    /// \tparam T An unsigned integral type
-    /// \param x An arbitrary integral value
-    /// \param r Number of positions to rotate. Must be less than number of bits
-    ///     in T. Undefined behavior otherwise
-    /// \return x with its bits rotated right
     template<class T>
     [[nodiscard]]
-    constexpr inline T rotr(const T x, const unsigned r) {
-        static_assert(!std::numeric_limits<T>::is_signed);
-
-        constexpr auto bit_count = sizeof(T) * CHAR_BIT;
-        const int rot = mod_pow2(r, bit_count);
-
-        return (x >> rot) | x << (bit_count - rot);
+    constexpr inline T fill_first_n_bits(unsigned n) {
+        static_assert(std::is_integral_v<T>);
+        constexpr auto bits_per_int = sizeof(T) * CHAR_BIT;
+        T ret = (~T{0} >> (bits_per_int - n)) ;
+        return ret;
     }
 
 }
