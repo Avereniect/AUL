@@ -18,6 +18,10 @@ namespace aul {
     template<class T, class P = T*>
     class Bit_field_ref {
         static constexpr unsigned short bits_per_element = sizeof(T) * CHAR_BIT;
+
+        using const_T = std::add_const_t<T>;
+        using const_P = typename std::pointer_traits<P>::template rebind<const_T>;
+
     public:
 
         static_assert(std::is_integral_v<T>);
@@ -34,7 +38,7 @@ namespace aul {
         // -ctors
         //=================================================
 
-        Bit_field_ref(pointer ptr, const unsigned char offset, const unsigned char num_bits):
+        Bit_field_ref(pointer ptr, const unsigned short offset, const unsigned short num_bits):
             ptr(ptr),
             offset(offset),
             size(num_bits) {}
@@ -45,8 +49,12 @@ namespace aul {
         // Assignment operators
         //=================================================
 
-        template<class = typename std::enable_if<!std::is_const_v<T>>::type>
-        Bit_field_ref& operator=(const value_type v) {
+        Bit_field_ref& operator=(const value_type v) requires (!std::is_const_v<T>) {
+        // Old SFINAE-based approach
+        //template<class Dummy = Bit_field_ref>
+        //typename std::enable_if_t<!std::is_const_v<T>, Dummy> operator=(const value_type v) {
+        //    static_assert(!std::is_const_v<T>); //This is basically when the sfinae does
+
             if (bits_per_element < offset + size) {
                 //Write to two value_types
 
@@ -75,6 +83,12 @@ namespace aul {
         //=================================================
         // Conversion operators
         //=================================================
+
+        ///
+        /// \return Conversion from reference to non-const to const
+        operator Bit_field_ref<const_T, const_P>() {
+            return {ptr, offset, size};
+        }
 
         operator value_type() const {
             if (bits_per_element < offset + size) {
@@ -107,10 +121,10 @@ namespace aul {
         pointer ptr = nullptr;
 
         /// Index of bit field's first bit within *ptr
-        unsigned char offset = 0;
+        unsigned short offset = 0;
 
         /// Number of bits in bit field
-        unsigned char size = 0;
+        unsigned short size = 0;
 
     };
 
@@ -142,6 +156,11 @@ namespace aul {
         using iterator_category = std::random_access_iterator_tag;
 
     private:
+
+        using const_T = std::add_const_t<T>;
+        using const_P = typename std::pointer_traits<P>::template rebind<const_T>;
+
+        using const_ref = Bit_field_ref<const_T, const_P>;
 
         static constexpr std::size_t bits_per_element = sizeof(value_type) * CHAR_BIT;
 
@@ -244,6 +263,8 @@ namespace aul {
 
             ptr += whole;
             offset = partial;
+
+            return *this;
         }
 
         Bit_field_iterator& operator-=(const difference_type o) {
@@ -316,8 +337,16 @@ namespace aul {
             return reference{ptr, offset, size};
         }
 
-        reference operator*() const {
-            return reference{ptr, offset, size};
+        const_ref operator*() const {
+            return const_ref{ptr, offset, size};
+        }
+
+        //=================================================
+        // Conversion operators
+        //=================================================
+
+        operator Bit_field_iterator<const_T, const_P, D>() {
+            return {ptr, offset, size};
         }
 
     private:
