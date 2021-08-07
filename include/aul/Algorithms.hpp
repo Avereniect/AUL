@@ -117,6 +117,16 @@ namespace aul {
         return false;
     }
 
+    ///
+    /// \tparam R_iter Random-access iterator
+    /// \tparam T Type implicitly convertible to decltype(*R_iter{})
+    /// \tparam C Comparator object type
+    /// \param begin Iterator to beginning of range
+    /// \param end Iterator to end of range
+    /// \param val Value to search for
+    /// \param c Comparator object
+    /// \return Iterator to location where val is expected to be, even if it's
+    ///     found at that location.
     template<class R_iter, class T, class C = std::less<T>>
     [[nodiscard]]
     constexpr R_iter binary_search(R_iter begin, R_iter end, const T& val, C c = {}) {
