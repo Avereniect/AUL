@@ -10,22 +10,36 @@
 namespace aul {
 
     ///
-    /// \tparam F_iter0 Forward iterator type 0
-    /// \tparam F_iter1 Forward iterator type 1
+    /// \tparam It Forward iterator
     /// \param begin0
     /// \param end0
     /// \param begin1
     /// \param end1
     /// \return True if range [begin0, end0) is less than [begin1, end1)
-    template<class F_iter0, class F_iter1>
-    constexpr bool less_than(F_iter0 begin0, F_iter0 end0, F_iter1 begin1, F_iter1 end1) {
-        for (; (begin0 != end0) && (begin1 != end1); ++begin0, ++begin1) {
-            if (*begin0 < *begin1) {
-                return true;
-            }
-        }
+    template<class It>
+    constexpr bool less_than(It begin0, It end0, It begin1, It end1) {
+        return std::lexicographical_compare(begin0, end0, begin1, end1);
+    }
 
-        return (end0 - begin0) < (end1 - begin1);
+    ///
+    /// \tparam It
+    /// \param begin0
+    /// \param end0
+    /// \param begin1
+    /// \param end1
+    /// \return
+    template<class It>
+    constexpr bool greater_than(It begin0, It end0, It begin1, It end1) {
+        using value_type = typename std::iterator_traits<It>::value_type;
+        constexpr bool is_gt_comparable = requires(const value_type& t) {
+            t > t;
+        };
+
+        if constexpr(is_gt_comparable) {
+            return std::lexicographical_compare(begin0, end0, begin1, end1, std::greater<value_type>{});
+        } else {
+            return less_than(begin1, end1, begin0, end0);
+        }
     }
 
     ///
@@ -36,53 +50,39 @@ namespace aul {
     /// \param begin1
     /// \param end1
     /// \return
-    template<class F_iter0, class F_iter1>
-    constexpr bool less_than_or_equal(F_iter0 begin0, F_iter0 end0, F_iter1 begin1, F_iter1 end1) {
-        for (; (begin0 != end0) && (begin1 != end1); ++begin0, ++begin1) {
-            if (*begin0 <= *begin1) {
-                return true;
-            }
-        }
+    template<class It>
+    constexpr bool less_than_or_equal(It begin0, It end0, It begin1, It end1) {
+        using value_type = typename std::iterator_traits<It>::value_type;
+        constexpr bool is_leq_comparable = requires(const value_type& t) {
+            t <= t;
+        };
 
-        return (end0 - begin0) <= (end1 - begin1);
+        if constexpr (is_leq_comparable) {
+            return std::lexicographical_compare(begin0, end0, begin1, end1, std::less_equal<value_type>{});
+        } else {
+            return !(greater_than(begin0, end0, begin1, end1));
+        }
     }
 
     ///
-    /// \tparam F_iter0
-    /// \tparam F_iter1
+    /// \tparam It
     /// \param begin0
     /// \param end0
     /// \param begin1
     /// \param end1
     /// \return
-    template<class F_iter0, class F_iter1>
-    constexpr bool greater_than(F_iter0 begin0, F_iter0 end0, F_iter1 begin1, F_iter1 end1) {
-        for (; (begin0 != end0) && (begin1 != end1); ++begin0, ++begin1) {
-            if (*begin0 > *begin1) {
-                return true;
-            }
+    template<class It>
+    constexpr bool greater_than_or_equal(It begin0, It end0, It begin1, It end1) {
+        using value_type = typename std::iterator_traits<It>::value_type;
+        constexpr bool is_ge_comparable = requires(const value_type& t) {
+            t >= t;
+        };
+
+        if constexpr (is_ge_comparable) {
+            return std::lexicographical_compare(begin0, end0, begin1, end1, std::greater_equal<value_type>{});
+        } else {
+            return !(less_than(begin0, end0, begin1, end1));
         }
-
-        return (end0 - begin0) > (end1 - begin1);
-    }
-
-    ///
-    /// \tparam F_iter0
-    /// \tparam F_iter1
-    /// \param begin0
-    /// \param end0
-    /// \param begin1
-    /// \param end1
-    /// \return
-    template<class F_iter0, class F_iter1>
-    constexpr bool greater_than_or_equal(F_iter0 begin0, F_iter0 end0, F_iter1 begin1, F_iter1 end1) {
-        for (; (begin0 != end0) && (begin1 != end1); ++begin0, ++begin1) {
-            if (*begin0 >= * begin1) {
-                return true;
-            }
-        }
-
-        return (end0 - begin0) >= (end1 - begin1);
     }
 
     ///

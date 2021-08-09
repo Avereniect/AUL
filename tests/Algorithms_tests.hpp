@@ -96,6 +96,19 @@ namespace aul::tests {
         EXPECT_EQ(vec.end(), aul::binary_search(vec.begin(), vec.end(), -1, comparator));
     }
 
+    TEST(Comparisons, general) {
+        std::vector<int> vec0{0, 1, 2, 3, 4, 5};
+        std::vector<int> vec1{1, 2, 3, 4, 5, 6};
+
+        EXPECT_TRUE(aul::less_than(vec0.begin(), vec0.end(), vec1.begin(), vec1.end()));
+
+        EXPECT_TRUE(aul::less_than_or_equal(vec0.begin(), vec0.end(), vec1.begin(), vec1.end()));
+        EXPECT_TRUE(aul::less_than_or_equal(vec0.begin(), vec0.end(), vec0.begin(), vec0.end()));
+
+        EXPECT_FALSE(aul::greater_than(vec0.begin(), vec0.end(), vec0.begin(), vec0.end()));
+        EXPECT_TRUE(aul::greater_than(vec1.begin(), vec1.end(), vec0.begin(), vec0.end()));
+    }
+
 }
 
 #endif //AUL_TESTS_ALGORITHMS_TESTS_HPP
