@@ -10,9 +10,8 @@ namespace aul {
     /// General-purpose random-access iterator suitable for containers with
     /// contiguous storage of elements.
     ///
-    /// \tparam Alloc_types Type containing allocator_type aliases.
-    /// \tparam is_const    Is const_iterator
-    template<typename Alloc_types, bool is_const>
+    /// \tparam P Pointer type
+    template<class P>
     class Random_access_iterator {
     public:
 
@@ -20,34 +19,22 @@ namespace aul {
         // Type aliases
         //=================================================
 
-        using value_type = typename Alloc_types::value_type;
-        using difference_type = typename Alloc_types::difference_type;
-
-        using pointer = typename std::conditional_t<is_const,
-            typename Alloc_types::const_pointer,
-            typename Alloc_types::pointer
-        >;
-
-        using reference = typename std::conditional_t<is_const,
-            const value_type&,
-            value_type&
-        >;
-
+        using value_type = typename std::pointer_traits<P>::element_type;
+        using difference_type = typename std::pointer_traits<P>::difference_type;
+        using pointer = P;
+        using reference = value_type&;
         using iterator_category = std::random_access_iterator_tag;
 
         //=================================================
         // -ctors
         //=================================================
 
-        Random_access_iterator() = default;
-
-        explicit Random_access_iterator(const pointer ptr = pointer{}) noexcept:
+        explicit Random_access_iterator(const pointer ptr) noexcept:
             p(ptr) {}
 
+        Random_access_iterator() = default;
         Random_access_iterator(const Random_access_iterator& itr) = default;
-
-        Random_access_iterator(Random_access_iterator&& itr) = default;
-
+        Random_access_iterator(Random_access_iterator&& itr) noexcept = default;
         ~Random_access_iterator() = default;
 
         //=================================================
@@ -55,8 +42,7 @@ namespace aul {
         //=================================================
 
         Random_access_iterator& operator=(const Random_access_iterator& itr) = default;
-
-        Random_access_iterator& operator=(Random_access_iterator&& itr) = default;
+        Random_access_iterator& operator=(Random_access_iterator&& itr) noexcept = default;
         
         Random_access_iterator& operator+=(const difference_type x) noexcept {
             p += x;
@@ -95,12 +81,11 @@ namespace aul {
         //=================================================
         // Comparison operators
         //
-        // Note: All comparison operators assume Alloc_types::pointer
-        // and Alloc_types::const_pointer have appropriate comparison
-        // operators
-        //
-        // TODO: C++ 20 Implement spaceship operator
-        // TODO: C++ 20 Check for comparable concept
+        // These comparisons assume that the underlying
+        // pointer has the appropriate comparison operators
+        // overloaded despite not being required for fancy
+        // pointers. A conversion to a raw pointer may be
+        // a reasonable fallback.
         //=================================================
 
         [[nodiscard]]
@@ -182,8 +167,10 @@ namespace aul {
         // Conversion operators
         //=================================================
 
-        operator Random_access_iterator<Alloc_types, true>() {
-            return Random_access_iterator<Alloc_types, true>(p);
+        ///
+        /// \return Conversion from iterator to non-const to iterator to const
+        operator Random_access_iterator<typename std::pointer_traits<P>::template rebind<std::add_const_t<value_type>>>() {
+            return {p};
         }
 
     private:
