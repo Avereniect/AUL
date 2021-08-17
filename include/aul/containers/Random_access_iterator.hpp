@@ -170,7 +170,7 @@ namespace aul {
         ///
         /// \return Conversion from iterator to non-const to iterator to const
         operator Random_access_iterator<typename std::pointer_traits<P>::template rebind<std::add_const_t<value_type>>>() {
-            return {p};
+            return Random_access_iterator<typename std::pointer_traits<P>::template rebind<std::add_const_t<value_type>>>{p};
         }
 
     private:
