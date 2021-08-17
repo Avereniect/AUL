@@ -155,8 +155,8 @@ namespace aul {
         using reference = T&;
         using const_reference = const T&;
 
-        using iterator = Random_access_iterator<typename aul::allocator_types<A>, false>;
-        using const_iterator = Random_access_iterator<typename aul::allocator_types<A>, true>;
+        using iterator = Random_access_iterator<pointer>;
+        using const_iterator = Random_access_iterator<const_pointer>;
 
     private:
 
