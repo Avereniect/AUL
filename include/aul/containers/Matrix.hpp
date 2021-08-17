@@ -11,6 +11,7 @@
 #include <functional>
 #include <cstdint>
 #include <stdexcept>
+#include <limits>
 
 namespace aul {
 
