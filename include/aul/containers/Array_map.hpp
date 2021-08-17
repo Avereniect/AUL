@@ -285,7 +285,7 @@ namespace aul {
 
             return
                 std::equal(data(), data() + size(), rhs.data()) &&
-                std::equal(keys(), keys() + size(), rhs.keys());
+                std::equal(key_data(), key_data() + size(), rhs.key_data());
         }
 
         ///
@@ -298,7 +298,7 @@ namespace aul {
 
             return
                 !std::equal(data(), data() + size(), rhs.data()) &&
-                !std::equal(keys(), keys() + size(), rhs.keys());
+                !std::equal(key_data(), key_data() + size(), rhs.key_data());
         }
 
         //=================================================
@@ -830,6 +830,7 @@ namespace aul {
             return allocation.keys;
         }
 
+        #if __cplusplus >= 202002L
         ///
         /// \return Span over key array
         ///
@@ -842,6 +843,7 @@ namespace aul {
         std::span<value_type> values() const noexcept {
             return {allocation.vals, elem_count};
         }
+        #endif
 
     private:
 
