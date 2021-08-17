@@ -58,8 +58,8 @@ namespace aul {
         using size_type = typename std::allocator_traits<allocator_type>::size_type;
         using difference_type = typename std::allocator_traits<allocator_type>::pointer;
 
-        using iterator = aul::Random_access_iterator<aul::allocator_types<allocator_type>, false>;
-        using const_iterator = aul::Random_access_iterator<aul::allocator_types<allocator_type>, true>;
+        using iterator = aul::Random_access_iterator<pointer>;
+        using const_iterator = aul::Random_access_iterator<const_pointer>;
 
     private:
 
