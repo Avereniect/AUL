@@ -690,7 +690,7 @@ namespace aul {
         [[nodiscard]]
         bool contains(const key_type& key) const noexcept {
             key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            return (ptr && (*ptr == key));
+            return (ptr && size() && (*ptr == key));
         }
 
         //=================================================
