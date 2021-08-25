@@ -211,7 +211,10 @@ namespace aul {
         /// \return *this
         Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<A>) {
             //If allocator is not propagated and allocators do not compare equal a new allocation must be made.
-            constexpr bool use_new_allocation = (!aul::is_noexcept_movable_v<A> && (base::operator!=(rhs)));
+            bool use_new_allocation =
+                !aul::is_noexcept_movable_v<A> &&
+                base::operator!=(rhs);
+
             if (use_new_allocation) {
                 Allocation new_allocation = allocate(rhs.elem_count);
 
@@ -628,8 +631,8 @@ namespace aul {
             if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *elem_count = temp;
-                return {element_ptr, false};
+                *element_ptr = temp;
+                return std::pair<iterator, bool>{element_ptr, false};
             }
 
             if (size() + 1 <= capacity()) {
@@ -642,8 +645,8 @@ namespace aul {
                 //Move elements to open up space
                 if (new_key_ptr != keys_end) {
                     //Move construct last element in each array
-                    construct_key(vals_end, std::move(vals_end[-1]));
-                    construct_val(vals_end, std::move(keys_end[-1]));
+                    construct_key(keys_end, std::move(keys_end[-1]));
+                    construct_val(vals_end, std::move(vals_end[-1]));
 
                     //Move assign elements 1 slot to the right
                     std::move_backward(new_key_ptr, keys_end - 1, keys_end);
@@ -707,7 +710,7 @@ namespace aul {
                 allocation = std::move(new_allocation);
 
                 ++elem_count;
-                return std::make_pair(iterator{new_val_ptr}, true);
+                return std::pair<iterator, bool>{new_val_ptr, true};
             }
         }
 
@@ -730,11 +733,13 @@ namespace aul {
             if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *elem_count = temp;
-                return {element_ptr, false};
+                *element_ptr = temp;
+                return std::pair<iterator, bool>{element_ptr, false};
             }
 
             if (size() + 1 <= capacity()) {
+                //Current allocation suffices
+
                 key_pointer keys_end = allocation.keys + elem_count;
                 val_pointer vals_end = allocation.vals + elem_count;
 
@@ -744,8 +749,8 @@ namespace aul {
                 //Move elements to new allocation
                 if (new_key_ptr != keys_end) {
                     //Move construct last element in each array
-                    construct_key(vals_end, std::move(vals_end[-1]));
-                    construct_val(vals_end, std::move(keys_end[-1]));
+                    construct_val(vals_end, std::move(vals_end[-1]));
+                    construct_key(keys_end, std::move(keys_end[-1]));
 
                     //Move assign elements 1 slot to the right
                     std::move_backward(new_key_ptr, keys_end - 1, keys_end);
@@ -772,6 +777,8 @@ namespace aul {
                 ++elem_count;
                 return std::make_pair(iterator{new_val_ptr}, true);
             } else {
+                //New allocation is necessary
+
                 Allocation new_allocation = allocate(grow_size(size() + 1));
 
                 key_pointer old_key_ptr = key_ptr;
@@ -795,7 +802,7 @@ namespace aul {
                     throw;
                 }
 
-                ///Move objects keys and vals to new allocation
+                // Move objects keys and vals to new allocation
 
                 auto val_alloc = get_allocator();
                 auto key_alloc = key_allocator_type{val_alloc};
@@ -860,7 +867,7 @@ namespace aul {
         [[nodiscard]]
         iterator find(const key_type& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -869,21 +876,21 @@ namespace aul {
         [[nodiscard]]
         const_iterator find(const key_type& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         iterator find(const K2& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         const_iterator find(const K2& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -892,7 +899,7 @@ namespace aul {
         [[nodiscard]]
         bool contains(const key_type& key) const noexcept {
             key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            return (ptr && size() && (*ptr == key));
+            return (ptr && size() && compare_keys(*ptr, key));
         }
 
         //=================================================
@@ -1178,6 +1185,11 @@ namespace aul {
             }
         }
 
+        ///
+        /// Destroy elements in allocation using current object's allocator
+        ///
+        /// \param source Allocation containing elements
+        /// \param n Number of elements to destroy
         void destroy_elements(Allocation& source, size_type n) {
             auto val_alloc = get_allocator();
             auto key_alloc = key_allocator_type{val_alloc};
@@ -1199,6 +1211,12 @@ namespace aul {
             return std::max(double_size, n);
         }
 
+        ///
+        /// Compares keys for equality using internal comparator object
+        ///
+        /// \param a First key
+        /// \param b Second key
+        /// \return True if neither key compares less than the other
         bool compare_keys(const key_type& a, const key_type& b) {
             return !comparator(a, b) && !comparator(b, a);
         }
