@@ -1,8 +1,10 @@
 #ifndef AUL_ARRAY_MAP_HPP
 #define AUL_ARRAY_MAP_HPP
 
-#include "../memory/Memory.hpp"
 #include "Random_access_iterator.hpp"
+#include "Allocator_aware_base.hpp"
+
+#include "../memory/Memory.hpp"
 #include "../Algorithms.hpp"
 
 #include <memory>
@@ -23,9 +25,9 @@ namespace aul {
     /// \tparam K Key type
     /// \tparam T Element type
     /// \tparam C Comparator type
-    /// \tparam Alloc Allocator type
-    template<typename K, typename T, typename C = std::less<K>, typename Alloc = std::allocator<T>>
-    class Array_map {
+    /// \tparam A Allocator type
+    template<typename K, typename T, typename C = std::less<K>, typename A = std::allocator<T>>
+    class Array_map : public Allocator_aware_base<A> {
     private:
 
         //=================================================
@@ -41,7 +43,7 @@ namespace aul {
         // Type aliases
         //=================================================
 
-        using allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<T>;
+        using allocator_type = typename std::allocator_traits<A>::template rebind_alloc<T>;
 
         using key_type = K;
         using value_type = T;
@@ -63,8 +65,10 @@ namespace aul {
 
     private:
 
+        using base = Allocator_aware_base<A>;
+
         using val_allocator_type = allocator_type;
-        using key_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<K>;
+        using key_allocator_type = typename std::allocator_traits<A>::template rebind_alloc<K>;
 
         using key_alloc_traits = std::allocator_traits<key_allocator_type>;
         using val_alloc_traits = std::allocator_traits<allocator_type>;
@@ -84,73 +88,87 @@ namespace aul {
         ///
         /// Constructs an empty Array_map
         ///
-        Array_map() noexcept(noexcept(Alloc{})) = default;
+        Array_map() noexcept(noexcept(A{})) = default;
 
         ///
         /// \param compare Comparator to use for element comparisons
         /// \param allocator Allocator object to copy
         explicit Array_map(const key_compare compare, const allocator_type& alloc = {}):
-            allocator(alloc),
-            comparator(compare) {}
+            base{alloc},
+            comparator{compare} {}
 
         ///
         /// \param allocator Allocator object to copy
         ///
         explicit Array_map(const allocator_type& allocator):
-            allocator(allocator) {}
+            base{allocator} {}
 
+        ///
+        /// If copying fails for any reason, the newly constructed Array_map
+        /// in an empty state.
         ///
         /// \param arr Object to copy
-        ///
         Array_map(const Array_map& arr):
-            allocator(val_alloc_traits::select_on_container_copy_construction(arr.allocator)),
-            allocation(allocate(allocator, arr.size())),
-            comparator(arr.comparator),
-            elem_count(arr.elem_count) {
+            base{arr.get_allocator()},
+            allocation{allocate(arr.elem_count)},
+            comparator{arr.comparator},
+            elem_count{arr.elem_count} {
 
-            aul::uninitialized_copy_n(arr.allocation.vals, elem_count, allocation.vals, allocator);
-            auto alloc = key_allocator_type{allocator};
-            aul::uninitialized_copy_n(arr.allocation.keys, elem_count, allocation.keys, alloc);
+            try {
+                copy_elements(arr.allocation, allocation, elem_count);
+            } catch(...) {
+                deallocate(allocation);
+                elem_count = 0;
+            }
         }
 
         ///
         /// \param arr Object to copy
         /// \param allocator Allocator to copy for copy of arr
         Array_map(const Array_map& arr, const allocator_type& allocator):
-            allocator(allocator),
-            allocation(allocate(arr.size())),
+            base{allocator},
+            allocation(allocate(arr.elem_count)),
             comparator(arr.comparator),
             elem_count(arr.elem_count) {
 
-            aul::uninitialized_copy_n(arr.allocation.vals , elem_count, allocation.vals, allocator);
-            auto alloc = key_allocator_type{allocator};
-            aul::uninitialized_copy_n(arr.allocation.keys, elem_count, allocation.keys, alloc);
+            try {
+                copy_elements(arr.allocation, allocation, elem_count);
+            } catch(...) {
+                deallocate(allocation);
+                elem_count = 0;
+            }
         }
 
+        ///
+        /// Transfers ownership of elements to new Array_map object. Moved-from
+        /// object is left in empty state.
         ///
         /// \param arr Object to move from
         ///
         Array_map(Array_map&& arr) noexcept:
-            allocator(std::move(arr.allocator)),
-            allocation(std::move(arr.allocation)),
-            comparator(std::move(arr.comparator)),
-            elem_count(arr.elem_count) {
+            base{arr.get_allocator()},
+            allocation{std::move(arr.allocation)},
+            comparator{std::move(arr.comparator)},
+            elem_count(std::exchange(arr.elem_count, 0)) {}
 
-            arr.elem_count = 0;
-        }
-
+        ///
+        /// Allocator-extended move constructor. If new allocator does not
+        /// compare equal to the allocator from the moved-from object, then
+        /// the elements will be moved to a new allocation
         ///
         /// \param arr Object to move from
         /// \param alloc Allocator to copy-construct new allocator from
         Array_map(Array_map&& arr, const allocator_type& alloc) noexcept:
-            allocator(alloc),
-            allocation(arr.allocator != alloc ? allocate(arr.size()) : std::move(allocation)),
-            comparator(std::move(arr.comparator)) {
+            base{alloc},
+            allocation{(arr.allocator != alloc) ? allocate(elem_count) : std::move(allocation)},
+            comparator{std::move(arr.comparator)},
+            elem_count{arr.elem_count} {
 
             if (arr.allocator != alloc) {
-                aul::uninitialized_move_n(arr.allocation.vals, arr.size(), allocation.vals, allocator);
-                aul::uninitialized_move_n(arr.allocation.keys, arr.size(), allocation.keys, key_allocator_type{allocator});
+                move_elements(alloc.allocation, allocation);
             }
+
+            arr.elem_count = 0;
         }
 
         //=================================================
@@ -158,42 +176,32 @@ namespace aul {
         //=================================================
 
         ///
+        /// Provides the strong exception guarantee
+        ///
         /// \param rhs Object to copy
         /// \return *this
         Array_map& operator=(const Array_map& rhs) {
             // Attempt to create new allocation. Return if allocation failed
-            allocator_type allocator_copy = rhs.allocator;
-            Allocation new_allocation = allocate(allocator_copy, rhs.size());
-            if (new_allocation.vals == nullptr) {
-                return *this;
-            }
+            Allocation new_allocation = allocate(rhs.elem_count);
 
-            // Attempt to copy over objects. Return if an except is throw
+            // Attempt to copy over objects. Return if an exception is thrown
             try {
-                aul::uninitialized_copy_n(rhs.allocation.vals, rhs.elem_count, new_allocation.vals, allocator);
-                auto key_alloc = key_allocator_type{allocator};
-                aul::uninitialized_copy_n(rhs.allocation.keys, rhs.elem_count, new_allocation.keys, key_alloc);
-            } catch(...) {
-                deallocate(allocator, new_allocation);
-                
-                throw;
+                copy_elements(rhs.allocation, new_allocation, rhs.elem_count);
+            } catch (...) {
+                deallocate(new_allocation);
             }
 
-            // Destroy current contents and current allocation
-            aul::destroy_n(allocation.vals, size(), allocator);
-            auto key_alloc = key_allocator_type{allocator};
-            aul::destroy_n(allocation.keys, size(), key_alloc);
-            deallocate(allocator, allocation);
+            // Destroy current allocation and elements
+            destroy_elements(allocation, elem_count);
+            deallocate(allocation);
 
-            // Move new allocation
+            // Replace current allocation with new allocation
             allocation = std::move(new_allocation);
 
             // Copy over other members
+            base::operator=(rhs);
             comparator = rhs.comparator;
             elem_count = rhs.elem_count;
-            if constexpr (val_alloc_traits::propagate_on_container_copy_assignment::value) {
-                allocator = rhs.allocator;
-            }
 
             return *this;
         }
@@ -201,20 +209,18 @@ namespace aul {
         ///
         /// \param rhs Object to move from
         /// \return *this
-        Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<Alloc>) {
+        Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<A>) {
             //If allocator is not propagated and allocators do not compare equal a new allocation must be made.
-            constexpr bool use_new_allocation = (!aul::is_noexcept_movable_v<Alloc> && (rhs.allocator != allocator));
+            bool use_new_allocation =
+                !aul::is_noexcept_movable_v<A> &&
+                base::operator!=(rhs);
+
             if (use_new_allocation) {
-                Allocation new_allocation = allocate(allocator, rhs.size());
+                Allocation new_allocation = allocate(rhs.elem_count);
 
-                aul::uninitialized_move_n(rhs.allocation.vals, rhs.size(), new_allocation.vals, allocator);
-                auto key_alloc = key_allocator_type{allocator};
-                aul::uninitialized_move_n(rhs.allocation.keys, rhs.size(), new_allocation.keys, key_alloc);
-
-                aul::destroy_n(allocation.vals, size(), allocator);
-                aul::destroy_n(allocation.keys, size(), key_alloc);
-
-                deallocate(allocator, allocation);
+                move_elements(rhs.allocation, new_allocation, rhs.elem_count);
+                destroy_elements(rhs.allocation, rhs.elem_count);
+                rhs.deallocate(allocation);
 
                 elem_count = rhs.elem_count;
                 comparator = std::move(rhs.comparator);
@@ -223,9 +229,7 @@ namespace aul {
                 rhs.elem_count = 0;
 
             } else {
-                if (std::allocator_traits<Alloc>::propagate_on_container_move_assignment::value) {
-                    allocator = std::move(rhs.allocator);
-                }
+                base::operator=(rhs);
 
                 allocation = std::move(rhs.allocation);
                 comparator = rhs.comparator;
@@ -279,26 +283,26 @@ namespace aul {
         /// \param rhs Array_map to compare against
         /// \return True if all keys and elements compare equal
         bool operator==(const Array_map& rhs) const noexcept {
-            if (size() != rhs.size()) {
+            if (elem_count != rhs.elem_count) {
                 return false;
             }
 
             return
-                std::equal(data(), data() + size(), rhs.data()) &&
-                std::equal(key_data(), key_data() + size(), rhs.key_data());
+                std::equal(allocation.keys, allocation.keys + elem_count, rhs.allocation.keys) &&
+                std::equal(allocation.vals, allocation.vals + elem_count, rhs.allocation.vals);
         }
 
         ///
         /// \param rhs Array_map to compare against
         /// \return True if at least one key or element does not compare equal
         bool operator!=(const Array_map& rhs) const noexcept {
-            if (size() != rhs.size()) {
+            if (elem_count != rhs.elem_count) {
                 return true;
             }
 
             return
-                !std::equal(data(), data() + size(), rhs.data()) &&
-                !std::equal(key_data(), key_data() + size(), rhs.key_data());
+                !std::equal(allocation.keys, allocation.keys + elem_count, rhs.allocation.keys) &&
+                !std::equal(allocation.vals, allocation.vals + elem_count, rhs.allocation.vals);
         }
 
         //=================================================
@@ -421,11 +425,9 @@ namespace aul {
 
             //Check if element with key already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (elem_count) {
-                if (*key_ptr == key) {
-                    pointer ptr = allocation.vals + (key_ptr - allocation.keys);
-                    return std::make_pair(iterator{ptr}, false);
-                }
+            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+                pointer ptr = allocation.vals + (key_ptr - allocation.keys);
+                return std::make_pair(iterator{ptr}, false);
             }
 
             if (size() + 1 <= capacity()) {
@@ -438,9 +440,8 @@ namespace aul {
                 //Move elements to open up space
                 if (new_key_ptr != keys_end) {
                     //Move construct last element in each array
-                    val_alloc_traits::construct(allocator, vals_end, std::move(vals_end[-1]));
-                    auto alloc = key_allocator_type{allocator};
-                    key_alloc_traits::construct(alloc, keys_end, std::move(keys_end[-1]));
+                    construct_val(vals_end, std::move(vals_end[-1]));
+                    construct_key(keys_end, std::move(keys_end[-1]));
 
                     //Move assign elements 1 slot to the right
                     std::move_backward(new_key_ptr, keys_end - 1, keys_end);
@@ -467,7 +468,7 @@ namespace aul {
                 ++elem_count;
                 return std::make_pair(iterator{new_val_ptr}, true);
             } else {
-                Allocation new_allocation = allocate(allocator, grow_size(size() + 1));
+                Allocation new_allocation = allocate(grow_size(size() + 1));
 
                 key_pointer old_key_ptr = key_ptr;
 
@@ -478,7 +479,7 @@ namespace aul {
                 try {
                     construct_key(new_key_ptr, std::move(key));
                 } catch (...) {
-                    deallocate(allocator, new_allocation);
+                    deallocate(new_allocation);
                     throw;
                 }
 
@@ -486,19 +487,20 @@ namespace aul {
                     construct_val(new_val_ptr, std::forward<Args>(args)...);
                 } catch (...) {
                     destroy_key(new_key_ptr);
-                    deallocate(allocator, new_allocation);
+                    deallocate(new_allocation);
                     throw;
                 }
 
                 ///Move objects keys and vals to new allocation
 
-                auto key_alloc = key_allocator_type{allocator};
+                auto val_alloc = get_allocator();
+                auto key_alloc = key_allocator_type{val_alloc};
                 aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
                 aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
 
                 pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
-                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, allocator);
-                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, allocator);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
 
                 allocation = std::move(new_allocation);
 
@@ -526,11 +528,9 @@ namespace aul {
 
             //Check if element with key already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (elem_count) {
-                if (*key_ptr == key) {
-                    pointer ptr = allocation.vals + (key_ptr - allocation.keys);
-                    return std::make_pair(iterator{ptr}, false);
-                }
+            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+                pointer ptr = allocation.vals + (key_ptr - allocation.keys);
+                return std::make_pair(iterator{ptr}, false);
             }
 
             if (size() + 1 <= capacity()) {
@@ -540,12 +540,11 @@ namespace aul {
                 key_pointer new_key_ptr = key_ptr;
                 val_pointer new_val_ptr = allocation.vals + (new_key_ptr - allocation.keys);
 
-                //Move elements
+                //Move elements to new allocation
                 if (new_key_ptr != keys_end) {
                     //Move construct last element in each array
-                    val_alloc_traits::construct(allocator, vals_end, std::move(vals_end[-1]));
-                    auto alloc = key_allocator_type{allocator};
-                    key_alloc_traits::construct(alloc, keys_end, std::move(keys_end[-1]));
+                    construct_key(keys_end, std::move(keys_end[-1]));
+                    construct_val(vals_end, std::move(vals_end[-1]));
 
                     //Move assign elements 1 slot to the right
                     std::move_backward(new_key_ptr, keys_end - 1, keys_end);
@@ -572,7 +571,7 @@ namespace aul {
                 ++elem_count;
                 return std::make_pair(iterator{new_val_ptr}, true);
             } else {
-                Allocation new_allocation = allocate(allocator, grow_size(size() + 1));
+                Allocation new_allocation = allocate(grow_size(size() + 1));
 
                 key_pointer old_key_ptr = key_ptr;
 
@@ -583,7 +582,7 @@ namespace aul {
                 try {
                     construct_key(new_key_ptr, std::move(key));
                 } catch (...) {
-                    deallocate(allocator, new_allocation);
+                    deallocate(new_allocation);
                     throw;
                 }
 
@@ -591,25 +590,235 @@ namespace aul {
                     construct_val(new_val_ptr, std::forward<Args>(args)...);
                 } catch (...) {
                     destroy_key(new_key_ptr);
-                    deallocate(allocator, new_allocation);
+                    deallocate(new_allocation);
                     throw;
                 }
 
                 ///Move objects keys and vals to new allocation
 
-                auto key_alloc = key_allocator_type{allocator};
+                auto val_alloc = get_allocator();
+                auto key_alloc = key_allocator_type{val_alloc};
                 aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
                 aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
 
                 pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
-                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, allocator);
-                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, allocator);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
 
                 allocation = std::move(new_allocation);
 
                 ++elem_count;
                 return std::make_pair(iterator{new_val_ptr}, true);
             }
+        }
+
+        ///
+        /// If an element is associated with the specified key,
+        ///
+        /// \tparam Args Argument types to value constructor
+        /// \param key Const reference to key
+        /// \param args Arguments to value constructor
+        /// \return Pair containing iterator to element and boolean indicating
+        ///     whether a new element was added
+        template<class...Args>
+        std::pair<iterator, bool> emplace_or_assign(const key_type& key, Args&&...args) {
+            if (size() > max_size() - 1) {
+                throw std::length_error("aul::Array_map grew too big");
+            }
+
+            //Check if element already exists
+            key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
+            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+                pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
+                T temp{args...};
+                *element_ptr = temp;
+                return std::pair<iterator, bool>{element_ptr, false};
+            }
+
+            if (size() + 1 <= capacity()) {
+                key_pointer keys_end = allocation.keys + elem_count;
+                val_pointer vals_end = allocation.vals + elem_count;
+
+                key_pointer new_key_ptr = key_ptr;
+                val_pointer new_val_ptr = allocation.vals + (new_key_ptr - allocation.keys);
+
+                //Move elements to open up space
+                if (new_key_ptr != keys_end) {
+                    //Move construct last element in each array
+                    construct_key(keys_end, std::move(keys_end[-1]));
+                    construct_val(vals_end, std::move(vals_end[-1]));
+
+                    //Move assign elements 1 slot to the right
+                    std::move_backward(new_key_ptr, keys_end - 1, keys_end);
+                    std::move_backward(new_val_ptr, vals_end - 1, vals_end);
+
+                    destroy_key(new_key_ptr);
+                    destroy_val(new_val_ptr);
+                }
+
+                try {
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
+                    construct_key(new_key_ptr, key);
+                } catch (...) {
+                    //Move keys and vals back to their original positions
+                    if (new_key_ptr != keys_end) {
+                        std::move(new_key_ptr + 1, keys_end + 1, new_key_ptr);
+                        std::move(new_val_ptr + 1, vals_end + 1, new_val_ptr);
+
+                        destroy_key(keys_end);
+                        destroy_val(vals_end);
+                    }
+                }
+
+                ++elem_count;
+                return std::make_pair(iterator{new_val_ptr}, true);
+            } else {
+                Allocation new_allocation = allocate(grow_size(size() + 1));
+
+                key_pointer old_key_ptr = key_ptr;
+
+                key_pointer new_key_ptr = new_allocation.keys + (old_key_ptr - allocation.keys);
+                val_pointer new_val_ptr = new_allocation.vals + (old_key_ptr - allocation.keys);
+
+                //Try constructing value and key
+                try {
+                    construct_key(new_key_ptr, std::move(key));
+                } catch (...) {
+                    deallocate(new_allocation);
+                    throw;
+                }
+
+                try {
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
+                } catch (...) {
+                    destroy_key(new_key_ptr);
+                    deallocate(new_allocation);
+                    throw;
+                }
+
+                ///Move objects keys and vals to new allocation
+
+                auto val_alloc = get_allocator();
+                auto key_alloc = key_allocator_type{val_alloc};
+                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
+                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
+
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+
+                allocation = std::move(new_allocation);
+
+                ++elem_count;
+                return std::pair<iterator, bool>{new_val_ptr, true};
+            }
+        }
+
+        ///
+        /// If an element is associated with the specified key,
+        ///
+        /// \tparam Args Argument types to value constructor
+        /// \param key Const reference to key
+        /// \param args Arguments to value constructor
+        /// \return Pair containing iterator to element and boolean indicating
+        ///     whether a new element was added
+        template<class...Args>
+        std::pair<iterator, bool> emplace_or_assign(key_type&& key, Args&&...args) {
+            if (size() > max_size() - 1) {
+                throw std::length_error("aul::Array_map grew too big");
+            }
+
+            //Check if element already exists
+            key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
+            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+                pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
+                T temp{args...};
+                *element_ptr = temp;
+                return std::pair<iterator, bool>{element_ptr, false};
+            }
+
+            if (size() + 1 <= capacity()) {
+                //Current allocation suffices
+
+                key_pointer keys_end = allocation.keys + elem_count;
+                val_pointer vals_end = allocation.vals + elem_count;
+
+                key_pointer new_key_ptr = key_ptr;
+                val_pointer new_val_ptr = allocation.vals + (new_key_ptr - allocation.keys);
+
+                //Move elements to new allocation
+                if (new_key_ptr != keys_end) {
+                    //Move construct last element in each array
+                    construct_val(vals_end, std::move(vals_end[-1]));
+                    construct_key(keys_end, std::move(keys_end[-1]));
+
+                    //Move assign elements 1 slot to the right
+                    std::move_backward(new_key_ptr, keys_end - 1, keys_end);
+                    std::move_backward(new_val_ptr, vals_end - 1, vals_end);
+
+                    destroy_key(new_key_ptr);
+                    destroy_val(new_val_ptr);
+                }
+
+                try {
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
+                    construct_key(new_key_ptr, key);
+                } catch (...) {
+                    //Move keys and vals back to their original positions
+                    if (new_key_ptr != keys_end) {
+                        std::move(new_key_ptr + 1, keys_end + 1, new_key_ptr);
+                        std::move(new_val_ptr + 1, vals_end + 1, new_val_ptr);
+
+                        destroy_key(keys_end);
+                        destroy_val(vals_end);
+                    }
+                }
+
+                ++elem_count;
+                return std::make_pair(iterator{new_val_ptr}, true);
+            } else {
+                //New allocation is necessary
+
+                Allocation new_allocation = allocate(grow_size(size() + 1));
+
+                key_pointer old_key_ptr = key_ptr;
+
+                key_pointer new_key_ptr = new_allocation.keys + (old_key_ptr - allocation.keys);
+                val_pointer new_val_ptr = new_allocation.vals + (old_key_ptr - allocation.keys);
+
+                //Try constructing value and key
+                try {
+                    construct_key(new_key_ptr, std::move(key));
+                } catch (...) {
+                    deallocate(new_allocation);
+                    throw;
+                }
+
+                try {
+                    construct_val(new_val_ptr, std::forward<Args>(args)...);
+                } catch (...) {
+                    destroy_key(new_key_ptr);
+                    deallocate(new_allocation);
+                    throw;
+                }
+
+                // Move objects keys and vals to new allocation
+
+                auto val_alloc = get_allocator();
+                auto key_alloc = key_allocator_type{val_alloc};
+                aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
+                aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
+
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+
+                allocation = std::move(new_allocation);
+
+                ++elem_count;
+                return std::make_pair(iterator{new_val_ptr}, true);
+            }
+
         }
 
         //=================================================
@@ -658,7 +867,7 @@ namespace aul {
         [[nodiscard]]
         iterator find(const key_type& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -667,21 +876,21 @@ namespace aul {
         [[nodiscard]]
         const_iterator find(const key_type& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         iterator find(const K2& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         const_iterator find(const K2& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (*ptr == key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -690,7 +899,7 @@ namespace aul {
         [[nodiscard]]
         bool contains(const key_type& key) const noexcept {
             key_pointer ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            return (ptr && size() && (*ptr == key));
+            return (ptr && size() && compare_keys(*ptr, key));
         }
 
         //=================================================
@@ -700,10 +909,8 @@ namespace aul {
         ///
         /// \param rhs Array_map to swap contents with
         ///
-        void swap(Array_map& rhs) noexcept(aul::is_noexcept_swappable_v<Alloc>) {
-            if constexpr (val_alloc_traits::propagate_on_container_swap::value) {
-                std::swap(allocator, rhs.allocator);
-            }
+        void swap(Array_map& rhs) noexcept(aul::is_noexcept_swappable_v<A>) {
+            base::swap(rhs);
             std::swap(elem_count, rhs.elem_count);
             std::swap(allocation, rhs.allocation);
             std::swap(comparator, rhs.comparator);
@@ -718,7 +925,7 @@ namespace aul {
         ///
         [[nodiscard]]
         allocator_type get_allocator() const {
-            return allocator;
+            return base::get_allocator();
         }
 
         //=================================================
@@ -739,7 +946,7 @@ namespace aul {
         [[nodiscard]]
         size_type max_size() const noexcept {
             constexpr size_type a = std::numeric_limits<size_type>::max();
-            size_type b = std::allocator_traits<Alloc>::max_size(allocator);
+            size_type b = std::allocator_traits<A>::max_size(get_allocator());
             return std::min(a, b);
         }
 
@@ -763,11 +970,12 @@ namespace aul {
         /// Destroys all elements and releases all memory allocations
         ///
         void clear() noexcept {
-            aul::destroy_n(allocation.vals, elem_count, allocator);
-            auto key_alloc = key_allocator_type{allocator};
+            auto val_alloc = get_allocator();
+            auto key_alloc = key_allocator_type{val_alloc};
+            aul::destroy_n(allocation.vals, elem_count, val_alloc);
             aul::destroy_n(allocation.keys, elem_count, key_alloc);
             elem_count = 0;
-            deallocate(allocator, allocation);
+            deallocate(allocation);
         }
 
         ///
@@ -782,17 +990,8 @@ namespace aul {
                 throw std::runtime_error("Array_map grew beyond max size.");
             }
 
-            Allocation new_allocation = allocate(allocator, n, allocation);
-            {
-                if (new_allocation.vals != allocation.vals) {
-                    aul::uninitialized_move_n(allocation.vals, elem_count, new_allocation.vals, allocator);
-                }
-
-                if (new_allocation.keys != allocation.keys) {
-                    key_allocator_type key_alloc{allocator};
-                    aul::uninitialized_move_n(allocation.keys, elem_count, new_allocation.keys, key_alloc);
-                }
-            }
+            Allocation new_allocation = allocate(n);
+            move_elements(allocation, new_allocation, elem_count);
 
             allocation = std::move(new_allocation);
         }
@@ -851,17 +1050,18 @@ namespace aul {
         // Instance members
         //=================================================
 
-        Alloc allocator{};
-
-        Allocation allocation{};
-
+        Allocation  allocation{};
         key_compare comparator{};
-
-        size_type elem_count{};
+        size_type   elem_count{};
 
         //=================================================
-        // Helper functions
+        // (de)allocation helper functions
         //=================================================
+
+        Allocation allocate(const size_type n) {
+            auto allocator = get_allocator();
+            return allocate(allocator, n);
+        }
 
         ///
         /// \param n Size of allocation
@@ -907,6 +1107,10 @@ namespace aul {
             return ret;
         }
 
+        void deallocate(Allocation& allocation) noexcept {
+
+        }
+
         ///
         /// \param alloc Allocation to free. Empty after successful completion
         ///
@@ -918,33 +1122,103 @@ namespace aul {
             allocation = Allocation{};
         }
 
+        //=================================================
+        // Construction/Destruction helper methods
+        //=================================================s
+
         template<class...Args>
         void construct_val(val_pointer ptr, Args&&...args) {
-            val_alloc_traits::construct(allocator, ptr, std::forward<Args>(args)...);
+            auto val_alloc = get_allocator();
+            val_alloc_traits::construct(val_alloc, ptr, std::forward<Args>(args)...);
         }
 
         template<class...Args>
         void construct_key(key_pointer ptr, Args&&...args) {
-            key_allocator_type alloc{allocator};
-            key_alloc_traits::construct(alloc, ptr, std::forward<Args>(args)...);
+            auto key_alloc = key_allocator_type{get_allocator()};
+            key_alloc_traits::construct(key_alloc, ptr, std::forward<Args>(args)...);
         }
 
         void destroy_val(val_pointer ptr) {
-            val_alloc_traits::destroy(allocator, ptr);
+            val_allocator_type val_alloc{get_allocator()};
+            val_alloc_traits::destroy(val_alloc, ptr);
         }
 
         void destroy_key(key_pointer ptr) {
-            key_allocator_type alloc{allocator};
+            key_allocator_type alloc{get_allocator()};
             key_alloc_traits::destroy(alloc, ptr);
         }
 
         ///
-        /// \param n
-        /// \return
+        /// \param source Allocation move elements from
+        /// \param dest Allocation to move elements to
+        /// \param n Number of elements to copy
+        void move_elements(Allocation& source, Allocation& dest, size_type n) noexcept {
+            auto val_alloc = get_allocator();
+            auto key_alloc = key_allocator_type {val_alloc};
+
+            aul::uninitialized_move_n(source.vals, n, dest.vals, val_alloc);
+            aul::uninitialized_move_n(source.keys, n, dest.keys, val_alloc);
+        }
+
+        ///
+        /// Throws if copying fails
+        /// Provides the strong exception guarantee
+        ///
+        /// \param source Allocation to copy elements from
+        /// \param dest Allocation to copy elements to
+        /// \param n Number of elements to copy
+        void copy_elements(const Allocation& source, Allocation& dest, size_type n) {
+            auto val_alloc = get_allocator();
+            auto key_alloc = key_allocator_type {val_alloc};
+
+            try {
+                aul::uninitialized_copy_n(source.vals, n, dest.vals, val_alloc);
+            } catch(...) {
+                throw;
+            }
+
+            try {
+                aul::uninitialized_copy_n(source.keys, n, dest.keys, key_alloc);
+            } catch(...) {
+                aul::destroy_n(source.vals, n, val_alloc);
+                throw;
+            }
+        }
+
+        ///
+        /// Destroy elements in allocation using current object's allocator
+        ///
+        /// \param source Allocation containing elements
+        /// \param n Number of elements to destroy
+        void destroy_elements(Allocation& source, size_type n) {
+            auto val_alloc = get_allocator();
+            auto key_alloc = key_allocator_type{val_alloc};
+
+            aul::destroy_n(source.vals, n, val_alloc);
+            aul::destroy_n(source.keys, n, key_alloc);
+        }
+
+        //=================================================
+        // Misc. helper functions
+        //=================================================
+
+        ///
+        /// \param n Minimum number of new elements
+        /// \return Size the Array_map should grow to accommodate
         [[nodiscard]]
         size_type grow_size(const size_type n) const {
-            size_type double_size = (n < max_size() / 2) ? 2 * size() : max_size();
+            size_type double_size = (n < max_size() / 2) ? 2 * elem_count : max_size();
             return std::max(double_size, n);
+        }
+
+        ///
+        /// Compares keys for equality using internal comparator object
+        ///
+        /// \param a First key
+        /// \param b Second key
+        /// \return True if neither key compares less than the other
+        bool compare_keys(const key_type& a, const key_type& b) const {
+            return !comparator(a, b) && !comparator(b, a);
         }
 
     };
@@ -1012,6 +1286,14 @@ namespace aul {
             alloc.capacity = 0;
 
             return *this;
+        }
+
+        //=================================================
+        // Conversion operators
+        //=================================================
+
+        operator bool() const {
+            return !capacity;
         }
 
     };
