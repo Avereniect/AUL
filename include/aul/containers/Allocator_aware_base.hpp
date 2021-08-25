@@ -93,7 +93,7 @@ namespace aul {
         //=================================================
 
         Empty_allocator_container_base& operator=(const Empty_allocator_container_base& rhs) = default;
-        Empty_allocator_container_base& operator=(const Empty_allocator_container_base&& rhs) noexcept = default;
+        Empty_allocator_container_base& operator=(Empty_allocator_container_base&& rhs) noexcept = default;
 
         //=================================================
         // Assignment operators
