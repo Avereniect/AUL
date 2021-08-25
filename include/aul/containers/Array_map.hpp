@@ -1217,7 +1217,7 @@ namespace aul {
         /// \param a First key
         /// \param b Second key
         /// \return True if neither key compares less than the other
-        bool compare_keys(const key_type& a, const key_type& b) {
+        bool compare_keys(const key_type& a, const key_type& b) const {
             return !comparator(a, b) && !comparator(b, a);
         }
 
