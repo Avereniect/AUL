@@ -425,7 +425,7 @@ namespace aul {
 
             //Check if element with key already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+            if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer ptr = allocation.vals + (key_ptr - allocation.keys);
                 return std::make_pair(iterator{ptr}, false);
             }
@@ -528,7 +528,7 @@ namespace aul {
 
             //Check if element with key already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+            if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer ptr = allocation.vals + (key_ptr - allocation.keys);
                 return std::make_pair(iterator{ptr}, false);
             }
@@ -628,10 +628,10 @@ namespace aul {
 
             //Check if element already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+            if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *element_ptr = temp;
+                *element_ptr = std::move(temp);
                 return std::pair<iterator, bool>{element_ptr, false};
             }
 
@@ -730,10 +730,10 @@ namespace aul {
 
             //Check if element already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
+            if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *element_ptr = temp;
+                *element_ptr = std::move(temp);
                 return std::pair<iterator, bool>{element_ptr, false};
             }
 
