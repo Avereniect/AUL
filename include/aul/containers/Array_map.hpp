@@ -171,6 +171,10 @@ namespace aul {
             arr.elem_count = 0;
         }
 
+        ~Array_map() {
+            clear();
+        }
+
         //=================================================
         // Assignment operators
         //=================================================
@@ -502,6 +506,10 @@ namespace aul {
                 aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
                 aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
 
+                // Destroy old elements and allocation
+                destroy_elements(allocation, elem_count);
+                deallocate(allocation);
+
                 allocation = std::move(new_allocation);
 
                 ++elem_count;
@@ -594,16 +602,19 @@ namespace aul {
                     throw;
                 }
 
-                ///Move objects keys and vals to new allocation
-
+                // Move objects keys and vals to new allocation
                 auto val_alloc = get_allocator();
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+
                 auto key_alloc = key_allocator_type{val_alloc};
                 aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
                 aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
 
-                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
-                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
-                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+                // Destroy old elements and allocation
+                destroy_elements(allocation, elem_count);
+                deallocate(allocation);
 
                 allocation = std::move(new_allocation);
 
@@ -631,7 +642,7 @@ namespace aul {
             if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *element_ptr = std::move(temp);
+                *element_ptr = temp;
                 return std::pair<iterator, bool>{element_ptr, false};
             }
 
@@ -696,16 +707,19 @@ namespace aul {
                     throw;
                 }
 
-                ///Move objects keys and vals to new allocation
-
+                // Move objects keys and vals to new allocation
                 auto val_alloc = get_allocator();
+                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
+                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
+                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+
                 auto key_alloc = key_allocator_type{val_alloc};
                 aul::uninitialized_move(allocation.keys, old_key_ptr, new_allocation.keys, key_alloc);
                 aul::uninitialized_move(old_key_ptr, allocation.keys + size(), new_key_ptr + 1, key_alloc);
 
-                pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
-                aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
-                aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+                // Destroy old elements and allocation
+                destroy_elements(allocation, elem_count);
+                deallocate(allocation);
 
                 allocation = std::move(new_allocation);
 
@@ -730,10 +744,10 @@ namespace aul {
 
             //Check if element already exists
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
-            if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
+            if (key_ptr && !empty() && compare_keys(*key_ptr, key)) {
                 pointer element_ptr = allocation.vals + (key_ptr - allocation.keys);
                 T temp{args...};
-                *element_ptr = std::move(temp);
+                *element_ptr = temp;
                 return std::pair<iterator, bool>{element_ptr, false};
             }
 
@@ -812,6 +826,10 @@ namespace aul {
                 pointer old_val_ptr = allocation.vals + (old_key_ptr - allocation.keys);
                 aul::uninitialized_move(allocation.vals, old_val_ptr, new_allocation.vals, val_alloc);
                 aul::uninitialized_move(old_val_ptr, allocation.vals + size(), new_val_ptr + 1, val_alloc);
+
+                // Destroy old elements and allocation
+                destroy_elements(allocation, elem_count);
+                deallocate(allocation);
 
                 allocation = std::move(new_allocation);
 
@@ -974,6 +992,7 @@ namespace aul {
             auto key_alloc = key_allocator_type{val_alloc};
             aul::destroy_n(allocation.vals, elem_count, val_alloc);
             aul::destroy_n(allocation.keys, elem_count, key_alloc);
+
             elem_count = 0;
             deallocate(allocation);
         }
@@ -1098,7 +1117,6 @@ namespace aul {
                 ret.keys = key_alloc_traits::allocate(key_alloc, n, hint.keys);
             } catch (...) {
                 deallocate(allocator, ret);
-                ret = Allocation{};
                 throw;
             }
 
@@ -1107,16 +1125,21 @@ namespace aul {
             return ret;
         }
 
-        void deallocate(Allocation& allocation) noexcept {
+        void deallocate(Allocation& a) noexcept {
+            auto val_alloc = get_allocator();
+            auto key_alloc = key_allocator_type{};
+            val_alloc_traits::deallocate(val_alloc, a.vals, a.capacity);
+            key_alloc_traits::deallocate(key_alloc, a.keys, a.capacity);
 
+            a = Allocation{};
         }
 
         ///
         /// \param alloc Allocation to free. Empty after successful completion
         ///
-        static void deallocate(allocator_type& allocator, Allocation& allocation) noexcept {
-            val_alloc_traits::deallocate(allocator, allocation.vals, allocation.capacity);
-            auto key_alloc = key_allocator_type{allocator};
+        static void deallocate(allocator_type& val_alloc, Allocation& allocation) noexcept {
+            auto key_alloc = key_allocator_type{val_alloc};
+            val_alloc_traits::deallocate(val_alloc, allocation.vals, allocation.capacity);
             key_alloc_traits::deallocate(key_alloc, allocation.keys, allocation.capacity);
 
             allocation = Allocation{};
