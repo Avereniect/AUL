@@ -885,7 +885,7 @@ namespace aul {
         [[nodiscard]]
         iterator find(const key_type& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
@@ -894,21 +894,21 @@ namespace aul {
         [[nodiscard]]
         const_iterator find(const key_type& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && compare_keys(*ptr, key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? const_iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         iterator find(const K2& key) noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         template<class K2>
         [[nodiscard]]
         const_iterator find(const K2& key) const noexcept {
             key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
         }
 
         ///
