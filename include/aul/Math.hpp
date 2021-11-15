@@ -11,6 +11,20 @@
 namespace aul {
 
     //=====================================================
+    // Arithmetic
+    //=====================================================
+
+    template<class T>
+    T divide_ceil(T x, T y) {
+        static_assert(std::is_unsigned_v<T>);
+        T whole = x / y;
+
+        bool partial = (x - whole * y);
+
+        return whole + partial;
+    }
+
+    //=====================================================
     // Interpolation functions
     //=====================================================
 
