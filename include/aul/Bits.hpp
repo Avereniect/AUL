@@ -9,6 +9,34 @@
 namespace aul {
 
     ///
+    /// \tparam T Unsigned integral type
+    /// \param x Value to perform left bit-wise rotation on
+    /// \param s Number of bit places to rotate. Must be less than the number of
+    ///     bits in x.
+    /// \return Rotated value
+    template<class T>
+    [[nodiscard]]
+    constexpr T rotl(T x, unsigned s) noexcept {
+        static_assert(std::is_unsigned_v<T>);
+        auto constexpr bits = std::numeric_limits<T>::digits;
+        return (x << s) | (x >> (bits - s));
+    }
+
+    ///
+    /// \tparam T Unsigned integral type
+    /// \param x Value to perform right bit-wise rotation on
+    /// \param s Number of bit places to rotate. Must be less than the number of
+    ///     bits in x.
+    /// \return Rotated value
+    template<class T>
+    [[nodiscard]]
+    constexpr T rotr(T x, unsigned s) noexcept {
+        static_assert(std::is_unsigned_v<T>);
+        auto constexpr bits = std::numeric_limits<T>::digits;
+        return (x >> s) | ((x << (bits - s)));
+    }
+
+    ///
     /// Creates a std::string representing the bit string of x
     ///
     /// \tparam T Integral type
