@@ -22,14 +22,5 @@ add_library(AUL INTERFACE)
 target_include_directories(AUL INTERFACE ./include/)
 target_compile_features(AUL INTERFACE cxx_std_17)
 
-#======================================
-# AUL tests
-#======================================
-
-add_executable(AUL_TESTS ./tests/AUL_tests.cpp)
-
-add_subdirectory(./external/googletest)
-
-target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main pthread)
-
-target_compile_features(AUL_TESTS PRIVATE cxx_std_17)
+#add_subdirectory(./tests/)
+#add_subdirectory(./external/googletest/)
