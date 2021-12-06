@@ -29,7 +29,7 @@ namespace aul {
         // Type aliases
         //=================================================
 
-        using value_type = typename std::pointer_traits<P>::element_type ;
+        using value_type = typename std::pointer_traits<P>::element_type;
 
         using reference = value_type&;
 
@@ -40,7 +40,7 @@ namespace aul {
 
         using iterator = aul::Random_access_iterator<pointer>;
 
-        using dimension_type = std::array<difference_type, N>;
+        using dimension_type = std::array<size_type, N>;
 
     private:
 
@@ -50,8 +50,6 @@ namespace aul {
             Matrix_view<pointer, size_type, N - 1>
         >;
 
-        using const_size_type_ptr = typename std::pointer_traits<pointer>::template rebind<std::add_const_t<size_type>>;
-
     public:
 
         //=================================================
@@ -60,11 +58,11 @@ namespace aul {
 
         Matrix_view() = default;
 
-        explicit Matrix_view(pointer ptr, const dimension_type& dims):
+        Matrix_view(pointer ptr, dimension_type dims):
             ptr(ptr),
-            dims(dims) {}
+            dims(std::move(dims)) {}
 
-        explicit Matrix_view(pointer ptr, const typename dimension_type::size_type* dim_ptr):
+        Matrix_view(pointer ptr, const typename dimension_type::size_type* dim_ptr):
             ptr(ptr),
             dims() {
 
@@ -158,8 +156,12 @@ namespace aul {
         // Helper functions
         //=================================================
 
-        size_type compute_offset(size_type s, dimension_type d) const {
-            size_type ret = s;
+        ///
+        /// \param n Nth matri
+        /// \param d
+        /// \return
+        size_type compute_offset(size_type n, dimension_type d) const {
+            size_type ret = n;
             for (int i = 1; i < d.size(); ++i) {
                 ret *= d[i];
             }
@@ -233,17 +235,25 @@ namespace aul {
         explicit Matrix(const dimension_type& dims):
             allocator(),
             dims(dims),
-            ptr(allocate(dims)) {
+            allocation(allocate(dims)) {
 
-            aul::default_construct_n(ptr, size(), allocator);
+            aul::default_construct_n(allocation, size(), allocator);
+        }
+
+        Matrix(const dimension_type& dims, value_type x):
+            allocator(),
+            dims(dims),
+            allocation(allocate(dims)) {
+
+            aul::uninitialized_fill_n(allocation, size(), x, allocator);
         }
 
         Matrix(const dimension_type& dims, const allocator_type& a):
             allocator(a),
             dims(dims),
-            ptr(allocate(dims)) {
+            allocation(allocate(dims)) {
 
-            aul::default_construct_n(ptr, size(), allocator);
+            aul::default_construct_n(allocation, size(), allocator);
         }
 
         ///
@@ -253,35 +263,35 @@ namespace aul {
         Matrix(const Matrix& matrix):
             allocator(alloc_traits::select_on_container_copy_construction(matrix.allocator)),
             dims(matrix.dims),
-            ptr(allocate(dims)) {
+            allocation(allocate(dims)) {
 
-            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
+            aul::uninitialized_copy_n(matrix.allocation, size(), allocation, allocator);
         }
 
         Matrix(const Matrix& matrix, const A& allocator):
             allocator(allocator),
             dims(matrix.dims),
-            ptr(allocate(dims)) {
+            allocation(allocate(dims)) {
 
-            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
+            aul::uninitialized_copy_n(matrix.allocation, size(), allocation, allocator);
         }
 
         Matrix(Matrix&& matrix) noexcept:
             allocator(std::move(matrix.allocator)),
             dims(std::move(matrix.dims)),
-            ptr(matrix.ptr) {
+            allocation(matrix.allocation) {
 
             matrix.dims = {};
-            matrix.ptr = nullptr;
+            matrix.allocation = nullptr;
         }
 
         Matrix(Matrix&& matrix, const A& allocator):
             allocator(allocator),
             dims(std::move(matrix.dims)),
-            ptr((matrix.allocator == allocator) ? std::exchange(matrix.ptr, nullptr) : allocate(dims)) {
+            allocation((matrix.allocator == allocator) ? std::exchange(matrix.allocation, nullptr) : allocate(dims)) {
 
             if (!(matrix.allocator == allocator)) {
-                aul::uninitialized_move_n(matrix.ptr, size(), ptr, allocator);
+                aul::uninitialized_move_n(matrix.allocation, size(), allocation, allocator);
             }
         }
 
@@ -299,8 +309,8 @@ namespace aul {
             }
 
             dims = matrix.dims;
-            ptr = allocate(dims);
-            aul::uninitialized_copy_n(matrix.ptr, size(), ptr, allocator);
+            allocation = allocate(dims);
+            aul::uninitialized_copy_n(matrix.allocation, size(), allocation, allocator);
 
             return *this;
         }
@@ -311,7 +321,7 @@ namespace aul {
             }
 
             dims = std::exchange(matrix.dims, {});
-            ptr = std::exchange(matrix.ptr, nullptr);
+            allocation = std::exchange(matrix.allocation, nullptr);
 
             return *this;
         }
@@ -348,11 +358,11 @@ namespace aul {
         //=================================================
 
         iterator begin() {
-            return iterator{ptr};
+            return iterator{allocation};
         }
 
         const_iterator begin() const {
-            return const_iterator{ptr};
+            return const_iterator{allocation};
         }
 
         const_iterator cbegin() const {
@@ -360,11 +370,11 @@ namespace aul {
         }
 
         iterator end() {
-            return iterator{ptr + size()};
+            return iterator{allocation + size()};
         }
 
         const_iterator end() const {
-            return const_iterator{ptr + size()};
+            return const_iterator{allocation + size()};
         }
 
         const_iterator cend() const {
@@ -377,17 +387,17 @@ namespace aul {
 
         lower_dimensional_view operator[](const size_type n) {
             if constexpr (N == 1) {
-                return ptr[n];
+                return allocation[n];
             } else {
-                return lower_dimensional_view{ptr + compute_offset(n, dims), dims.data() + 1};
+                return lower_dimensional_view{allocation + compute_offset(n, dims), dims.data() + 1};
             }
         }
 
         const_lower_dimensional_ivew operator[](const size_type n) const {
             if constexpr (N == 1) {
-                return ptr[n];
+                return allocation[n];
             } else {
-                return const_lower_dimensional_ivew{ptr + compute_offset(n, dims), dims.data() + 1};
+                return const_lower_dimensional_ivew{allocation + compute_offset(n, dims), dims.data() + 1};
             }
         }
 
@@ -405,7 +415,7 @@ namespace aul {
                 coefficient *= dims[i];
             }
 
-            return ptr[offset];
+            return allocation[offset];
         }
 
         const_reference at(const dimension_type& pos) const {
@@ -422,7 +432,7 @@ namespace aul {
                 coefficient *= dims[i];
             }
 
-            return ptr[offset];
+            return allocation[offset];
         }
 
         //=================================================
@@ -430,47 +440,87 @@ namespace aul {
         //=================================================
 
         //TODO: Test and finish implementation
-        /*
-        void resize(const dimension_type& new_dimensions) {
-            if (!dimension_safety(new_dimensions)) {
-                throw std::length_error("Length error i call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
+        ///
+        /// \param new_dimensions Dimensions of matrix after resizing
+        /// \param v Value to fill in with if resizing produces empty cells
+        void resize(const dimension_type& new_dimensions, const value_type& v = {}) {
+            if (new_dimensions == dims) {
+                return;
             }
 
-            pointer new_ptr = allocate(new_dimensions);
-
-            Matrix_view<T, N, A> view{new_ptr, new_dimensions};
-            dimension_type counters{};
-
-            dimension_type bounds;
-            for (int i = 0; i < bounds.size(); ++i) {
-                bounds[i] = std::min(dims[i], new_dimensions[i]);
-            }
-
-            for (;counters != new_dimensions;) {
-                //Copy elements
-
-                view.at(counters) = this->at(counters);
-
-                //Increment counters
-                counters[counter.size() - 1] += 1;
-                for (int i = counters.size(); i-- > 0;) {
-                    if (counters[i] == bounds[i]) {
-                        counters[i] = 0;
-                        counters[i - 1] -= 1;
-                    }
+            for (auto d : new_dimensions) {
+                if (d == 0) {
+                    clear();
+                    return;
                 }
             }
-        }
-        */
 
+            if (!dimension_safety(new_dimensions)) {
+                throw std::length_error("Length error in call to aul::Matrix::resize(). Dimensions are too large to represent using container size type.");
+            }
+
+            // Create new allocation
+            pointer new_allocation = allocate(new_dimensions);
+
+            //Copy overlapping elements
+            pointer new_address = new_allocation;
+            size_type num_elements = element_count(new_dimensions);
+            dimension_type indices{};
+            for (int i = 0; i < num_elements; ++i) {
+                bool current_indices_in_old = true;
+                for (std::size_t i = 0; i < indices.size(); ++i) {
+                    current_indices_in_old &= (indices[i] < dims[i]);
+                }
+
+                // Move old element to new location if in old dimensions
+                if (current_indices_in_old) {
+                    // TODO: call to indices_to_offset may be eliminated and the
+                    // work that it performed amortized
+                    auto tmp = indices_to_offset(indices, dims);
+                    pointer old_address = allocation + tmp;
+                    std::allocator_traits<A>::construct(allocator, new_address, std::move(*old_address));
+                } else {
+                    std::allocator_traits<A>::construct(allocator, new_address, v);
+                }
+
+                new_address += 1;
+
+                //Increment indices
+                indices.back() += 1;
+                for (std::size_t j = indices.size(); j-- > 0;) {
+                    if (indices[j] == new_dimensions[j]) {
+                        indices[j] = 0;
+                        indices[j - 1] += 1;
+                    }
+
+                    // Branch can be eliminated. Following code doesn't work
+                    /*
+                    bool c = (indices[j] == new_dimensions[j]);
+
+                    indices[j] &= -size_type(c);
+                    indices[j - 1] += c;
+                    */
+                }
+            }
+
+            size_type old_allocation_size = element_count(dims);
+            std::allocator_traits<A>::deallocate(allocator, allocation, old_allocation_size);
+            allocation = new_allocation;
+            dims = new_dimensions;
+        }
+
+        ///
+        /// Resets dimensions of matrix to all zeroes.
+        /// All elements are destroyed and current allocation is deallocated.
+        ///
         void clear() {
             const size_type num_elems = size();
             for (size_type i = 0; i < num_elems; ++i) {
-                std::allocator_traits<A>::destroy(allocator, ptr + i);
+                std::allocator_traits<A>::destroy(allocator, allocation + i);
             }
 
-            std::allocator_traits<A>::deallocate(allocator, ptr, num_elems);
-            ptr = nullptr;
+            std::allocator_traits<A>::deallocate(allocator, allocation, num_elems);
+            allocation = nullptr;
             dims.fill(0);
         }
 
@@ -479,20 +529,23 @@ namespace aul {
         ///
         [[nodiscard]]
         size_type size() const {
-            return std::reduce(dims.data(), dims.data() + N, 1, std::multiplies<size_type>{});
+            return element_count(dims);
         }
 
         ///
-        /// \return A std::array a=object containing the matrix's dimensions
+        /// \return A std::array object containing the matrix's dimensions
         ///
         [[nodiscard]]
         dimension_type dimensions() const {
             return dims;
         }
 
+        ///
+        /// \return Return true if dimensions are all zero
         [[nodiscard]]
         bool empty() const {
-            return !ptr;
+            // pointer is nullptr if and only if dimensions are all zero
+            return !allocation;
         }
 
         //=================================================
@@ -507,15 +560,15 @@ namespace aul {
         void swap(Matrix& matrix) {
             std::swap(allocator, matrix.allocator);
             std::swap(dims, matrix.dims);
-            std::swap(ptr, matrix.ptr);
+            std::swap(allocation, matrix.allocation);
         }
 
         pointer data() {
-            return ptr;
+            return allocation;
         }
 
         const_pointer data() const {
-            return ptr;
+            return allocation;
         }
 
     private:
@@ -524,22 +577,40 @@ namespace aul {
         // Instance members
         //=================================================
 
+        ///
+        /// Matrix allocator object
+        ///
         A allocator{};
 
+        ///
+        /// Matrix dimensions
+        ///
         dimension_type dims{};
 
-        pointer ptr = nullptr;
+        ///
+        /// Pointer to current allocation.
+        /// Should be equal to nullptr if and only if dims is all zeroes
+        ///
+        pointer allocation = nullptr;
 
         //=================================================
         // Helper functions
         //=================================================
 
+        ///
+        /// \param dimensions Dimensions of matrix to allocate memory for
+        /// \return Pointer to allocation large enough for matrix of specified
+        ///     dimensions. Does not handle failure to allocate for any reason
         pointer allocate(const dimension_type& dimensions) {
-            size_type allocation_size = std::reduce(dimensions.data(), dimensions.data() + N, 1, std::multiplies<size_type>{});
+            size_type allocation_size = element_count(dimensions);
             return std::allocator_traits<A>::allocate(allocator, allocation_size);
         }
 
-        bool dimension_safety(const dimension_type& dimensions) {
+        ///
+        /// \param dimensions Matrix dimensions
+        /// \return True is number of elements in matrix of specified dimensions
+        ///     may be represented using size_type
+        bool dimension_safety(const dimension_type& dimensions) const {
             constexpr size_type max = std::numeric_limits<size_type>::max();
 
             size_type quotient = max / dimensions[0];
@@ -551,9 +622,42 @@ namespace aul {
             return (quotient != 0);
         }
 
+        ///
+        /// \param s
+        /// \param d
+        /// \return Offset into
         size_type compute_offset(size_type s, dimension_type d) const {
             size_type ret = s;
-            for (int i = 1; i < d.size(); ++i) {
+
+            for (std::size_t i = 1; i < d.size(); ++i) {
+                ret *= d[i];
+            }
+
+            return ret;
+        }
+
+        ///
+        /// \param indices Indices of matrix element
+        /// \param dimensions Dimensions of matrices
+        /// \return Offset into matrix's allocation for the specified indices
+        static size_type indices_to_offset(dimension_type indices, dimension_type dimensions) {
+            size_type ret = 0;
+
+            size_type t = 1;
+            for (std::size_t i = 0; i < N; ++i) {
+                ret += (indices[N - i - 1] * t);
+                t *= dimensions[i];
+            }
+
+            return ret;
+        }
+
+        ///
+        /// \param d Matrix dimensions
+        /// \return Number of elements in matrix of specified dimensions
+        size_type element_count(dimension_type d) const {
+            size_type ret = d[0];
+            for (std::size_t i = 1; i < N; ++i) {
                 ret *= d[i];
             }
             return ret;
