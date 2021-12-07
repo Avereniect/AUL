@@ -41,8 +41,8 @@ namespace aul {
         // Instance members
         //=================================================
 
-        size_type capacity = 0;
-        pointer ptr = nullptr;
+        S capacity = 0;
+        P ptr = nullptr;
 
     };
 
