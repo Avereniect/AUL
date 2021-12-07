@@ -1,40 +1,48 @@
 #ifndef AUL_ALLOCATION_HPP
 #define AUL_ALLOCATION_HPP
 
-#include <memory>
+#include <utility>
 
 namespace aul {
 
-    template<class T, class A>
-    class Allocation {
-    public:
-
-        using pointer = std::allocator_traits<A>::pointer;
-
-        using size_type = std::allocator_traits<A>::size_type;
+    template<class S, class P>
+    struct Allocation {
 
         //=================================================
-        // Constructors
+        // -ctors
         //=================================================
+
+        Allocation(S capacity, P ptr):
+            capacity(capacity),
+            ptr(ptr) {}
 
         Allocation() = default;
-        Allocation(const Allocation&) = default;
-        Allocation(Allocation&&) noexcept = default;
+        Allocation(const Allocation&) = delete;
+
+        Allocation(Allocation&& a):
+            capacity(std::exchange(a.capacity, 0)),
+            ptr(std::exchange(a.ptr, nullptr)) {}
+
         ~Allocation() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Allocation& operator=(const Allocation&) = default;
-        Allocation& operator=(Allocation&&) noexcept = default;
+        Allocation& operator=(const Allocation&) = delete;
+
+        Allocation& operator=(Allocation&& a) {
+            capacity = std::exchange(a.capacity, 0);
+            ptr = std::exchange(a.ptr, nullptr);
+            return *this;
+        }
 
         //=================================================
         // Instance members
         //=================================================
 
-        pointer ptr = nullptr;
         size_type capacity = 0;
+        pointer ptr = nullptr;
 
     };
 
