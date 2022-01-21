@@ -23,77 +23,6 @@ namespace aul {
 
         return whole + partial;
     }
-
-    //=====================================================
-    // Interpolation functions
-    //=====================================================
-
-    template<typename T, typename U>
-    U smooth_step(T fac, U a, U b) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        U x = std::clamp((fac - a) / (fac - b), 0.0, 1.0);
-
-        return x * x * (3.0 - (2.0 * x));
-    }
-
-    template<typename T>
-    T smoother_step(T y) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        T x = std::clamp(y, 0.0, 1.0);
-        return x * x * x * (x * (x * 6 - 15) + 10);
-    }
-
-    //=====================================================
-    // Distance metrics
-    // TODO: Specializations for standard types supported by SIMD ops
-    //=====================================================
-
-    template<typename T>
-    constexpr T euclidean_distance(const T p0[], const T p1[], const std::size_t n) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        T sum = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
-            sum += (p0[i] - p1[i]) * (p0[i] - p1[i]);
-        }
-
-        return std::sqrt(sum);
-    }
-
-    template<typename T>
-    constexpr T chebyshev_distance(const T p0[], const T p1[], const std::size_t n) {
-        T dist = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
-            dist = std::max(dist, std::abs(p0[i] - p1[i]));
-        }
-
-        return dist;
-    }
-
-    template<typename T>
-    constexpr T manhattan_distance(const T p0[], const T p1[], const std::size_t n) {
-
-        T dist = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
-            dist += std::abs(p0[i] - p1[i]);
-        }
-
-        return dist;
-    }
-
-    template<typename T>
-    constexpr T minkowski_distance(const T p0[], const T p1[], const std::size_t n, const T p = 1.0) {
-        static_assert(std::is_floating_point<T>::value, "T must be a floating point type");
-
-        T dist = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
-            dist += std::pow(std::abs(p0[i] - p1[i]));
-        }
-
-        return std::pow(dist, 1.0 / p);
-    }
     
     template<class U, class T>
     constexpr U normalize_int(const T x) {
@@ -103,6 +32,10 @@ namespace aul {
         constexpr U temp = std::numeric_limits<T>::max();
         return U(x) / static_cast<U>(temp);
     }
+
+    //=====================================================
+    // Simple hash
+    //=====================================================
 
     ///
     /// http://burtleburtle.net/bob/c/lookup3.c
@@ -168,6 +101,15 @@ namespace aul {
     template<class T>
     constexpr std::uint32_t byte_hash32(const T& data) {
         return byte_hash32(std::addressof(data), sizeof(data));
+    }
+
+    //=====================================================
+    // Utilities
+    //=====================================================
+
+    template<class T>
+    T clamp(T x, T lo, T hi) {
+        return std::min(std::max(x, lo), hi);
     }
 
 }
