@@ -468,8 +468,8 @@ namespace aul {
             dimension_type indices{};
             for (int i = 0; i < num_elements; ++i) {
                 bool current_indices_in_old = true;
-                for (std::size_t i = 0; i < indices.size(); ++i) {
-                    current_indices_in_old &= (indices[i] < dims[i]);
+                for (std::size_t j = 0; j < indices.size(); ++j) {
+                    current_indices_in_old &= (indices[j] < dims[j]);
                 }
 
                 // Move old element to new location if in old dimensions
@@ -487,7 +487,7 @@ namespace aul {
 
                 //Increment indices
                 indices.back() += 1;
-                for (std::size_t j = indices.size(); j-- > 0;) {
+                for (std::size_t j = indices.size(); j-- > 1;) {
                     if (indices[j] == new_dimensions[j]) {
                         indices[j] = 0;
                         indices[j - 1] += 1;
