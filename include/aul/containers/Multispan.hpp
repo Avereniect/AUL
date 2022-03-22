@@ -5,7 +5,7 @@
 #ifndef AUL_MULTISPAN_HPP
 #define AUL_MULTISPAN_HPP
 
-#include "Zipperator.hpp"
+//#include "Zipperator.hpp"
 
 #include <cstdint>
 #include <type_traits>
@@ -26,9 +26,11 @@ namespace aul {
     class Span_base {
     protected:
 
+        Span_base() = default;
+
         explicit Span_base(std::size_t n) {}
 
-        std::size_t size() {
+        std::size_t size() const {
             return E;
         }
 
@@ -41,10 +43,13 @@ namespace aul {
     class Span_base<dynamic_extent> {
     protected:
 
+        Span_base():
+            n(0) {}
+
         explicit Span_base(std::size_t n):
             n(n) {}
 
-        std::size_t size() {
+        std::size_t size() const {
             return n;
         }
 
@@ -68,47 +73,77 @@ namespace aul {
 
         using element_type = T;
         using value_type = std::remove_cv_t<T>;
+
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
+
         using pointer = T*;
-        using const_pointer = T*;
+        using const_pointer = const T*;
+
         using reference = T&;
         using const_reference = const T&;
-        using iterator = Random_access_zipperator<pointer>;
+
+        using iterator = pointer; //Random_access_zipperator<pointer>;
         using reverse_iterator = std::reverse_iterator<iterator>;
 
         //=================================================
         // -ctors
         //=================================================
 
-        template<class It, class = typename std::enable_if_t<E != dynamic_extent>>
+        ///
+        /// \tparam It Iterator type
+        /// \param first Iterator to first element in
+        /// \param count
+        template<class It, class = typename std::enable_if_t<E == dynamic_extent, It>>
         Span(It first, size_type count):
             base(count),
             ptr(std::addressof(*first)) {}
 
-        template<class It, class End, class = typename std::enable_if_t<E != dynamic_extent>>
+        ///
+        /// \tparam It
+        /// \param first
+        template<class It, class = typename std::enable_if_t<E != dynamic_extent, It>>
+        explicit Span(It first):
+            base(),
+            ptr(std::addressof(*first)) {}
+
+        ///
+        /// \tparam It
+        /// \tparam End
+        /// \param first
+        /// \param end
+        template<class It, class End, class = typename std::enable_if_t<E == dynamic_extent, It>>
         Span(It first, End end):
             base(std::addressof(*end) - std::addressof(*first)),
             ptr(std::addressof(*first)) {}
 
-        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || N == E>>
+        ///
+        /// \tparam N Length of primitive array.
+        /// \param arr Primitive array to span over
+        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
         explicit Span(element_type (&arr)[N]) noexcept:
             base(N),
             ptr(std::data(arr)) {}
 
-        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || N == E>>
+        ///
+        /// \tparam N Length of std::array
+        /// \param arr std::array object to span over
+        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
         explicit Span(std::array<element_type, N>& arr) noexcept:
             base(N),
             ptr(std::data(arr)) {}
 
-        template<std::size_t N, class = typename std::enable_if_t<(E == dynamic_extent || N == E) && std::is_const_v<T>>>
-        explicit Span(const std::array<element_type, N>& arr) noexcept:
+        ///
+        /// \tparam N
+        /// \param arr
+        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
+        explicit Span(const std::array<std::remove_const_t<element_type>, N>& arr) noexcept:
             base(N),
             ptr(std::data(arr)) {}
 
         Span() = default;
         Span(const Span&) = default;
-        Span(const Span&& range) noexcept = default;
+        Span(Span&&) noexcept = default;
         ~Span() = default;
 
         //=================================================
@@ -121,6 +156,14 @@ namespace aul {
         //=================================================
         // Iterator methods
         //=================================================
+
+        iterator begin() const {
+            return iterator{ptr};
+        }
+
+        iterator end() const {
+            return iterator{ptr + size()};
+        }
 
         //=================================================
         // Element accessors
