@@ -32,9 +32,9 @@ namespace aul {
     /// \param val
     /// \return True if an object comparing equal to val was found.
     template<class F_iter, class T, class C = std::equal_to<T>>
-    constexpr bool linear_find(F_iter begin, F_iter end, const T& val) {
+    constexpr bool linear_find(F_iter begin, F_iter end, const T& val, C c = {}) {
         for (;begin != end; ++begin) {
-            if (C(*begin, val)) {
+            if (c(*begin, val)) {
                 return true;
             }
         }
