@@ -49,7 +49,7 @@ namespace aul {
         // Assignment operators
         //=================================================
 
-        Bit_field_ref& operator=(const value_type v) requires (!std::is_const_v<T>) {
+        Bit_field_ref& operator=(const value_type v) {
         // Old SFINAE-based approach
         //template<class Dummy = Bit_field_ref>
         //typename std::enable_if_t<!std::is_const_v<T>, Dummy> operator=(const value_type v) {
@@ -258,7 +258,7 @@ namespace aul {
             std::ptrdiff_t whole   = size * x;
 
             partial += offset;
-            whole  += (partial / ptrdiff_t(bits_per_element));
+            whole += (partial / ptrdiff_t(bits_per_element));
             partial = (partial % ptrdiff_t(bits_per_element));
 
             ptr += whole;

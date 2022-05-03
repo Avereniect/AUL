@@ -62,7 +62,6 @@ namespace aul::tests {
         EXPECT_EQ(mat0[2], 0);
         EXPECT_EQ(mat0[3], 0);
 
-
         aul::Matrix<int, 2> mat1{{2, 4}};
 
         mat1[0][0] = 1;

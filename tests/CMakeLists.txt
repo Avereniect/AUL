@@ -14,3 +14,6 @@ add_executable(AUL_TESTS ./AUL_tests.cpp)
 
 target_link_libraries(AUL_TESTS PUBLIC AUL gtest gtest_main pthread)
 target_compile_features(AUL_TESTS PRIVATE cxx_std_17)
+
+target_compile_options(AUL_TESTS PRIVATE "-fsanitize=address")
+target_link_options(AUL_TESTS PRIVATE "-fsanitize=address")

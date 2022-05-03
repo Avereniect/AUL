@@ -8,8 +8,33 @@
 #include <cstdarg>
 #include <type_traits>
 #include <array>
+#include <limits>
 
 namespace aul {
+
+    template<class Int, class...Ints>
+    struct widest_int {
+    private:
+
+        static constexpr bool c =
+            std::numeric_limits<Int>::digits >
+            std::numeric_limits<typename widest_int<Ints...>::type>::digits;
+
+    public:
+
+        using type = typename std::conditional_t<c, Int, typename widest_int<Ints...>::type>;
+
+    };
+
+    template<class Int>
+    struct widest_int<Int> {
+        static_assert(std::is_integral_v<Int> && std::is_signed_v<Int>);
+        using type = Int;
+    };
+
+    template<class...Ints>
+    using widest_int_t = typename widest_int<Ints...>::type;
+
 
     template<class...T>
     constexpr bool are_equal(T&&...values) {
