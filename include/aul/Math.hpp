@@ -15,6 +15,7 @@ namespace aul {
     //=====================================================
 
     template<class T>
+    [[nodiscard]]
     T divide_ceil(T x, T y) {
         static_assert(std::is_unsigned_v<T>);
         T whole = x / y;
@@ -23,6 +24,45 @@ namespace aul {
 
         return whole + partial;
     }
+
+    /*
+    ///
+    /// \tparam T Integer type
+    /// \param x numerator factor
+    /// \param y numerator factor
+    /// \param z denominator
+    /// \return {x * y / z, x * y % z} if the result can be represented by an
+    /// object of type T
+    template<class T>
+    [[nodiscard]]
+    std::array<T, 2> div_mul(T x, T y, T z) {
+        T a = std::max(x, y);
+        T b = std::min(x, y);
+
+
+
+        // o = a + b
+        difference_type b = o % CHAR_BIT;
+        difference_type a = o - b;
+
+        // a = x * bits_per_element + y;
+        difference_type x = a / bits_per_element;
+        difference_type y = a % bits_per_element;
+
+        static_assert(sizeof(std::ptrdiff_t) >= sizeof(T));
+        // This could still technically overflow if std::ptrdiff_t is not at
+        // least as large as bits_per_element, as unlikely as that would be.
+        std::ptrdiff_t partial = size * y + size * b;
+        std::ptrdiff_t whole   = size * x;
+
+        partial += offset;
+        whole += (partial / ptrdiff_t(bits_per_element));
+        partial = (partial % ptrdiff_t(bits_per_element));
+
+        ptr += whole;
+        offset = partial;
+    }
+    */
     
     template<class U, class T>
     constexpr U normalize_int(const T x) {
@@ -31,76 +71,6 @@ namespace aul {
 
         constexpr U temp = std::numeric_limits<T>::max();
         return U(x) / static_cast<U>(temp);
-    }
-
-    //=====================================================
-    // Simple hash
-    //=====================================================
-
-    ///
-    /// http://burtleburtle.net/bob/c/lookup3.c
-    /// https://github.com/imageworks/OpenShadingLanguage/blob/ffc5303dcfd63cf395d3a1b6fbf6ca3894b44d5e/src/include/OSL/oslnoise.h
-    ///
-    template<class T>
-    constexpr std::uint32_t byte_hash32(const T* data, const std::size_t n) {
-        auto mix = [] (uint32_t& a, uint32_t& b, uint32_t& c) {
-            a -= c; a ^= aul::rotl(c, 4);  c += b;
-            b -= a;  b ^= aul::rotl(a, 6);  a += c;
-            c -= b;  c ^= aul::rotl(b, 8);  b += a;
-            a -= c;  a ^= aul::rotl(c,16);  c += b;
-            b -= a;  b ^= aul::rotl(a,19);  a += c;
-            c -= b;  c ^= aul::rotl(b, 4);  b += a;
-        };
-
-        auto final = [] (const uint32_t& x, const uint32_t& y, const uint32_t& z) -> int32_t {
-            uint32_t a = x;
-            uint32_t b = y;
-            uint32_t c = z;
-
-            c ^= b; c -= aul::rotl(b,14);
-            a ^= c; a -= aul::rotl(c,11);
-            b ^= a; b -= aul::rotl(a,25);
-            c ^= b; c -= aul::rotl(b,16);
-            a ^= c; a -= aul::rotl(c,4);
-            b ^= a; b -= aul::rotl(a,14);
-            c ^= b; c -= aul::rotl(b,24);
-            return c;
-        };
-
-        const char* ptr = reinterpret_cast<const char*>(data);
-        uint32_t a = 0xdeadbeef + n + 13;
-        uint32_t b = a;
-        uint32_t c = a;
-        uint32_t length = n;
-
-        while(length > 3) {
-            a += ptr[0];
-            b += ptr[1];
-            c += ptr[2];
-
-            mix(a, b, c);
-            length -= 3;
-            ptr += 3;
-        }
-
-        switch (length) {
-            case 3:
-                c += ptr[2];
-            case 2:
-                b += ptr[1];
-            case 1:
-                a += ptr[0];
-                c = final(a, b, c);
-            default:
-                ; //Do nothing
-        }
-
-        return c;
-    }
-
-    template<class T>
-    constexpr std::uint32_t byte_hash32(const T& data) {
-        return byte_hash32(std::addressof(data), sizeof(data));
     }
 
     //=====================================================
