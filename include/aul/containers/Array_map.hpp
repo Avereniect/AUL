@@ -3,6 +3,7 @@
 
 #include "Random_access_iterator.hpp"
 #include "Allocator_aware_base.hpp"
+#include "Multispan.hpp"
 
 #include "../memory/Memory.hpp"
 #include "../Algorithms.hpp"
@@ -1048,6 +1049,20 @@ namespace aul {
             return allocation.keys;
         }
 
+        ///
+        /// \return Span over key array
+        ///
+        [[nodiscard]]
+        aul::Span<key_type> keys() const noexcept {
+            return {allocation.keys, elem_count};
+        }
+
+        [[nodiscard]]
+        aul::Span<value_type> values() const noexcept {
+            return {allocation.vals, elem_count};
+        }
+
+        /*
         #if __cplusplus >= 202002L
         ///
         /// \return Span over key array
@@ -1062,6 +1077,7 @@ namespace aul {
             return {allocation.vals, elem_count};
         }
         #endif
+        */
 
     private:
 
