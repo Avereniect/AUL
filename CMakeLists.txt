@@ -22,5 +22,9 @@ add_library(AUL INTERFACE)
 target_include_directories(AUL INTERFACE ./include/)
 target_compile_features(AUL INTERFACE cxx_std_17)
 
-add_subdirectory(./tests/  EXCLUDE_FROM_ALL)
-add_subdirectory(./external/googletest/  EXCLUDE_FROM_ALL)
+option(AUL_BUILD_TESTS OFF)
+
+if (AUL_BUILD_TESTS)
+    add_subdirectory(./tests/  EXCLUDE_FROM_ALL)
+    add_subdirectory(./external/googletest/  EXCLUDE_FROM_ALL)
+endif()
