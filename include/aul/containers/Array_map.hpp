@@ -400,11 +400,11 @@ namespace aul {
         }
 
         std::pair<iterator, bool> insert(const key_type& key, const value_type&& val) {
-            return emplace(key, std::forward(val));
+            return emplace(key, std::forward<value_type>(val));
         }
 
         std::pair<iterator, bool> insert(const key_type&& key, const value_type& val) {
-            return emplace(std::forward(key), val);
+            return emplace(std::forward<key_type>(key), val);
         }
 
         std::pair<iterator, bool> insert(const key_type&& key, const value_type&& val) {
