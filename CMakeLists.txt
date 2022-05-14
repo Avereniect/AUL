@@ -20,7 +20,7 @@ project(
 add_library(AUL INTERFACE)
 
 target_include_directories(AUL INTERFACE ./include/)
-target_compile_features(AUL INTERFACE cxx_std_17)
+target_compile_features(AUL INTERFACE cxx_std_11)
 
 option(AUL_BUILD_TESTS OFF)
 
