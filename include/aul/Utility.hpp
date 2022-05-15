@@ -28,7 +28,7 @@ namespace aul {
 
     template<class Int>
     struct widest_int<Int> {
-        static_assert(std::is_integral_v<Int> && std::is_signed_v<Int>);
+        static_assert(std::is_integral<Int>::value && std::is_signed<Int>::value, "");
         using type = Int;
     };
 
@@ -36,19 +36,20 @@ namespace aul {
     using widest_int_t = typename widest_int<Ints...>::type;
 
 
-    template<class...T>
-    constexpr bool are_equal(T&&...values) {
-        return (values == ...);
+
+    template<class T, class U, class...Args>
+    constexpr bool are_equal(T&& t, U&& u, Args...args) {
+        return (t == u) && are_equal(u, args...);
     }
 
-    template<>
-    constexpr bool are_equal<>() {
-        return true;
+    template<class T, class U>
+    constexpr bool are_equal(T&& t, U&& u) {
+        return (t == u);
     }
 
 
 
-    template<class T, class...U>
+    template<class T, class...Args>
     struct first_type {
         using type = T;
     };
@@ -58,13 +59,14 @@ namespace aul {
 
 
 
-    template<class...Args>
+    template<class T, class...Args>
     struct last_type {
+        using type = typename last_type<Args...>::type;
+    };
 
-        template<class T>
-        struct identity {using type = T;};
-
-        using type = typename decltype((identity<Args>{}, ...))::type;
+    template<class T>
+    struct last_type<T> {
+        using type = T;
     };
 
     template<class...Args>
@@ -72,34 +74,40 @@ namespace aul {
 
 
 
-    template<class T = void, class...Args>
-    struct are_same_types : public std::bool_constant<
-        std::is_same_v<T, typename first_type<Args...>::type> && are_same_types<Args...>::value
-    > {};
-
-    template<class T>
-    struct are_same_types<T> : public std::bool_constant<true> {};
-
-    template<class...Args>
-    constexpr static bool are_same_types_v = are_same_types<Args...>::value;
-
-
-
-    template<class T, class...Args>
-    struct are_convertible_to : public std::bool_constant<
-        std::is_convertible_v<T, last_type_t<Args...>> && are_convertible_to<Args...>::value
+    template<class T, class U, class...Args>
+    struct are_same_types : public std::integral_constant<
+        int,
+        std::is_same<T, U>::value && are_same_types<U, Args...>::value
     > {};
 
     template<class T, class U>
-    struct are_convertible_to<T, U> : public std::bool_constant<std::is_convertible_v<T, U>> {};
+    struct are_same_types<T, U> : public std::integral_constant<int, std::is_same<T, U>::value> {};
 
+
+    #if __cplusplus >= 201703L
+    template<class...Args>
+    constexpr static bool are_same_types_v = are_same_types<Args...>::value;
+    #endif
+
+
+    template<class T, class U, class...Args>
+    struct are_convertible_to : public std::integral_constant<
+        int,
+        std::is_convertible<T, U>::value && are_convertible_to<T, Args...>::value
+    > {};
+
+    template<class T, class U>
+    struct are_convertible_to<T, U> : public std::integral_constant<int, std::is_convertible<T, U>::value> {};
+
+    #if __cplusplus >= 201703L
     template<class...Args>
     constexpr static bool are_convertible_to_v = are_convertible_to<Args...>::value;
+    #endif
 
 
     template<std::size_t N, class...Args>
-    struct is_homogenous_N : public std::bool_constant<
-        aul::are_same_types_v<Args...> && (sizeof...(Args) == N)
+    struct is_homogenous_N : public std::integral_constant<int,
+        aul::are_same_types<Args...>::value && (sizeof...(Args) == N)
     > {};
 
     template<std::size_t N, class...Args>
@@ -108,7 +116,7 @@ namespace aul {
 
 
     template<std::size_t N, class...Args>
-    using enable_if_homogenous_N = std::enable_if_t<aul::is_homogenous_N_v<N, Args...>>;
+    using enable_if_homogenous_N = typename std::enable_if<aul::is_homogenous_N_v<N, Args...>>::type;
 
     template<std::size_t N, class...Args>
     using enable_if_homogenous_N_t = enable_if_homogenous_N<N, Args...>;
@@ -126,9 +134,9 @@ namespace aul {
     template<std::size_t N, class...Args>
     [[nodiscard]]
     auto array_from(Args...args) {
-        static_assert(N != 0);
-        static_assert(sizeof...(Args) == N);
-        static_assert(are_convertible_to_v<std::decay_t<Args>..., std::decay_t<first_type_t<Args...>>>);
+        static_assert(N != 0, "");
+        static_assert(sizeof...(Args) == N, "");
+        static_assert(are_convertible_to<std::decay_t<first_type_t<Args...>>, std::decay_t<Args>...>::value, "");
 
         using U = typename std::decay_t<first_type_t<Args...>>;
 
@@ -139,9 +147,9 @@ namespace aul {
     template<std::size_t N, class T, class...Args>
     [[nodiscard]]
     auto array_from_T(Args...args) {
-        static_assert(N != 0);
-        static_assert(sizeof...(Args) == N);
-        static_assert(are_convertible_to_v<std::decay_t<Args>..., T>);
+        static_assert(N != 0, "");
+        static_assert(sizeof...(Args) == N, "");
+        static_assert(are_convertible_to<T, std::decay_t<Args>...>::value, "");
 
         std::array<T, N> ret{static_cast<T>(args)...};
         return ret;
@@ -165,6 +173,12 @@ namespace aul {
         Array_and_value<N, T, U> ret = {args...};
         return std::pair<std::array<T, N>, U>{ret.arr, ret.x};
     }
+
+    template<class T, class...Args>
+    struct sizeof_sum : public std::integral_constant<std::size_t, sizeof(T) + sizeof_sum<Args...>::value> {};
+
+    template<class T>
+    struct sizeof_sum<T> : public std::integral_constant<std::size_t, sizeof(T)> {};
 
 }
 
