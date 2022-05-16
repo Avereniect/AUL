@@ -10,6 +10,8 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <iterator>
+#include <array>
 
 namespace aul {
 
