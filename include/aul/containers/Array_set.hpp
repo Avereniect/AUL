@@ -6,9 +6,11 @@
 #define AUL_ARRAY_SET_HPP
 
 #include "Allocator_aware_base.hpp"
+#include "Random_access_iterator.hpp"
 
 #include "../Algorithms.hpp"
 #include "../memory/Allocation.hpp"
+#include "../memory/Memory.hpp"
 
 #include <functional>
 #include <memory>
@@ -43,8 +45,8 @@ namespace aul {
         using reference = T&;
         using const_reference = const T&;
 
-        using iterator = Array_set_iterator<const_pointer, difference_type>;
-        using const_iterator = Array_set_iterator<const_pointer, difference_type>;
+        using iterator = Random_access_iterator<const_pointer>;
+        using const_iterator = Random_access_iterator<const_pointer>;
 
         using allocator_type = A;
 
@@ -60,18 +62,29 @@ namespace aul {
         // -ctors
         //=================================================
 
+        ///
+        /// \param c Comparator object
+        /// \param alloc Allocator object
         explicit Array_set(const C& c = {}, const allocator_type& alloc = {}):
             base(alloc),
             num_elements(0),
             comparator(c),
             allocation() {}
 
+        ///
+        /// \param alloc Allocator object
         explicit Array_set(const allocator_type& alloc):
             base(alloc),
             num_elements(0),
             comparator(),
             allocation() {}
 
+        ///
+        /// \tparam It Forward iterator type
+        /// \param first Iterator to beginning of range of objects to copy
+        /// \param last Iterator to end of range of objects to copy
+        /// \param c Comparator object
+        /// \param alloc Allocator object
         template<class It>
         Array_set(It first, It last, const C& c = {}, const allocator_type& alloc = {}):
             base(alloc),
@@ -88,6 +101,10 @@ namespace aul {
         Array_set(const Array_set&& other);
         Array_set(const Array_set&& other, const allocator_type& a);
 
+        ///
+        /// \param list Initializer list of objects to copy
+        /// \param c Comparator object
+        /// \param allocator Allocator object
         Array_set(std::initializer_list<T> list, const C& c, const allocator_type& allocator):
             base(allocator),
             num_elements(list.size()),
@@ -138,12 +155,27 @@ namespace aul {
         // Mutators
         //=================================================
 
+        ///
+        /// Provides the strong exception guarantee
+        ///
+        /// \param n Number of elements to reserve space for
         void reserve(size_type n) {
-            if (n <= allocation.capacity ) {
+            if (n <= allocation.capacity) {
                 return;
             }
 
+            //This can also throw, but no handling can be done here
+            allocation_type new_allocation = allocate(n);
 
+            try {
+                aul::uninitialized_copy_n(allocation.ptr, num_elements, new_allocation.ptr);
+            } catch(...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            deallocate(allocation);
+            allocation = std::move(new_allocation);
         }
 
         //=================================================
@@ -151,8 +183,10 @@ namespace aul {
         //=================================================
 
         ///
-        /// \param value
-        /// \return
+        /// \param value New value to insert
+        /// \return Pair consists of iterator to newly inserted element, and
+        ///     boolean indicating whether the new value was successfully
+        ///     inserted
         std::pair<iterator, bool> insert(const value_type& value) {
             iterator it = aul::binary_search(begin(), end(), value, comparator);
 
@@ -169,7 +203,7 @@ namespace aul {
                 //Move over all other elements
                 std::move(it, end() - 1, it + 1);
 
-                // Insert new element
+                // Insert new element via assignment
                 *it = value;
 
                 num_elements += 1;
@@ -178,7 +212,21 @@ namespace aul {
 
             //Handle case where new allocation is necessary
 
-            allocation_type new_allocation = allocate();
+            allocation_type new_allocation = allocate(grow_size(num_elements));
+
+            allocator_type alloc = get_allocator();
+
+            pointer new_elem_location = new_allocation.ptr + (it - begin());
+            construct_element(new_elem_location, value)
+
+            aul::uninitialized_move_n(allocation.ptr, (it - begin()), new_allocation.ptr, alloc);
+            aul::uninitialized_move_n(allocation.ptr + (it - begin()), end - it(), new_elem_location + 1, alloc);
+            aul::destroy_n(allocation.ptr, num_elements, alloc);
+
+            deallocate(allocation);
+            allocation = std::move(new_allocation);
+
+            num_elements += 1;
 
             return {it, true};
         }
@@ -311,7 +359,11 @@ namespace aul {
         //=================================================
 
         ///
-        /// \return
+        /// Compute new allocation size given current size, assuming that a
+        /// single new element way added to the container
+        ///
+        /// \param n Current vector size
+        /// \return New allocation size
         size_type grow_size(size_type n) {
             constexpr size_type max = std::numeric_limits<size_type>::max();
             size_type half_max = max >> 1;
@@ -323,21 +375,36 @@ namespace aul {
             }
         }
 
+        ///
+        /// \param x First object to compare
+        /// \param y Second object to compare
+        /// \return True if both objects compare equal. False otherwise
         bool compare_equal(const_reference x, const_reference y) {
             return !(comparator(x, y) || comparator(x, y));
         }
 
+        ///
+        ///
+        /// \param ptr Pointer to container element to destroy
         void destroy_element(pointer ptr) {
             allocator_type a = base::get_allocator();
             std::allocator_traits<A>::destroy(a, ptr);
         }
 
+        ///
+        /// \tparam Args New element constructor argument types
+        /// \param ptr Pointer to location where new element should be constructed
+        /// \param args New element constructor arguments
         template<class...Args>
         void construct_element(pointer ptr, Args&&...args) {
             allocator_type a = base::get_allocator();
             std::allocator_traits<A>::construct(a, ptr, std::forward<Args>(args)...);
         }
 
+        ///
+        /// \param n New allocation size
+        /// \param allocator Allocator to create allocation with
+        /// \return Newly created allocation
         static allocation_type allocate(size_type n, const allocator_type& allocator) {
             allocation_type ret;
 
@@ -352,11 +419,20 @@ namespace aul {
             return ret;
         }
 
+        ///
+        /// Allocate memory using current this's allocator
+        ///
+        /// \param n New allocation size
+        /// \return Newly created allocation
         allocation_type allocate(size_type n) {
             allocator_type allocator = base::get_allocator();
             return allocate(n, allocator);
         }
 
+        ///
+        /// \param allocation Allocation to deallocate
+        /// \param allocator Allocator from which allocation was made or
+        ///     compatible allocator object
         static void deallocate(allocation_type& allocation, allocator_type& allocator) {
             std::allocator_traits<A>::deallocate(
                 allocator,
@@ -365,6 +441,11 @@ namespace aul {
             );
         }
 
+        ///
+        /// Deallocate previously allocated memory using current this's
+        /// allocator
+        ///
+        /// \param allocation Allocation to deallocate
         void deallocate(allocation_type& allocation) {
             allocator_type allocator = base::get_allocator();
             deallocate(allocation, allocator);
