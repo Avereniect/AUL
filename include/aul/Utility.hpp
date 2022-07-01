@@ -12,6 +12,42 @@
 
 namespace aul {
 
+    /*
+    template<class...>
+    struct types{
+        using type = types;
+    };
+
+    template<class Sig>
+    struct args;
+
+    template<class R, class...Args>
+    struct args<R(Args...)> : public types<Args...> {};
+
+    template<class Sig>
+    using args_t = typename args<Sig>::type;
+    */
+
+    template<typename T, typename = void>
+    struct is_input_iterator : std::false_type{};
+
+
+    template<class T>
+    struct is_input_iterator<T,
+    std::void_t<
+        decltype(++std::declval<T&>()),
+        decltype(*std::declval<T&>()),
+        decltype(std::declval<T&>() == std::declval<T&>())
+    >> : std::true_type {};
+
+
+    #if __cplusplus >= 201402L
+    template<class T>
+    static constexpr bool is_input_iterator_v = is_input_iterator<T>::value;
+    #endif
+
+
+
     template<class Int, class...Ints>
     struct widest_int {
     private:
@@ -84,7 +120,7 @@ namespace aul {
     struct are_same_types<T, U> : public std::integral_constant<int, std::is_same<T, U>::value> {};
 
 
-    #if __cplusplus >= 201703L
+    #if __cplusplus >= 201402L
     template<class...Args>
     constexpr static bool are_same_types_v = are_same_types<Args...>::value;
     #endif
@@ -99,7 +135,7 @@ namespace aul {
     template<class T, class U>
     struct are_convertible_to<T, U> : public std::integral_constant<int, std::is_convertible<T, U>::value> {};
 
-    #if __cplusplus >= 201703L
+    #if __cplusplus >= 201402L
     template<class...Args>
     constexpr static bool are_convertible_to_v = are_convertible_to<Args...>::value;
     #endif
@@ -110,8 +146,10 @@ namespace aul {
         aul::are_same_types<Args...>::value && (sizeof...(Args) == N)
     > {};
 
+    #if __cplusplus >= 201402L
     template<std::size_t N, class...Args>
     constexpr static bool is_homogenous_N_v = is_homogenous_N<N, Args...>::value;
+    #endif
 
 
 
