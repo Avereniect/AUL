@@ -27,7 +27,7 @@ namespace aul {
 
     /*
     ///
-    /// \tparam T Integer type
+    /// \tparam T Integral type
     /// \param x numerator factor
     /// \param y numerator factor
     /// \param z denominator
@@ -35,14 +35,21 @@ namespace aul {
     /// object of type T
     template<class T>
     [[nodiscard]]
-    std::array<T, 2> div_mul(T x, T y, T z) {
-        T a = std::max(x, y);
-        T b = std::min(x, y);
+    std::array<T, 2> mul_div(T x, T y, T z) {
+        using std::max;
+        using std::min;
+        T a = max(x, y);
+        T b = min(x, y);
+        T c = z;
 
+        T t0 = a % c;
+        T t1 = a / c;
 
+        //TODO: Complete implementation
 
+        /*
         // o = a + b
-        difference_type b = o % CHAR_BIT;
+        difference_type b = o %  ;
         difference_type a = o - b;
 
         // a = x * bits_per_element + y;
@@ -50,6 +57,7 @@ namespace aul {
         difference_type y = a % bits_per_element;
 
         static_assert(sizeof(std::ptrdiff_t) >= sizeof(T));
+
         // This could still technically overflow if std::ptrdiff_t is not at
         // least as large as bits_per_element, as unlikely as that would be.
         std::ptrdiff_t partial = size * y + size * b;
@@ -61,6 +69,7 @@ namespace aul {
 
         ptr += whole;
         offset = partial;
+        */
     }
     */
     
@@ -79,7 +88,9 @@ namespace aul {
 
     template<class T>
     T clamp(T x, T lo, T hi) {
-        return std::min(std::max(x, lo), hi);
+        using std::min;
+        using std::max;
+        return min(max(x, lo), hi);
     }
 
 }
