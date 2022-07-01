@@ -470,7 +470,7 @@ namespace aul {
             ptr(std::addressof(*first)) {}
 
         ///
-        /// TODO: This really should change to only support contiguous iterators
+        /// TODO: Relax requirements to something that's dereferenceable
         ///
         /// \tparam It
         /// \tparam End
@@ -480,8 +480,8 @@ namespace aul {
             class It,
             class End,
             class = typename std::enable_if<
-                    aul::is_input_iterator<It>::value &&
-                    aul::is_input_iterator<End>::value
+                    aul::is_dereferenceable<It>::value &&
+                    aul::is_dereferenceable<End>::value
                 >::type
         >
         Multispan_impl(It first, End end):

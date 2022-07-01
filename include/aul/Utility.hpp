@@ -29,8 +29,19 @@ namespace aul {
     */
 
     template<typename T, typename = void>
-    struct is_input_iterator : std::false_type{};
+    struct is_dereferenceable : std::false_type{};
 
+    template<class T>
+    struct is_dereferenceable<T, std::void_t<decltype(*std::declval<T&>())>> : std::true_type {};
+
+    #if __cplusplus >= 201402L
+    template<class T>
+    static constexpr bool is_dereferenceable_v = is_dereferenceable<T>::value;
+    #endif
+
+    /*
+    template<typename T, typename = void>
+    struct is_input_iterator : std::false_type{};
 
     template<class T>
     struct is_input_iterator<T,
@@ -45,6 +56,7 @@ namespace aul {
     template<class T>
     static constexpr bool is_input_iterator_v = is_input_iterator<T>::value;
     #endif
+    */
 
 
 
