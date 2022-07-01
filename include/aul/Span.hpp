@@ -2,11 +2,11 @@
 // Created by avereniect on 1/11/22.
 //
 
-#ifndef AUL_MULTISPAN_HPP
-#define AUL_MULTISPAN_HPP
+#ifndef AUL_SPAN_HPP
+#define AUL_SPAN_HPP
 
-#include "Zipperator.hpp"
-#include "../Utility.hpp"
+#include "aul/containers/Zipperator.hpp"
+#include "Utility.hpp"
 
 #include <cstdint>
 #include <type_traits>
@@ -470,11 +470,20 @@ namespace aul {
             ptr(std::addressof(*first)) {}
 
         ///
+        /// TODO: This really should change to only support contiguous iterators
+        ///
         /// \tparam It
         /// \tparam End
         /// \param first
         /// \param end
-        template<class It, class End>
+        template<
+            class It,
+            class End,
+            class = typename std::enable_if<
+                    aul::is_input_iterator<It>::value &&
+                    aul::is_input_iterator<End>::value
+                >::type
+        >
         Multispan_impl(It first, End end):
             elem_count(std::addressof(*end) - std::addressof(*first)),
             ptr(std::addressof(*first)) {}
@@ -938,4 +947,4 @@ namespace aul {
 
 }
 
-#endif //AUL_MULTISPAN_HPP
+#endif //AUL_SPAN_HPP
