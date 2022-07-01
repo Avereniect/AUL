@@ -3,7 +3,7 @@
 
 #include "Random_access_iterator.hpp"
 #include "Allocator_aware_base.hpp"
-#include "Multispan.hpp"
+#include "../Span.hpp"
 
 #include "../memory/Memory.hpp"
 #include "../Algorithms.hpp"
