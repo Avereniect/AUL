@@ -9,9 +9,8 @@ namespace aul {
     class Allocation {
     public:
 
-        using pointer = std::allocator_traits<A>::pointer;
-
-        using size_type = std::allocator_traits<A>::size_type;
+        using pointer = typename std::allocator_traits<A>::pointer;
+        using size_type = typename std::allocator_traits<A>::size_type;
 
         //=================================================
         // Constructors
