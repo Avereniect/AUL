@@ -5,1148 +5,91 @@
 #ifndef AUL_CIRCULAR_ARRAY_HPP
 #define AUL_CIRCULAR_ARRAY_HPP
 
-#include "../Algorithms.hpp"
-#include "../memory/Memory.hpp"
-
 #include <memory>
 #include <tuple>
 #include <stdexcept>
 #include <initializer_list>
 #include <limits>
 #include <algorithm>
+#include <iterator>
+
+#include <aul/containers/Allocator_aware_base.hpp>
+#include <aul/memory/Allocation.hpp>
+#include <aul/Algorithms.hpp>
+#include <aul/memory/Memory.hpp>
 
 namespace aul {
 
     ///
-    /// A vector-like container which arranges elements within a contiguous
-    /// allocation
+    /// Class meant to be used as aul::Circular_array::iterator.
     ///
-    ///
-    ///
-    /// \tparam T Element type
-    /// \tparam A Allocator type
-    template<class T, class A = std::allocator<T>>
-    class Circular_array {
-    public:
-        template<bool is_const>
-        class Iterator;
-
-    private:
-        class Allocation;
-
+    /// \tparam P Pointer type
+    template<class P>
+    class Circular_array_iterator {
     public:
 
         //=================================================
         // Type aliases
         //=================================================
 
-        using allocator_type = A;
-
-        using value_type = T;
-
-        using reference = T&;
-        using const_reference = const T&;
-
-        using size_type = typename std::allocator_traits<allocator_type>::size_type;
-        using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
-
-        using pointer = typename std::allocator_traits<A>::pointer;
-        using const_pointer = typename std::allocator_traits<A>::const_pointer;
-
-        using iterator = Iterator<false>;
-        using const_iterator = Iterator<true>;
-
-        using reverse_iterator = std::reverse_iterator<iterator>;
-        using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-        //=================================================
-        // -ctors
-        //=================================================
-
-        ///
-        /// Default constructor
-        /// Constructs container holding no elements
-        ///
-        Circular_array() noexcept(noexcept(A{}))= default;
-
-        /// Copy constructor
-        /// \param arr Source object to copy from
-        ///
-        Circular_array(const Circular_array& arr):
-            allocator(std::allocator_traits<A>::select_on_container_copy_construction(arr.allocator)),
-            allocation(allocate(arr.size())),
-            elem_count(arr.elem_count) {
-
-            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
-        }
-
-        /// Allocator extended copy constructor
-        /// \param arr   Source object to copy from
-        /// \param alloc Allocator copy should use
-        Circular_array(const Circular_array& arr, const A& alloc):
-            allocator(alloc),
-            allocation(allocate(arr.size())),
-            elem_count(arr.elem_count) {
-
-            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.array, allocator);
-        }
-
-        ///
-        /// Move constructor
-        /// \param arr T Object to move resources from
-        Circular_array(Circular_array&& arr) noexcept:
-            allocator(std::move(arr.allocator)),
-            allocation(std::move(allocation)),
-            elem_count(arr.elem_count),
-            head_offset(arr.head_offset) {
-
-            arr.elem_count = 0;
-            arr.head_offset = 0;
-        }
-
-        /// Allocator extended move constructor
-        /// \param arr   Object to move resources from
-        /// \param alloc Allocator container should copy
-        Circular_array(Circular_array&& arr, const A& alloc):
-            allocator(alloc),
-            allocation(allocator == arr.allocator ? std::move(arr.allocation) : allocate(arr.size())),
-            elem_count(arr.elem_count),
-            head_offset(allocator == arr.allocator ? arr.head_offset : 0) {
-
-            if (allocator == arr.allocator) {
-                arr.elem_count = 0;
-                arr.head_offset = 0;
-            } else {
-                aul::uninitialized_move(arr.begin(), arr.end(), allocation.array, allocator);
-            }
-        }
-
-        ///
-        /// \param n     Number of elements to default constructor
-        /// \param alloc Allocator containers should copy
-        Circular_array(const size_type n, const A& alloc = {}):
-            allocator(alloc),
-            allocation(allocate(n)),
-            elem_count(n) {
-
-            aul::default_construct(allocation.array, allocation.array + n, allocator);
-        }
-
-        ///
-        /// \param n     Number of elements to construct
-        /// \param val   Object elements should copy from
-        /// \param alloc Allocator container should use
-        Circular_array(const size_type n, const T& val, const A& alloc = {}):
-            allocator(alloc),
-            allocation(allocate(n)),
-            elem_count(n) {
-
-            aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
-        }
-
-        ///
-        /// \param list  List to copy elements from
-        /// \param alloc Allocator container should use
-        Circular_array(const std::initializer_list<T>& list, const A& alloc = {}):
-            allocator(alloc),
-            allocation(allocate(std::distance(list.begin(), list.end()))),
-            elem_count(std::distance(list.begin(), list.end())) {
-
-            aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
-        }
-
-        template<class Iter>
-        Circular_array(Iter from, Iter to, const A& alloc = {}):
-            allocator(alloc),
-            allocation(allocate(std::distance(from, to))),
-            elem_count(std::distance(from, to)) {
-
-            aul::uninitialized_copy(from, to, allocator);
-        }
-
-        ///
-        /// Destructor
-        ///
-        ~Circular_array() {
-            clear();
-        }
-
-        //=================================================
-        // Assignment operators/methods
-        //=================================================
-
-        /// Copy assignment operator
-        /// \param rhs Object to copy resources from
-        /// \return *this
-        Circular_array& operator=(const Circular_array& rhs) {
-            clear();
-
-            //TODO: Provide strong exception guarantee
-            if constexpr (std::allocator_traits<A>::propagate_on_container_copy_assignment::value) {
-                allocator = rhs.allocator;
-            }
-
-            allocation = allocate(rhs.size());
-            head_offset = 0;
-            elem_count = rhs.elem_count;
-
-            const auto segment0 = rhs.first_segment();
-            const auto segment1 = rhs.second_segment();
-
-            const auto segment0_size = segment0.second - segment0.first;
-
-            aul::uninitialized_copy(segment0.first, segment0.second, allocation.array, allocator);
-            aul::uninitialized_copy(segment1.first, segment1.second, allocation.array + segment0_size, allocator);
-
-            return *this;
-        }
-
-        /// Move assignment operator
-        /// \param rhs Object to move resources from
-        /// \return *this
-        Circular_array& operator=(Circular_array&& rhs) noexcept(aul::is_noexcept_movable<A>::value) {
-            clear();
-
-            //TODO: Provide strong exception guarantee
-            if constexpr (std::allocator_traits<A>::propagate_on_container_move_assignment::value) {
-                allocator = std::move(allocator);
-                allocation = std::move(rhs.allocation);
-                head_offset = rhs.head_offset;
-            } else {
-                allocation = allocate(rhs.size());
-                head_offset = 0;
-                aul::uninitialized_move(rhs.begin(), rhs.end(), allocation.array, allocator);
-                rhs.deallocate(rhs.allocation);
-            }
-            elem_count = rhs.elem_count;
-
-            rhs.elem_count = 0;
-            rhs.head_offset = 0;
-
-            return *this;
-        }
-
-        ///
-        /// \param list List to copy elements from
-        /// \return *this
-        Circular_array& operator=(std::initializer_list<T> list) {
-            //TODO: Provide strong exception gaurentee
-            clear();
-
-            elem_count = list.end() - list.begin();
-            allocation = allocate(elem_count);
-            head_offset = 0;
-
-            aul::uninitialized_copy(list.begin(), list.end(), allocation.array, allocator);
-
-            return *this;
-        }
-
-        ///
-        /// \tparam Iter Forward iterator type
-        /// \param from Iterator to beginning of range
-        /// \param to   Iterator to end of range
-        template<class Iter>
-        void assign(Iter from, Iter to) {
-            //TODO: Provide strong exception guarantee
-            clear();
-
-            elem_count = std::distance(from, to);
-            allocation = allocate(elem_count);
-            head_offset = 0;
-
-            aul::uninitialized_copy(from, to, allocation.array, allocator);
-        }
-
-        ///
-        /// \param list List to copy elements from
-        ///
-        void assign(const std::initializer_list<T> list) {
-            assign(list.begin(), list.end());
-        }
-
-        ///
-        /// \param n   Number of elements to fill container with
-        /// \param val Value to fill container with
-        void assign(const size_type n, const T& val) {
-            //TODO: Provide strong exception guarantee
-
-            clear();
-
-            elem_count = n;
-            allocation = allocate(n);
-            head_offset = 0;
-
-            aul::uninitialized_fill(allocation.array, allocation.array + n, val, allocator);
-        }
-
-        //=================================================
-        // Iterator methods
-        //=================================================
-
-        iterator begin() {
-            if (empty()) {
-                return iterator{};
-            } else {
-                return iterator{
-                    static_cast<difference_type>(head_offset - capacity()),
-                    allocation.array,
-                    allocation.array + capacity()
-                };
-            }
-        }
-
-        const_iterator begin() const {
-            if (empty()) {
-                return const_iterator{};
-            } else {
-                return const_iterator {
-                    static_cast<difference_type>(head_offset - capacity())  ,
-                    allocation.array,
-                    allocation.array + capacity()
-                };
-            }
-        }
-
-        const_iterator cbegin() const {
-            return const_cast<const Circular_array&>(*this).begin();
-        }
-
-        iterator end() {
-            if (empty()) {
-                return iterator{};
-            } else {
-                return iterator{
-                    static_cast<difference_type>(head_offset - capacity() + size()),
-                    allocation.array,
-                    allocation.array + capacity()
-                };
-            }
-        }
-
-        const_iterator end() const {
-            if (empty()) {
-                return const_iterator{};
-            }
-            else {
-                return const_iterator{
-                    static_cast<difference_type>(head_offset - capacity() + size()),
-                    allocation.array,
-                    allocation.array + capacity()
-                };
-            }
-        }
-
-        const_iterator cend() const {
-            return const_cast<const Circular_array&>(*this).end();
-        }
-
-
-
-        reverse_iterator rbegin() {
-            return reverse_iterator{end()};
-        }
-
-        const_reverse_iterator rbegin() const {
-            return const_reverse_iterator{end()};
-        }
-
-        const_reverse_iterator crbegin() const {
-            return const_cast<const Circular_array&>(*this).rbegin();
-        }
-
-        reverse_iterator rend() {
-            return reverse_iterator{begin()};
-        }
-
-        const_reverse_iterator rend() const {
-            return const_reverse_iterator{begin()};
-        }
-
-        const_reverse_iterator crend() const {
-            return const_cast<const Circular_array&>(*this).rend();
-        }
-
-        //=================================================
-        // Element accessors
-        //=================================================
-
-        ///
-        /// Undefined behavior if container is empty
-        ///
-        /// \return Reference to first element
-        T& front() {
-            return allocation.array[head_offset];
-        }
-
-        ///
-        /// Undefined behavior if container is empty
-        ///
-        /// \return Const reference to first element
-        const T& front() const {
-            return allocation.array[head_offset];
-        }
-
-        ///
-        /// Undefined behavior if container is empty
-        ///
-        /// \return Reference to last element
-        T& back() {
-            return *index_to_ptr(elem_count);
-        }
-
-        ///
-        /// Undefined behavior if container is empty
-        ///
-        /// \return Const reference to last element
-        const T& back() const {
-            return *index_to_ptr(elem_count);
-        }
-
-        ///
-        /// \param i Index of element
-        /// \return Reference to ith element
-        T& operator[](const size_type i) {
-            return *index_to_ptr(i);
-        }
-
-        const T& operator[](const size_type i) const {
-            return *index_to_ptr(i);
-        }
-
-        T& at(const size_type i) {
-            if (size() <= i) {
-                throw std::out_of_range("Circular_array::at() called with invalid index");
-            }
-            return *index_to_ptr(i);
-        }
-
-        const T& at(const size_type i) const {
-            if (size() <= i) {
-                throw std::out_of_range("Circular_array::at() called with invalid index");
-            }
-            return *index_to_ptr(i);
-        }
-
-        //=================================================
-        // Element addition
-        //=================================================
-
-        ///
-        /// Provides the strong exception guarantee.
-        ///
-        /// \tparam Args
-        /// \param p
-        /// \param args
-        template<class...Args>
-        iterator emplace(const_iterator p, Args...args) {
-            iterator pos = iterator{p.offset, const_cast<pointer>(p.begin), const_cast<pointer>(p.end)};
-            size_type left_count = p - cbegin();
-            size_type right_count = cend() - pos;
-
-            if (size() < capacity()) {
-                auto pos_ptr = pos.operator->();
-                auto pos_index = pos - begin();
-
-                if (pos == begin()) {
-                    //No elements need to be moved. Adjust head offset and pointer
-                    if (pos_ptr == allocation.array) {
-                        pos_ptr = allocation.array + allocation.capacity;
-                        head_offset = allocation.capacity - 1;
-                    } else {
-                        --pos_ptr;
-                        --head_offset;
-                    }
-                } else {
-                    //Move other elements out of the way
-                    if (left_count < right_count) {
-                        rotl_elements(index_to_ptr(head_offset), index_to_ptr(pos_index), -1);
-                    } else {
-                        rotr_elements(index_to_ptr(head_offset), index_to_ptr(size()), 1);
-                    }
-                }
-
-                //Construct new element
-                try {
-                    std::allocator_traits<A>::construct(allocator, pos_ptr, std::forward<Args>(args)...);
-                } catch (...) {
-
-                    //Move elements back if failed to construct
-                    if (left_count < right_count) {
-                        if (left_count) {
-                            rotr_elements(index_to_ptr(head_offset -1), index_to_ptr(pos_index - 1), 1);
-                        }
-                    } else {
-                        if (right_count) {
-                            rotl_elements(index_to_ptr(pos_index + 1), index_to_ptr(size() + 1), -1);
-                        }
-                    }
-
-                    throw;
-                }
-
-            } else {
-                //Memory is unavailable. Make new allocation
-                Allocation new_allocation = allocate(grow_size(size() + 1));
-
-                //Construct new element
-                if (empty() && begin() == pos) {
-                    std::allocator_traits<A>::construct(allocator, new_allocation.array, std::forward<Args>(args)...);
-                } else {
-                    pointer ptr = new_allocation.array + (pos.operator->() - allocation.array);
-                    std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
-
-                    //Move left elements
-                    aul::uninitialized_move(begin(), pos, allocation.array, allocator);
-
-                    //Move right elements
-                    aul::uninitialized_move(pos, end(), ptr + 1, allocator);
-                    aul::destroy(begin(), end(), allocator);
-                }
-
-                //Free old allocation and replace
-                deallocate(allocation);
-                allocation = std::move(new_allocation);
-            }
-
-            elem_count++;
-            return pos;
-        }
-
-        iterator insert(const_iterator pos, const T& val) {
-            return emplace(pos, val);
-        }
-
-        iterator insert(const_iterator pos, T&& val) {
-            return emplace(pos, val);
-        }
-
-        iterator insert(const_iterator pos, const size_type n, const T& val);
-
-        template<class Iter>
-        iterator insert(const_iterator pos, Iter from, Iter to);
-
-        iterator insert(const_iterator pos, const std::initializer_list<value_type>& list) {
-            return insert(pos, list.begin(), list.end());
-        }
-
-        ///
-        /// Provides strong-exception guarantee
-        ///
-        /// \tparam Args Types taken by object constructor
-        /// \param args Arguments to constructor of new object
-        template<class...Args>
-        void emplace_front(Args...args) {
-            if (size() > max_size() - 1) {
-                throw std::length_error("aul::Circular_array grew beyond max size");
-            }
-
-            if (size() + 1 <= capacity()) {
-                pointer ptr = (begin() - 1).operator->();
-
-                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
-
-                head_offset = ptr - allocation.array;
-            } else {
-                size_type new_capacity = grow_size(size() + 1);
-                Allocation new_allocation = allocate(new_capacity);
-
-                difference_type new_offset = new_allocation.capacity - size() - 1;
-                pointer ptr = new_allocation.array + new_offset;
-
-                try {
-                    std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
-                } catch (...) {
-                    deallocate(new_allocation);
-                    throw;
-                }
-
-                aul::uninitialized_move(begin(), end(), ptr + 1, allocator);
-
-                head_offset = new_offset;
-
-                deallocate(allocation);
-                allocation = std::move(new_allocation);
-            }
-            elem_count++;
-        }
-
-        void push_front(const T& val) {
-            emplace_front(val);
-        }
-
-        void push_front(T&& val) {
-            emplace_front(std::forward<T&&>(val));
-        }
-
-        ///
-        /// Provides strong-exception guarantee
-        ///
-        /// \tparam Args
-        /// \param args
-        template<class...Args>
-        void emplace_back(Args...args) {
-            if (size() > max_size() - 1) {
-                throw std::length_error("aul::Circular_array grew beyond max size");
-            }
-
-            if (size() + 1 <= capacity()) {
-                pointer ptr = end().operator->();
-
-                std::allocator_traits<A>::construct(allocator, ptr, std::forward<Args>(args)...);
-            } else {
-                size_type new_capacity = grow_size(size() + 1);
-                Allocation new_allocation = allocate(new_capacity);
-
-                try {
-                    std::allocator_traits<A>::construct(allocator, new_allocation.array + size(), std::forward<Args>(args)...);
-                } catch (...) {
-                    deallocate(new_allocation);
-                    throw;
-                }
-
-                aul::uninitialized_move(begin(), end(), new_allocation.array, allocator);
-
-                head_offset = 0;
-
-                deallocate(allocation);
-                allocation = std::move(new_allocation);
-            }
-            elem_count++;
-        }
-
-        void push_back(const T& val) {
-            emplace_back(val);
-        }
-
-        void push_back(T&& val) {
-            emplace_back(std::forward<T&&>(val));
-        }
-
-        //=================================================
-        // Element removal
-        //=================================================
-
-        ///
-        /// Removes the first element in the container. Undefined behavior if
-        /// container is empty.
-        ///
-        void pop_front() {
-            pointer ptr = begin().operator->();
-            std::allocator_traits<A>::destroy(allocator, ptr);
-
-            ++head_offset;
-            if (head_offset == capacity()) {
-                head_offset = 0;
-            }
-
-            --elem_count;
-        }
-
-        ///
-        /// Removes the last element in the container. Undefined behavior if
-        /// container is empty.
-        ///
-        void pop_back() {
-            pointer ptr = (end() - 1).operator->();
-            std::allocator_traits<A>::destroy(allocator, ptr);
-            --elem_count;
-        }
-
-
-        ///
-        /// Undefined behavior if pos does not point to an element
-        ///
-        /// \param pos Iterator to element to remove.
-        ///
-        void erase(const_iterator pos) {
-            size_type left = pos - begin();
-            size_type right = cend() - pos - 1;
-
-            if (left < right) {
-                for (auto it = begin(); static_cast<const_iterator>(it) != pos; ++it) {
-                    it[-1] = it[0];
-                }
-                std::allocator_traits<allocator_type>::destroy(allocator, begin().operator->());
-            } else {
-                for (auto it = end() - 1; it++ != it;) {
-                    it[0] = it[1];
-                }
-                std::allocator_traits<allocator_type>::destroy(allocator, (end() - 1).operator->());
-            }
-            --elem_count;
-        }
-
-        ///
-        /// \param from
-        /// \param to
-        void erase(const_iterator from, const_iterator to);
-
-        //=================================================
-        // State Mutators
-        //=================================================
-
-        ///
-        ///
-        ///
-        void reserve(const size_type n) {
-            if (n <= size()) {
-                return;
-            }
-
-            if (max_size() < n) {
-                throw std::length_error("aul::Circular_array::reserve() called with excessive allocation size");
-            }
-
-            Allocation new_allocation = allocate(n, allocation);
-
-            if (new_allocation.array == allocation.array) {
-                //Allocation was extended
-                if(is_segmented()) {
-                    auto [l, r] = second_segment();
-                    aul::uninitialized_move(l,r, new_allocation.array + new_allocation.capacity - (r - l), allocator);
-                    for (;l != r; ++l) {
-                        std::allocator_traits<allocator_type>::destroy(allocator, l);
-                    }
-                }
-            } else {
-                //Completely new allocation
-                auto [l0, r0] = first_segment();
-                auto [l1, r1] = second_segment();
-
-                pointer dest = new_allocation.array + capacity() / 2 - size() / 2;
-
-                aul::uninitialized_move(l0, r0, dest, allocator);
-                aul::uninitialized_move(l1, r1, dest + (r0 - l0), allocator);
-            }
-
-            allocation = std::move(new_allocation);
-        }
-
-        //=================================================
-        // State accessors
-        //=================================================
-
-        [[nodiscard]]
-        bool empty() const {
-            return elem_count == 0;
-        }
-
-        [[nodiscard]]
-        size_type size() const {
-            return elem_count;
-        }
-
-        [[nodiscard]]
-        size_type max_size() const {
-            auto type_max = static_cast<size_type>(
-                std::numeric_limits<difference_type>::max()
-            );
-
-            const size_type max_allocation = std::allocator_traits<A>::max_size(allocator);
-
-            return std::min(max_allocation, type_max);
-        }
-
-        [[nodiscard]]
-        size_type capacity() const {
-            return allocation.capacity;
-        }
-
-        [[nodiscard]]
-        allocator_type get_allocator() const {
-            return allocator;
-        }
-
-        [[nodiscard]]
-        std::tuple<pointer, pointer, pointer, pointer> data() {
-            const auto segment0 = first_segment();
-            const auto segment1 = second_segment();
-            return {segment0.first, segment0.second, segment1.first, segment1.second};
-        }
-
-        [[nodiscard]]
-        std::tuple<const_pointer, const_pointer, const_pointer, const_pointer> data() const {
-            const auto segment0 = first_segment();
-            const auto segment1 = second_segment();
-            return {segment0.first, segment0.second, segment1.first, segment1.second};
-        }
-
-        //=================================================
-        // Misc. methods
-        //=================================================
-
-        ///
-        /// Destroys all elements and frees currently held allocation
-        ///
-        void clear() {
-            if (!empty()) {
-                auto [l0, r0] = first_segment();
-                for (;l0 != r0; ++l0) {
-                    std::allocator_traits<allocator_type>::destroy(allocator, l0);
-                }
-
-                auto [l1, r1] = second_segment();
-                for (;l1 != r1; ++l1) {
-                    std::allocator_traits<allocator_type>::destroy(allocator, l1);
-                }
-
-            }
-
-            if (capacity() != 0) {
-                deallocate(allocation);
-            }
-
-            elem_count = 0;
-            head_offset = 0;
-        }
-
-    private:
-
-        //=================================================
-        // Instance members
-        //=================================================
-
-        Allocation allocation{};
-
-        allocator_type allocator{};
-
-        difference_type head_offset{};
-
-        size_type elem_count{};
-
-        //=================================================
-        // Helper functions
-        //=================================================
-
-        ///
-        /// \param n Index of object to get pointer to
-        /// \return Pointer to nth element
-        pointer index_to_ptr(const size_type n) const {
-            if (is_segmented()) {
-                return allocation.array + size() - capacity() + head_offset;
-            } else {
-                return allocation.array + n;
-            }
-        }
-
-        ///
-        /// \param n Minimum number of elements to allocate storage for
-        /// \return Size of new allocation
-        size_type grow_size(size_type n) {
-            if (n < max_size() / 2) {
-                return std::max(2 * capacity(), n);
-            } else {
-                return max_size();
-            }
-        }
-
-        //=================================================
-        // Meta helpers
-        //=================================================
-
-        ///
-        /// \return True if elements wrap around after reaching end of
-        /// allocation.
-        [[nodiscard]]
-        bool is_segmented() const {
-            return static_cast<difference_type>(size()) > (capacity() - head_offset);
-        }
-
-        [[nodiscard]]
-        std::pair<pointer, pointer> first_segment() {
-            if (is_segmented()) {
-                return {allocation.array + head_offset, allocation.array + capacity()};
-            }
-            else {
-                return {allocation.array + head_offset, allocation.array + head_offset + size()};
-            };
-        }
-
-        [[nodiscard]]
-        std::pair<const_pointer, const_pointer> first_segment() const {
-            if (is_segmented()) {
-                return {allocation.array + head_offset, allocation.array + capacity()};
-            }
-            else {
-                return {allocation.array + head_offset, allocation.array + head_offset + size()};
-            };
-        }
-
-        [[nodiscard]]
-        std::pair<pointer, pointer> second_segment() {
-            if (is_segmented()) {
-                return {
-                    allocation.array,
-                    allocation.array + head_offset - capacity() + size()
-                };
-            } else {
-                return {pointer{}, pointer{}};
-            }
-        }
-
-        [[nodiscard]]
-        std::pair<const_pointer, const_pointer> second_segment() const {
-            if (is_segmented()) {
-                return {
-                    allocation.array,
-                    allocation.array + head_offset - capacity() + size()
-                };
-            }
-            else {
-                return { pointer{}, pointer{} };
-            }
-        }
-
-        //=================================================
-        // Allocation methods
-        //=================================================
-
-        [[nodiscard]]
-        Allocation allocate(const size_type n) {
-            Allocation alloc{};
-
-            try {
-                alloc.array = std::allocator_traits<allocator_type>::allocate(allocator, n);
-                alloc.capacity = n;
-            } catch (...) {
-                alloc = {};
-                throw;
-            }
-
-            return alloc;
-        }
-
-        [[nodiscard]]
-        Allocation allocate(const size_type n, const Allocation& hint) {
-            Allocation alloc{};
-
-            try {
-                alloc.array = std::allocator_traits<allocator_type>::allocate(allocator, n, hint.array);
-                alloc.capacity = n;
-            } catch (...) {
-                alloc = {};
-                throw;
-            }
-
-            return alloc;
-        }
-
-        void deallocate(Allocation& alloc) {
-            std::allocator_traits<allocator_type>::deallocate(allocator, alloc.array, alloc.capacity);
-            alloc = {};
-        }
-
-        //=================================================
-        // Element construction/destruction
-        //=================================================
-
-        /*
-        ///
-        /// Move the elements in the range of [from, to) by a number of indices
-        /// equal to offset. Handles constructing new objects and destroying
-        /// moved from objects. Assumes that the memory cells which are being
-        /// moved into are uninitialized.
-        ///
-        /// \param a Index of first element to move
-        /// \param b Index of one past last element to move
-        /// \param o Offset to apply to element location. Must be less than capacity
-        void move_elements(difference_type a, difference_type b, const difference_type o) {
-            //Const propagation may eliminate conditional branch
-            if (o < 0) {
-                move_elements_back(index_to_ptr(a), index_to_ptr(b), o);
-            } else {
-                rotr_elements(index_to_ptr(a), index_to_ptr(b), o);
-            }
-        }
-         */
-
-        ///
-        /// \param a Pointer to begining of range
-        /// \param b Pointer to end of range
-        /// \param o Negative offset.
-        void rotl_elements(pointer a, pointer b, const difference_type o) {
-            auto pointer_decrementer = [this] (pointer ptr, const difference_type n) {
-                difference_type index = ptr - allocation.array;
-                if (-index < n) {
-                    return ptr + n;
-                } else {
-                    return allocation.array + (allocation.capacity - (index + n));
-                }
-            };
-
-            const difference_type n = (b - a);
-            const difference_type construct_n = o;
-            const difference_type assign_n = n - construct_n;
-
-            //Move objects via construction
-
-            for (pointer ptr = a; ptr != b; ++ptr) {
-                if (ptr == allocation.array + allocation.capacity) {
-                    ptr = allocation.array;
-                }
-                const pointer dest = pointer_decrementer(ptr, o);
-                std::allocator_traits<A>::construct(allocator, dest, std::move(*ptr));
-            }
-
-            //Move objects via assignment
-            for (pointer ptr = b - assign_n; ptr != b; ++ptr) {
-                if (ptr == allocation.array + allocation.capacity) {
-                    ptr = allocation.array;
-                }
-                pointer dest = pointer_decrementer(ptr, o);
-                *dest = std::move(*ptr);
-            }
-
-            //Destroy moved from elements
-            for (pointer ptr = b - construct_n; ptr != b; ++ptr) {
-                if (ptr == allocation.array + allocation.capacity) {
-                    ptr = allocation.array;
-                }
-                std::allocator_traits<A>::destroy(allocator, ptr);
-            }
-        }
-
-        void rotr_elements(pointer a, pointer b, const difference_type o) {
-            auto pointer_incrementer = [this] (pointer ptr, const difference_type n) {
-                difference_type index = ptr - allocation.head;
-                if (index < capacity() - n) {
-                    return ptr + n;
-                } else {
-                    return ptr - (capacity() - index);
-                }
-            };
-
-            const difference_type n = (b - a);
-            const difference_type construct_n = o;
-            const difference_type assign_n = n - construct_n;
-
-            //Move objects via construction
-            for (difference_type i = construct_n; i -- > 0;) {
-                const pointer from = a + i;
-                const pointer dest = pointer_incrementer(from, o);
-                std::allocator_traits<A>::construct(allocator, dest, std::move(*from));
-            }
-
-            //Move objects via assignment
-            for (pointer ptr = b; ptr != b; --ptr) {
-                pointer dest = pointer_incrementer(ptr, o);
-                *dest = std::move(*ptr);
-            }
-
-        }
-
-    };
-
-
-
-    template<class T, class A>
-    template<bool is_const>
-    class Circular_array<T, A>::Iterator {
-    public:
-        friend class aul::Circular_array<T, A>;
-
-        //=================================================
-        // Type aliases
-        //=================================================
-
-        using value_type = typename Circular_array<T, A>::value_type;
-        using difference_type = typename Circular_array<T, A>::difference_type;
-
-        using reference  = std::conditional_t<is_const,
-            typename Circular_array<T, A>::const_reference,
-            typename Circular_array<T, A>::reference
-        >;
-
-        using pointer  = std::conditional_t<is_const,
-            typename Circular_array<T, A>::const_pointer,
-            typename Circular_array<T, A>::pointer
-        >;
-
+        using value_type = typename std::iterator_traits<P>::value_type;
+        using difference_type = typename std::iterator_traits<P>::difference_type;
+        using reference = value_type&;
+        using pointer = P;
         using iterator_category = std::random_access_iterator_tag;
 
         //=================================================
         // -ctors
         //=================================================
 
-        Iterator() = default;
-
-        Iterator(const difference_type offset, pointer a, pointer b):
+        Circular_array_iterator(const difference_type offset, pointer a, pointer b):
             offset(offset),
             begin(a),
             end(b) {}
 
-        Iterator(const Iterator& it) = default;
-
-        Iterator(Iterator&& it) noexcept:
-            offset(it.offset),
-            begin(it.begin),
-            end(it.end) {
-
-            it.offset = 0;
-            it.begin = nullptr;
-            it.end = nullptr;
-        }
-
-        ~Iterator() = default;
+        Circular_array_iterator() = default;
+        Circular_array_iterator(const Circular_array_iterator& it) = default;
+        Circular_array_iterator(Circular_array_iterator&& it) noexcept = default;
+        ~Circular_array_iterator() = default;
 
         //=================================================
         // Assignment operators/methods
         //=================================================
 
-        [[nodiscard]]
-        Iterator operator=(const Iterator& it) {
-            offset = it.offset;
-            begin = it.begin;
-            end = it.end;
-
-            return *this;
-        }
-
-        [[nodiscard]]
-        Iterator operator=(Iterator&& it) {
-            offset = it.offset;
-            begin = it.begin;
-            end = it.end;
-
-            it.offset = 0;
-            it.begin = nullptr;
-            it.end = nullptr;
-
-            return *this;
-        }
+        Circular_array_iterator& operator=(const Circular_array_iterator& it) = default;
+        Circular_array_iterator& operator=(Circular_array_iterator&& it) noexcept = default;
 
         //=================================================
         // Comparison operators
         //=================================================
 
         [[nodiscard]]
-        bool operator==(const Iterator it) const {
+        bool operator==(const Circular_array_iterator it) const {
             return (offset == it.offset) && (begin == it.begin) && (end == it.end);
         }
 
         [[nodiscard]]
-        bool operator!=(const Iterator it) const {
+        bool operator!=(const Circular_array_iterator it) const {
             return (offset != it.offset) || (begin != it.begin) || (end != it.end);
         }
 
         [[nodiscard]]
-        bool operator<(const Iterator it) const {
+        bool operator<(const Circular_array_iterator it) const {
             return offset < it.offset;
         }
 
         [[nodiscard]]
-        bool operator>(const Iterator it) const {
+        bool operator>(const Circular_array_iterator it) const {
             return offset > it.offset;
         }
 
         [[nodiscard]]
-        bool operator<=(const Iterator it) const {
+        bool operator<=(const Circular_array_iterator it) const {
             return offset <= it.offset;
         }
 
         [[nodiscard]]
-        bool operator>=(const Iterator it) const {
+        bool operator>=(const Circular_array_iterator it) const {
             return offset >= it.offset;
         }
 
@@ -1154,23 +97,23 @@ namespace aul {
         // Increment/Decrement operators
         //=================================================
 
-        Iterator operator++() {
+        Circular_array_iterator operator++() {
             ++offset;
             return *this;
         }
 
-        Iterator operator++(int) {
+        Circular_array_iterator operator++(int) {
             auto temp = *this;
             ++offset;
             return temp;
         }
 
-        Iterator operator--() {
+        Circular_array_iterator operator--() {
             --offset;
             return *this;
         }
 
-        Iterator operator--(int) {
+        Circular_array_iterator operator--(int) {
             auto temp = *this;
             --offset;
             return temp;
@@ -1181,27 +124,27 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        Iterator operator+(const difference_type x) const {
+        Circular_array_iterator operator+(const difference_type x) const {
             auto temp = *this;
             temp.offset += x;
             return temp;
         }
 
         [[nodiscard]]
-        Iterator operator-(const difference_type x) const {
+        Circular_array_iterator operator-(const difference_type x) const {
             auto temp = *this;
             temp.offset -= x;
             return temp;
         }
 
         [[nodiscard]]
-        friend Iterator operator+(const difference_type x, const Iterator it) {
+        friend Circular_array_iterator operator+(const difference_type x, const Circular_array_iterator it) {
             it.offset += x;
             return it;
         }
 
         [[nodiscard]]
-        difference_type operator-(const Iterator it) const {
+        difference_type operator-(const Circular_array_iterator it) const {
             return offset - it.offset;
         }
 
@@ -1210,13 +153,13 @@ namespace aul {
         //=================================================
 
         [[nodiscard]]
-        Iterator operator+=(const difference_type x) {
+        Circular_array_iterator operator+=(const difference_type x) {
             offset += x;
             return *this;
         }
 
         [[nodiscard]]
-        Iterator operator-=(const difference_type x) {
+        Circular_array_iterator operator-=(const difference_type x) {
             offset -= x;
             return *this;
         }
@@ -1244,62 +187,1394 @@ namespace aul {
         // Conversion operators
         //=================================================
 
+        ///
+        /// Implicit conversion from iterator from non-const to iterator to
+        /// const
+        ///
+        /// \return Iterator to const which points to same location as this object
         [[nodiscard]]
-        operator Iterator<true>() const {
+        operator Circular_array_iterator<typename std::pointer_traits<P>::template rebind<const value_type>>() const {
             return {offset, begin, end};
         }
 
     private:
+
+        //=================================================
+        // Instance members
+        //=================================================
+
         difference_type offset{};
         pointer begin{};
         pointer end{};
+
     };
 
+    ///
+    /// A vector-like container which allows for unused space at both before and
+    /// after the elements in the allocation, potentially making insertions
+    /// faster compared to std::vector, particularly near the start of the
+    /// container.
+    ///
+    /// \tparam T Element type
+    /// \tparam A Allocator type
+    template<class T, class A = std::allocator<T>>
+    class Circular_array : public aul::Allocator_aware_base<A> {
+        using base = aul::Allocator_aware_base<A>;
+    public:
 
+        //=================================================
+        // Type aliases
+        //=================================================
 
-    template<class T, class A>
-    class Circular_array<T, A>::Allocation {
+        using allocator_type = A;
+
+        using value_type = T;
+
+        using reference = T&;
+        using const_reference = const T&;
+
+        using size_type = typename std::allocator_traits<allocator_type>::size_type;
+        using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
+
+        using pointer = typename std::allocator_traits<A>::pointer;
+        using const_pointer = typename std::allocator_traits<A>::const_pointer;
+
+        using iterator = Circular_array_iterator<pointer>;
+        using const_iterator = Circular_array_iterator<pointer>;
+
+        using reverse_iterator = std::reverse_iterator<iterator>;
+        using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    private:
+
+        using allocation_type = aul::Allocation<value_type, allocator_type>;
+
     public:
 
         //=================================================
         // -ctors
         //=================================================
 
-        Allocation() = default;
+        ///
+        /// Constructs container holding no elements
+        ///
+        Circular_array() noexcept(noexcept(A{}))= default;
 
-        Allocation(const Allocation&) = delete;
+        ///
+        /// Constructs a new Circular_array which uses a copy of the passed in
+        /// object as its allocator.
+        ///
+        /// \param allocator Allocator to copy for internal use
+        explicit Circular_array(allocator_type& a):
+            base(a) {}
 
-        Allocation(Allocation&& alloc) noexcept:
-            array(alloc.array),
-            capacity(alloc.capacity) {
+        ///
+        /// Copy constructor
+        ///
+        /// Constructs a new Circular_array whose held elements are identical to
+        /// those contained by the source object.
+        ///
+        /// \param arr Source object to copy from
+        Circular_array(const Circular_array& arr):
+            base(std::allocator_traits<A>::select_on_container_copy_construction(arr.get_allocator())),
+            allocation(allocate(arr.size())),
+            elem_count(arr.elem_count) {
 
-            alloc = {};
+            auto allocator = get_allocator();
+            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.ptr, allocator);
         }
 
-        ~Allocation() = default;
+        ///
+        /// Allocator extended copy constructor
+        ///
+        ///
+        /// \param arr   Source object to copy from
+        /// \param alloc Allocator copy should use
+        Circular_array(const Circular_array& arr, const A& alloc):
+            base(alloc),
+            allocation(allocate(arr.size())),
+            elem_count(arr.elem_count) {
 
-        //=================================================
-        // Assignment operators
-        //=================================================
-
-        Allocation& operator=(const Allocation&) = delete;
-
-        Allocation& operator=(Allocation&& rhs) noexcept {
-            array = rhs.array;
-            capacity = rhs.capacity;
-
-            rhs.array = nullptr;
-            rhs.capacity = 0;
-
-            return {*this};
+            auto allocator = get_allocator();
+            aul::uninitialized_copy(arr.cbegin(), arr.cend(), allocation.ptr, allocator);
         }
+
+        ///
+        /// Move constructor
+        /// \param arr T Object to move resources from
+        Circular_array(Circular_array&& arr) noexcept:
+            base(std::move(arr.allocator)),
+            allocation(std::move(allocation)),
+            elem_count(arr.elem_count),
+            head_offset(arr.head_offset) {
+
+            arr.elem_count = 0;
+            arr.head_offset = 0;
+        }
+
+        /// Allocator extended move constructor
+        /// \param arr   Object to move resources from
+        /// \param alloc Allocator container should copy
+        Circular_array(Circular_array&& arr, const A& alloc):
+            base(alloc),
+            allocation(get_allocator() == arr.allocator ? std::move(arr.allocation) : allocate(arr.size())),
+            elem_count(arr.elem_count),
+            head_offset(get_allocator() == arr.allocator ? arr.head_offset : 0) {
+
+            if (get_allocator() == arr.allocator) {
+                arr.elem_count = 0;
+                arr.head_offset = 0;
+            } else {
+                auto allocator = get_allocator();
+                aul::uninitialized_move(arr.begin(), arr.end(), allocation.ptr, allocator);
+            }
+        }
+
+        ///
+        /// \param n     Number of elements to default constructor
+        /// \param alloc Allocator containers should copy
+        explicit Circular_array(const size_type n, const A& alloc = {}):
+            base(alloc),
+            allocation(allocate(n)),
+            elem_count(n) {
+
+            auto allocator = get_allocator();
+            aul::default_construct(allocation.ptr, allocation.ptr + n, allocator);
+        }
+
+        ///
+        /// \param n     Number of elements to construct
+        /// \param val   Object elements should copy from
+        /// \param alloc Allocator container should use
+        Circular_array(const size_type n, const T& val, const A& alloc = {}):
+            base(alloc),
+            allocation(allocate(n)),
+            elem_count(n) {
+
+            auto allocator = get_allocator();
+            aul::uninitialized_fill(allocation.ptr, allocation.ptr + n, val, allocator);
+        }
+
+        ///
+        /// \param list  List to copy elements from
+        /// \param alloc Allocator container should use
+        Circular_array(const std::initializer_list<T>& list, const A& alloc = {}):
+            Circular_array(list.begin(), list.end(), alloc) {}
+
+        ///
+        /// \tparam Iter Forward iterator type
+        /// \param from Iterator to beginning of range to copy
+        /// \param to Iterator to end of range to copy
+        /// \param alloc Allocator for container to copy
+        template<class Iter>
+        Circular_array(Iter from, Iter to, const A& alloc = {}):
+            base(alloc),
+            allocation(allocate(std::distance(from, to))),
+            elem_count(std::distance(from, to)) {
+
+            auto allocator = get_allocator();
+            aul::uninitialized_copy(from, to, allocation.ptr, allocator);
+        }
+
+        ///
+        /// Destroys all elements contained within the container and frees any
+        /// held allocation
+        ///
+        ~Circular_array() {
+            clear();
+            deallocate(allocation);
+        }
+
+        //=================================================
+        // Assignment operators/methods
+        //=================================================
+
+        ///
+        /// Copy assignment operator
+        ///
+        /// Invalidates iterators
+        ///
+        /// \param rhs Object to copy resources from
+        /// \return *this
+        Circular_array& operator=(const Circular_array& rhs) {
+            Circular_array temp{rhs};
+           this->swap(temp);
+
+            return *this;
+        }
+
+        ///
+        /// Move assignment operator
+        ///
+        /// Invalidates iterators
+        ///
+        /// \param rhs Object to move resources from
+        /// \return *this
+        Circular_array& operator=(Circular_array&& rhs) noexcept(aul::is_noexcept_movable<A>::value) {
+            constexpr bool should_propagate =
+                std::allocator_traits<A>::is_always_equal::value ||
+                std::allocator_traits<A>::propagate_on_container_move_assignment::value;
+
+            if (should_propagate) {
+                base::operator=(rhs);
+                allocation = std::move(rhs.allocation);
+                elem_count = std::exchange(rhs.elem_count, 0);
+                head_offset = std::exchange(rhs.head_offset, 0);
+            } else {
+                base::operator=(rhs);
+
+                auto new_allocation = allocate(rhs.elem_count);
+                auto allocator = get_allocator();
+                aul::uninitialized_move(rhs.begin(), rhs.end(), new_allocation.ptr, allocator);
+
+                rhs.deallocate(rhs.allocation);
+                head_offset = 0;
+                rhs.head_offset = 0;
+                elem_count = std::exchange(rhs.elem_count, 0);
+            }
+            return *this;
+        }
+
+        ///
+        /// Replaces the current contents of the container with copies of those
+        /// in the specified list
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// Invalidates iterators.
+        ///
+        /// \param list List to copy elements from
+        /// \return *this
+        Circular_array& operator=(std::initializer_list<T> list) {
+            assign(list);
+            return *this;
+        }
+
+        ///
+        /// Replaces the current contents of the container with copies of the
+        /// elements in the range of [a, b].
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// Invalidates iterators.
+        ///
+        /// \tparam Iter Forward iterator type
+        /// \param a Iterator to beginning of range
+        /// \param b Iterator to end of range
+        template<class Iter>
+        void assign(Iter a, Iter b) {
+            auto range_size = std::distance(a, b);
+
+            if (range_size > max_size()) {
+                throw std::length_error("aul::Circular_array grew beyond max size");
+            }
+
+            auto new_allocation = allocate(range_size);
+
+            auto allocator = get_allocator();
+            try {
+                aul::uninitialized_copy(a, b, new_allocation.ptr, allocator);
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::destroy(begin(), end(), allocator);
+            deallocate(allocation);
+            allocation = new_allocation;
+            elem_count = range_size;
+            head_offset = 0;
+        }
+
+        ///
+        /// Replace the current contents of the container with copies of the
+        /// elements in list.
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// Invalidates iterators.
+        ///
+        /// \param list List to copy elements from
+        void assign(const std::initializer_list<T> list) {
+            assign(list.begin(), list.end());
+        }
+
+        ///
+        /// Replace the current contents of the container with n copies of n.
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// Invalidates iterators.
+        ///
+        /// \param n   Number of elements to fill container with
+        /// \param val Value to fill container with
+        void assign(const size_type n, const T& val) {
+            auto allocator = get_allocator();
+            auto new_allocation = allocate(n);
+
+            try {
+                aul::uninitialized_fill_n(new_allocation.ptr, n, val, allocator);
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::destroy(begin(), end(), allocator);
+            deallocate(allocation);
+            elem_count = n;
+            allocation = std::move(new_allocation);
+            head_offset = 0;
+        }
+
+        //=================================================
+        // Iterator methods
+        //=================================================
+
+        ///
+        /// \return Iterator to beginning of element range.
+        iterator begin() {
+            bool c = is_segmented();
+            return iterator{
+                difference_type(head_offset - c * allocation.capacity),
+                allocation.ptr,
+                allocation.ptr + allocation.capacity
+            };
+        }
+
+        ///
+        /// \return Const iterator to end of element range.
+        const_iterator begin() const {
+            return const_cast<Circular_array&>(*this).begin();
+        }
+
+        ///
+        /// \return Const iterator to beginning of element range.
+        const_iterator cbegin() const {
+            return begin();
+        }
+
+        ///
+        /// \return Iterator to end of element range.
+        iterator end() {
+            bool c = is_segmented();
+            return iterator{
+                difference_type(head_offset - c * capacity() + size()),
+                allocation.ptr,
+                allocation.ptr + capacity()
+            };
+        }
+
+        ///
+        /// \return Const iterator to end of element range.
+        const_iterator end() const {
+            return const_cast<Circular_array&>(*this).end();
+        }
+
+        ///
+        /// \return
+        const_iterator cend() const {
+            return end();
+        }
+
+        ///
+        /// \return
+        reverse_iterator rbegin() {
+            return reverse_iterator{end()};
+        }
+
+        ///
+        /// \return
+        const_reverse_iterator rbegin() const {
+            return const_reverse_iterator{end()};
+        }
+
+        ///
+        /// \return
+        const_reverse_iterator crbegin() const {
+            return const_cast<const Circular_array&>(*this).rbegin();
+        }
+
+        ///
+        /// \return
+        reverse_iterator rend() {
+            return reverse_iterator{begin()};
+        }
+
+        ///
+        /// \return
+        const_reverse_iterator rend() const {
+            return const_reverse_iterator{begin()};
+        }
+
+        ///
+        /// \return const reverse iterator to end of reverse range
+        const_reverse_iterator crend() const {
+            return const_cast<const Circular_array&>(*this).rend();
+        }
+
+        //=================================================
+        // Element accessors
+        //=================================================
+
+        ///
+        /// Undefined behavior if container is empty
+        ///
+        /// \return Reference to first element
+        T& front() {
+            return allocation.ptr[head_offset];
+        }
+
+        ///
+        /// Undefined behavior if container is empty
+        ///
+        /// \return Const reference to first element
+        const T& front() const {
+            return allocation.ptr[head_offset];
+        }
+
+        ///
+        /// Undefined behavior if container is empty
+        ///
+        /// \return Reference to last element
+        T& back() {
+            return *index_to_ptr(elem_count);
+        }
+
+        ///
+        /// Undefined behavior if container is empty
+        ///
+        /// \return Const reference to last element
+        const T& back() const {
+            return *index_to_ptr(elem_count);
+        }
+
+        ///
+        /// Undefined behavior if i >= size()
+        ///
+        /// \param i Element index
+        /// \return Reference to element
+        T& operator[](const size_type i) {
+            return *index_to_ptr(i);
+        }
+
+        ///
+        /// Undefined behavior if i >= size()
+        ///
+        /// \param i Element index
+        /// \return Const reference to element
+        const T& operator[](const size_type i) const {
+            return *index_to_ptr(i);
+        }
+
+        ///
+        /// Undefined behavior if i >= size()
+        ///
+        /// \param i Element index
+        /// \return Reference to specified elements
+        T& at(const size_type i) {
+            if (size() <= i) {
+                throw std::out_of_range("Circular_array::at() called with invalid index");
+            }
+            return *index_to_ptr(i);
+        }
+
+        ///
+        /// \param i Element index
+        /// \return Const reference to specified elements
+        const T& at(const size_type i) const {
+            if (size() <= i) {
+                throw std::out_of_range("Circular_array::at() called with invalid index");
+            }
+            return *index_to_ptr(i);
+        }
+
+        //=================================================
+        // Element addition
+        //=================================================
+
+        ///
+        /// Constructs a new element as the specified position using the
+        /// specified parameters.
+        ///
+        /// Provides the strong exception guarantee.
+        ///
+        /// \tparam Args Parameter types for new element's constructor
+        /// \param p Iterator indicating position at which element should be
+        ///     constructed
+        /// \param args Parameters to new element's constructor
+        template<class...Args>
+        iterator emplace(const_iterator p, Args...args) {
+            iterator it = begin() + (p - cbegin());
+
+            if (elem_count < allocation.capacity) {
+                return emplace_within_capacity(it, std::forward<Args>(args)...);
+            } else {
+                return emplace_with_new_allocation(it, std::forward<Args>(args)...);
+            }
+        }
+
+        ///
+        /// Copy-inserts the specified value at the specified position
+        ///
+        /// \param pos Position to insert new element at
+        /// \param val Value to copy-insert
+        /// \return Iterator to newly-inserted element
+        iterator insert(const_iterator pos, const T& val) {
+            return emplace(pos, val);
+        }
+
+        ///
+        /// Move-inserts the specified value at the specified position
+        ///
+        /// \param pos Position to insert new elements at
+        /// \param val Value to move-insert
+        /// \return Iterator to newly-inserted element
+        iterator insert(const_iterator pos, T&& val) {
+            return emplace(pos, val);
+        }
+
+        ///
+        /// Inserts multiple copies of the specified elements.
+        ///
+        /// \param pos Position at which new elements should be inserted
+        /// \param n Number of copies of val to insert
+        /// \param val Value to copy insert duplicates of
+        /// \return Iterator to first of newly created elements
+        iterator insert(const_iterator pos, const size_type n, const T& val) {
+            iterator it = begin() + (pos - cbegin());
+            //There's probably a fencepost error here
+            if (size() < capacity() - n) {
+                insert_within_capacity(it, n, val);
+            } else {
+                insert_with_new_allocation(it, n, val);
+            }
+        }
+
+        ///
+        /// Performs copy-insertions of the elements specified in the list at
+        /// the specified position.
+        ///
+        /// \tparam Iter Forward Iterator type
+        /// \param pos Position to insert elements at
+        /// \param from Iterator to beginning of range of elements to insert
+        /// \param to Iterator to end of range of elements to insert
+        /// \return Iterator to first of newly inserted elements
+        template<class Iter>
+        iterator insert(const_iterator pos, Iter from, Iter to) {
+            auto d = to - from;
+
+            if (max_size() - d < elem_count) {
+                throw std::runtime_error("Circular_array grew beyond max size");
+            }
+
+            iterator it = begin() + (pos - cbegin());
+            if (elem_count + d < capacity()) {
+                return insert_within_capacity(it, from, to);
+            } else {
+                return insert_with_new_allocation(it, from, to);
+            }
+        }
+
+        ///
+        /// Performs copy-insertions of the elements specified in the list at
+        /// the specified position.
+        ///
+        /// \param pos Position to insert new elements
+        /// \param list List of elements to be copy-inserted
+        /// \return Iterator to first of newly inserted elements
+        iterator insert(const_iterator pos, const std::initializer_list<value_type>& list) {
+            return insert(pos, list.begin(), list.end());
+        }
+
+        ///
+        /// Constructs a new element as the new first element in the array using
+        /// the specified parameters.
+        ///
+        /// Provides strong-exception guarantee.
+        ///
+        /// \tparam Args Types taken by object constructor
+        /// \param args Arguments to constructor of new object
+        template<class...Args>
+        void emplace_front(Args...args) {
+            if (elem_count > max_size() - 1) {
+                throw std::length_error("aul::Circular_array grew beyond max size");
+            }
+
+            if (elem_count < allocation.capacity) {
+                emplace_front_within_capacity(std::forward<Args>(args)...);
+            } else {
+                emplace_front_with_new_allocation(std::forward<Args>(args)...);
+            }
+        }
+
+        ///
+        /// Inserts a new element at the start of the logical array
+        ///
+        /// \param val Value to insert
+        void push_front(const T& val) {
+            emplace_front(val);
+        }
+
+        ///
+        /// Inserts a new element at the start of the logical array
+        ///
+        /// \param val Value to insert
+        void push_front(T&& val) {
+            emplace_front(std::forward<T&&>(val));
+        }
+
+        ///
+        /// Constructs a new element at the end of the logical array using the
+        /// specified parameters.
+        ///
+        /// Provides strong-exception guarantee
+        ///
+        /// \tparam Args Parameter types for new element's constructor
+        /// \param args Parameter types for new element's constructor
+        template<class...Args>
+        void emplace_back(Args...args) {
+            if (size() > max_size() - 1) {
+                throw std::length_error("aul::Circular_array grew beyond max size");
+            }
+
+            if (size() < capacity()) {
+                emplace_back_within_capacity(std::forward<Args>(args)...);
+            } else {
+                emplace_back_with_new_allocation(std::forward<Args>(args)...);
+            }
+        }
+
+        ///
+        /// Inserts a new value at the end of the logical array
+        ///
+        /// \param val Value to insert
+        void push_back(const T& val) {
+            emplace_back(val);
+        }
+
+        ///
+        /// Inserts a new value at the end of the logical array
+        ///
+        /// \param val Value to insert
+        void push_back(T&& val) {
+            emplace_back(std::forward<T&&>(val));
+        }
+
+        //=================================================
+        // Element removal
+        //=================================================
+
+        ///
+        /// Removes the first element in the container. Undefined behavior if
+        /// container is empty.
+        ///
+        /// Invalidates iterators to first element
+        ///
+        void pop_front() {
+            pointer ptr = begin().operator->();
+            auto allocator = get_allocator();
+            std::allocator_traits<A>::destroy(allocator, ptr);
+
+            increment_head_offset();
+
+            --elem_count;
+        }
+
+        ///
+        /// Removes the last element in the container. Undefined behavior if
+        /// container is empty.
+        ///
+        /// Invalidates iterators to last element
+        ///
+        void pop_back() {
+            pointer ptr = (end() - 1).operator->();
+            auto allocator = get_allocator();
+            std::allocator_traits<A>::destroy(allocator, ptr);
+            --elem_count;
+        }
+
+        ///
+        /// Undefined behavior if pos is not a valid iterator
+        ///
+        /// Invalidates all iterators
+        ///
+        /// \param pos Iterator to element to remove.
+        ///
+        void erase(const_iterator pos) {
+            size_type left = pos - begin();
+            size_type right = cend() - pos - 1;
+
+            if (left < right) {
+                for (auto it = begin(); static_cast<const_iterator>(it) != pos; ++it) {
+                    it[-1] = it[0];
+                }
+                auto allocator = get_allocator();
+                std::allocator_traits<allocator_type>::destroy(allocator, begin().operator->());
+            } else {
+                for (auto it = end() - 1; it++ != it;) {
+                    it[0] = it[1];
+                }
+                auto allocator = get_allocator();
+                std::allocator_traits<allocator_type>::destroy(allocator, (end() - 1).operator->());
+            }
+            --elem_count;
+        }
+
+        ///
+        /// Erase the specified range of elements.
+        ///
+        /// Invalidates iterators if from != to
+        ///
+        /// \param from Iterator to beginning of range
+        /// \param to Iterator to end of range
+        void erase(const_iterator from, const_iterator to);
+
+        //=================================================
+        // State Mutators
+        //=================================================
+
+        ///
+        /// Ensure that the backing allocation holds enough space to store the
+        /// specified number of elements
+        ///
+        /// Invalidates iterators
+        ///
+        /// \param n Number of elements to reserve space for
+        void reserve(const size_type n) {
+            if (n <= size()) {
+                return;
+            }
+
+            if (max_size() < n) {
+                throw std::length_error("aul::Circular_array::reserve() called with excessive allocation size");
+            }
+
+            auto allocator = get_allocator();
+            allocation_type new_allocation = allocate(n);
+            aul::uninitialized_move(begin(), end(), new_allocation.ptr, allocator);
+
+            deallocate(allocation);
+            allocation = new_allocation;
+            head_offset = 0;
+        }
+
+        void swap(Circular_array& other) {
+            base::swap(other);
+            std::swap(allocation, other.allocation);
+            std::swap(elem_count, other.elem_count);
+            std::swap(head_offset, other.head_offset);
+        }
+
+        //=================================================
+        // State accessors
+        //=================================================
+
+        ///
+        ///
+        /// \return True if the container does not hold any elements. False
+        /// otherwise
+        [[nodiscard]]
+        bool empty() const {
+            return elem_count == 0;
+        }
+
+        ///
+        ///
+        /// \return Number of elements which the container currently holds
+        [[nodiscard]]
+        size_type size() const {
+            return elem_count;
+        }
+
+        ///
+        ///
+        /// \return Maximum size which the container can contain
+        [[nodiscard]]
+        size_type max_size() const {
+            auto type_max = static_cast<size_type>(
+                std::numeric_limits<difference_type>::max()
+            );
+
+            auto allocator = get_allocator();
+            const size_type max_allocation = std::allocator_traits<A>::max_size(allocator);
+
+            return std::min(max_allocation, type_max);
+        }
+
+        ///
+        /// \return Number of elements which the container currently has space
+        /// reserved for
+        [[nodiscard]]
+        size_type capacity() const {
+            return allocation.capacity;
+        }
+
+        ///
+        /// \return Copy of allocator used by container
+        [[nodiscard]]
+        allocator_type get_allocator() const {
+            return base::get_allocator();
+        }
+
+        /*
+        ///
+        /// \return
+        [[nodiscard]]
+        std::tuple<pointer, pointer, pointer, pointer> data() {
+            const auto segment0 = first_segment();
+            const auto segment1 = second_segment();
+            return {segment0.first, segment0.second, segment1.first, segment1.second};
+        }
+
+        ///
+        /// \return
+        [[nodiscard]]
+        std::tuple<const_pointer, const_pointer, const_pointer, const_pointer> data() const {
+            const auto segment0 = first_segment();
+            const auto segment1 = second_segment();
+            return {segment0.first, segment0.second, segment1.first, segment1.second};
+        }
+        */
+
+        //=================================================
+        // Misc. methods
+        //=================================================
+
+        ///
+        /// Destroy all elements.
+        ///
+        void clear() {
+            if (empty()) {
+                return;
+            }
+
+            auto allocator = get_allocator();
+            aul::destroy(begin(), end(), allocator);
+            elem_count = 0;
+            head_offset = 0;
+        }
+
+    private:
 
         //=================================================
         // Instance members
         //=================================================
 
-        pointer array{};
-        size_type capacity{};
+        ///
+        /// Currently held allocation
+        ///
+        Allocation<value_type, allocator_type> allocation{};
+
+        ///
+        /// Index of first element in the container
+        ///
+        difference_type head_offset{};
+
+        ///
+        /// Variable used to keep track of how many elements currently exist
+        /// within the container
+        ///
+        size_type elem_count{};
+
+        //=================================================
+        // Helper functions
+        //=================================================
+
+        ///
+        /// \param n Index of object to get pointer to
+        /// \return Pointer to nth element
+        pointer index_to_ptr(const size_type n) const {
+            size_type index = 0;
+
+            if (n < allocation.capacity - head_offset) {
+                index = head_offset + n;
+            } else {
+                index = head_offset - allocation.capacity + n;
+            }
+
+            return allocation.ptr + index;
+        }
+
+        ///
+        /// \param n Minimum number of elements to allocate storage for
+        /// \return Size of new allocation
+        size_type grow_size(size_type n) {
+            if (n < max_size() / 2) {
+                return std::max(2 * capacity(), n);
+            } else {
+                return max_size();
+            }
+        }
+
+        //=================================================
+        // Meta helpers
+        //=================================================
+
+        ///
+        /// \return True if elements wrap around after reaching end of
+        /// allocation.
+        [[nodiscard]]
+        bool is_segmented() const {
+            auto s = static_cast<difference_type>(size());
+            return s > (capacity() - head_offset);
+        }
+
+        /*
+        ///
+        /// \return
+        [[nodiscard]]
+        std::pair<pointer, pointer> first_segment() {
+            if (is_segmented()) {
+                return {allocation.ptr + head_offset, allocation.ptr + capacity()};
+            }
+            else {
+                return {allocation.ptr + head_offset, allocation.ptr + head_offset + size()};
+            };
+        }
+
+        [[nodiscard]]
+        std::pair<const_pointer, const_pointer> first_segment() const {
+            if (is_segmented()) {
+                return {allocation.ptr + head_offset, allocation.ptr + capacity()};
+            }
+            else {
+                return {allocation.ptr + head_offset, allocation.ptr + head_offset + size()};
+            };
+        }
+        [[nodiscard]]
+        std::pair<pointer, pointer> second_segment() {
+            if (is_segmented()) {
+                return {
+                    allocation.ptr,
+                    allocation.ptr + head_offset - capacity() + size()
+                };
+            } else {
+                return {pointer{}, pointer{}};
+            }
+        }
+
+        [[nodiscard]]
+        std::pair<const_pointer, const_pointer> second_segment() const {
+            if (is_segmented()) {
+                return {
+                    allocation.ptr,
+                    allocation.ptr + head_offset - capacity() + size()
+                };
+            }
+            else {
+                return { pointer{}, pointer{} };
+            }
+        }
+        */
+
+        //=================================================
+        // Allocation methods
+        //=================================================
+
+        [[nodiscard]]
+        allocation_type allocate(const size_type n) {
+            allocation_type alloc{};
+
+            try {
+                auto allocator = get_allocator();
+                alloc.ptr = std::allocator_traits<allocator_type>::allocate(allocator, n);
+                alloc.capacity = n;
+            } catch (...) {
+                alloc = {};
+                throw;
+            }
+
+            return alloc;
+        }
+
+        [[nodiscard]]
+        allocation_type allocate(const size_type n, const allocation_type& hint) {
+            allocation_type alloc{};
+
+            try {
+                auto allocator = get_allocator();
+                alloc.ptr = std::allocator_traits<allocator_type>::allocate(allocator, n, hint.ptr);
+                alloc.capacity = n;
+            } catch (...) {
+                alloc = {};
+                throw;
+            }
+
+            return alloc;
+        }
+
+        void deallocate(allocation_type& alloc) {
+            auto allocator = get_allocator();
+            std::allocator_traits<allocator_type>::deallocate(allocator, alloc.ptr, alloc.capacity);
+            alloc = {};
+        }
+
+        //=================================================
+        // Element construction/destruction
+        //=================================================
+
+        template<class Iter>
+        iterator insert_within_capacity(iterator pos, Iter a, Iter b) {
+            auto left  = (pos - begin());
+            auto right = (end() - pos);
+
+            if (left < right) {
+                return insert_within_capacity_nudge_left(pos, a, b);
+            } else {
+                return insert_within_capacity_nudge_right(pos, a, b);
+            }
+        }
+
+        template<class Iter>
+        iterator insert_within_capacity_nudge_left(iterator pos, Iter a, Iter b) {
+            //TODO: Implement
+        }
+
+        template<class Iter>
+        iterator insert_within_capacity_nudge_right(iterator pos, Iter a, Iter b) {
+            //TODO: Implement
+        }
+
+        template<class Iter>
+        iterator insert_with_new_allocation(iterator pos, Iter a, Iter b) {
+            auto allocator = get_allocator();
+            auto d = (b - a);
+
+            auto new_capacity = grow_size(elem_count + d);
+            auto new_allocation = allocate(new_capacity);
+
+            pointer p1{};
+            auto o = pos - begin();
+            try {
+                auto p = new_allocation.ptr + o;
+                p1 = aul::uninitialized_copy(a, b, p, allocator);
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::uninitialized_move(begin(), pos, new_allocation, allocator);
+            aul::uninitialized_move(pos, end(), p1, allocator);
+
+            aul::destroy(begin(), end(), allocator);
+            deallocate(allocator);
+
+            allocation = new_allocation;
+
+            elem_count += d;
+            head_offset = 0;
+
+            return {o, allocation.ptr, allocation.ptr + allocation.capacity};
+        }
+
+        ///
+        /// Construct a new element as the first element in the container under
+        /// the assumption that size() < capacity()
+        ///
+        /// \tparam Args
+        /// \param args
+        template<class...Args>
+        void emplace_front_within_capacity(Args&&...args) {
+            ++elem_count;
+            decrement_head_offset();
+            pointer ptr = std::addressof(*begin());
+
+            auto allocator = get_allocator();
+            std::allocator_traits<allocator_type>::construct(
+                allocator,
+                ptr,
+                std::forward<Args>(args)...
+            );
+        }
+
+        template<class...Args>
+        void emplace_front_with_new_allocation(Args&&...args) {
+            auto new_capacity = grow_size(elem_count + 1);
+            auto new_allocation = allocate(new_capacity);
+
+            auto allocator = get_allocator();
+            try {
+                std::allocator_traits<allocator_type>::construct(
+                    allocator,
+                    new_allocation.ptr,
+                    std::forward<Args>(args)...
+                );
+            } catch(...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::uninitialized_move(begin(), end(), new_allocation.ptr + 1, allocator);
+            aul::destroy(begin(), end(), allocator);
+            deallocate(allocation);
+            allocation = new_allocation;
+
+            ++elem_count;
+            head_offset = 0;
+        }
+
+        ///
+        ///
+        ///
+        /// \tparam Args
+        /// \param args
+        template<class...Args>
+        void emplace_back_within_capacity(Args&&...args) {
+            pointer ptr = index_to_ptr(elem_count);
+
+            auto allocator = get_allocator();
+            std::allocator_traits<allocator_type>::construct(
+                allocator,
+                ptr,
+                std::forward<Args>(args)...
+            );
+
+            ++elem_count;
+        }
+
+        template<class...Args>
+        void emplace_back_with_new_allocation(Args&&...args) {
+            size_type new_capacity = grow_size(elem_count + 1);
+            allocation_type new_allocation = allocate(new_capacity);
+
+            allocator_type allocator = get_allocator();
+            try {
+                pointer p = new_allocation.ptr + elem_count;
+                std::allocator_traits<allocator_type>::construct(
+                    allocator,
+                    p,
+                    std::forward<Args>(args)...
+                );
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::uninitialized_move(begin(), end(), new_allocation.ptr, allocator);
+            aul::destroy(begin(), end(), allocator);
+            deallocate(allocation);
+            allocation = new_allocation;
+
+            head_offset = 0;
+            ++elem_count;
+        }
+
+        ///
+        /// Emplaces a new element under the assumption that size() < capacity()
+        ///
+        /// Existing elements are moved left or right depending on which would
+        /// require fewer elements to be moved
+        ///
+        /// \tparam Args Parameters types for new element's constructor
+        /// \tparam Args Parameters types for new element's constructor
+        template<class...Args>
+        iterator emplace_within_capacity(iterator it, Args&&...args) {
+            auto left = (it - begin());
+            auto right = (end() - it);
+            if (left < right) {
+                emplace_within_capacity_nudge_left(it, std::forward<Args>(args)...);
+            } else {
+                emplace_within_capacity_nudge_right(it, std::forward<Args>(args)...);
+            }
+            return it;
+        }
+
+        ///
+        /// \tparam Args Parameters types for new element's constructor
+        /// \param it Iterator to position where new element should be
+        ///     constructed
+        /// \param args Parameters for new element's constructor
+        template<class...Args>
+        void emplace_within_capacity_nudge_left(iterator it, Args&&...args) {
+            auto allocator = get_allocator();
+
+            auto it0 = begin() - 1;
+            auto it1 = begin();
+            auto it2 = it + 1;
+
+            aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
+
+            pointer p = std::addressof(it[-1]);
+            try {
+                std::allocator_traits<allocator_type>::construct(
+                    allocator,
+                    p,
+                    std::forward<Args>(args)...
+                );
+            } catch(...) {
+                aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
+                throw;
+            }
+
+            decrement_head_offset();
+            ++elem_count;
+        }
+
+        ///
+        /// \tparam Args Parameters types for new element's constructor
+        /// \param it Iterator to position where new element should be
+        ///     constructed
+        /// \param args Parameters for new element's constructor
+        template<class...Args>
+        void emplace_within_capacity_nudge_right(iterator it, Args&&...args) {
+            auto allocator = get_allocator();
+
+            auto it0 = it;
+            auto it1 = end();
+            auto it2 = end() + 1;
+
+            aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
+
+            pointer p = std::addressof(*it);
+            try {
+                std::allocator_traits<allocator_type>::construct(
+                    allocator,
+                    p,
+                    std::forward<Args>(args)...
+                );
+            } catch(...) {
+                aul::uninitialized_destructive_move_backward(it0, it1, it2, allocator);
+                throw;
+            }
+
+            ++elem_count;
+        }
+
+        void insert_within_capacity(iterator it, size_type n, const T& val) {
+            auto left = it - begin();
+            auto right = end() - it;
+            if (left < right) {
+                insert_within_capacity_nudge_left(it, n, val);
+            } else {
+                insert_within_capacity_nudge_right(it, n, val);
+            }
+        }
+
+        void insert_within_capacity_nudge_left(iterator it, size_type n, const T& val) {
+            auto allocator  = get_allocator();
+
+            auto it0 = begin() - n;
+            auto it1 = begin();
+            auto it2 = it + 1;
+
+            aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
+
+            try {
+                aul::uninitialized_fill(it - n, it, val, allocator);
+            } catch (...) {
+                aul::uninitialized_move_elements_right(it0, it1, it2, allocator);
+                throw;
+            }
+
+            elem_count += n;
+            head_offset -= n; //TODO: Handle wrap around
+        }
+
+        void insert_with_new_allocation(iterator it, size_type n, const T& val) {
+            allocation_type new_allocation = allocate(size() + n);
+
+            auto allocator = get_allocator();
+
+            pointer p = new_allocation + (it - begin());
+            try {
+                aul::uninitialized_fill_n(p, n, val, allocator);
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            aul::uninitialized_move(begin(), it, allocation.ptr, allocator);
+            aul::uninitialized_move(it, end(), p + n, allocator);
+            elem_count += n;
+            head_offset = 0;
+
+            allocation = new_allocation;
+        }
+
+        ///
+        /// Emplaces a new element within a new allocation, replacing the
+        /// current allocation.
+        ///
+        /// \tparam Args Parameters types for new element's constructor
+        /// \param it Iterator indicating position at which element should be
+        ///     constructedc
+        /// \param args Parameters for new element's constructor
+        template<class...Args>
+        iterator emplace_with_new_allocation(iterator it, Args&&...args) {
+            size_type new_capacity = grow_size(elem_count + 1);
+            allocation_type new_allocation = allocate(new_capacity);
+
+            //The pointers in this iterator may need to be laundered
+            iterator ret{
+                it - begin(),
+                new_allocation.ptr,
+                new_allocation.ptr + new_allocation.capacity
+            };
+
+            auto allocator = get_allocator();
+            pointer p = std::addressof(*ret);
+            try {
+                std::allocator_traits<allocator_type>::construct(
+                    allocator,
+                    p,
+                    std::forward<Args>(args)...
+                );
+            } catch (...) {
+                deallocate(new_allocation);
+                throw;
+            }
+
+            //Move elements to left of new element into position
+            aul::uninitialized_move(begin(), it, new_allocation.ptr, allocator);
+
+            //Move elements to the right of new element into position
+            aul::uninitialized_move(it, end(), p + 1, allocator);
+
+            destroy(begin(), end(), allocator);
+            deallocate(allocation);
+            allocation = new_allocation;
+
+            head_offset = 0;
+            ++elem_count;
+
+            return ret;
+        }
+
+        void increment_head_offset() {
+            head_offset += 1;
+            if (head_offset == size()) {
+                head_offset = 0;
+            }
+        }
+
+        void decrement_head_offset() {
+            if (head_offset == 0) {
+                head_offset = (allocation.capacity - 1);
+            } else {
+                --head_offset;
+            }
+        }
+
+        void increase_head_offset(size_type d) {
+            d %= elem_count;
+
+            if (head_offset < elem_count - d) {
+                head_offset += d;
+            } else {
+                head_offset = head_offset - size() + d;
+            }
+        }
+
+        void decrease_head_offset(size_type d) {
+            //TODO: Correct implementation
+            d %= elem_count;
+
+            if (head_offset > -elem_count + d) {
+                head_offset -= d;
+            } else {
+                head_offset = head_offset + size() - d;
+            }
+        }
 
     };
 

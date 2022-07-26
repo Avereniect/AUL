@@ -41,12 +41,14 @@ namespace aul::tests {
         EXPECT_GE(arr.capacity(), 8);
         EXPECT_FALSE(arr.empty());
         EXPECT_EQ(arr.end() - arr.begin(), 8);
+        EXPECT_EQ(arr.cend() - arr.cbegin(), 8);
         EXPECT_EQ(arr.rend() - arr.rbegin(), 8);
 
         for (std::size_t i  = 0; i != list.size(); ++i) {
-            EXPECT_EQ(list.begin()[i], arr[i]);
+            int u = list.begin()[i];
+            int v = arr[i];
+            EXPECT_EQ(u, v);
         }
-
 
         for (std::size_t i = 0; i != list.size(); ++i) {
             EXPECT_EQ(list.begin()[i], arr.begin()[i]);
@@ -73,8 +75,12 @@ namespace aul::tests {
 
         EXPECT_ANY_THROW(arr1.at(0));
         EXPECT_ANY_THROW(arr1.at(1));
+    }
 
-        arr1 = aul::Circular_array<int>{0, 1, 2, 3, 4, 5, 6, 7};
+    TEST(Circular_array, Copy_assignment) {
+        aul::Circular_array<int> arr0{};
+        aul::Circular_array<int> arr1{0, 1, 2, 3, 4, 5, 6, 7};
+        arr0 = arr1;
 
         EXPECT_EQ(arr1.get_allocator(), std::allocator<float>{});
         EXPECT_EQ(arr1.size(), 8);
@@ -85,8 +91,6 @@ namespace aul::tests {
             EXPECT_EQ(arr1[i], i);
         }
     }
-
-    TEST(Circular_array, Move_assignment) {}
 
     TEST(Circular_array, Generic_assign_empty) {
         std::vector<int> vec{0, 1, 2, 4, 8, 16, 32, 64};
@@ -154,69 +158,127 @@ namespace aul::tests {
     // Element addition
     //=====================================================
 
-    TEST(Circular_array, Emplace_front) {
+    TEST(Circular_array, Emplace_front_single) {
         Circular_array<int> arr{};
 
         arr.emplace_front(128);
-        arr.emplace_front(64);
-        arr.emplace_front(32);
-        arr.emplace_front(16);
-        arr.emplace_front(8);
-        arr.emplace_front(4);
-        arr.emplace_front(2);
-        arr.emplace_front(1);
 
-        EXPECT_EQ(arr.get_allocator(), std::allocator<int>{});
-        EXPECT_EQ(arr.size(), 8);
-        EXPECT_GE(arr.capacity(), 8);
-        EXPECT_EQ(arr.end() - arr.begin(), 8);
+        EXPECT_EQ(arr[0], 128);
+        EXPECT_EQ(arr.size(), 1);
+        EXPECT_GE(arr.capacity(), 1);
+        EXPECT_EQ(arr.end() - arr.begin(), 1);
         EXPECT_FALSE(arr.empty());
+        EXPECT_EQ(*arr.begin(), 128);
+    }
 
-        for (std::size_t i = 0; i < 8; ++i) {
-            EXPECT_EQ(arr[i], 1 << i);
+    TEST(Circular_array, Emplace_front_multiple) {
+        Circular_array<int> arr{};
+
+        constexpr int iterations = 4;
+
+        for (int i = 0; i < iterations; ++i) {
+            arr.emplace_front(iterations - i);
+
+            EXPECT_EQ(arr.size(), i + 1);
+            EXPECT_GE(arr.capacity(), i + 1);
+            EXPECT_EQ(arr.end() - arr.begin(), i + 1);
+            EXPECT_FALSE(arr.empty());
+
+            for (int j = 0; j <= i; ++j) {
+                int u = arr[j];
+                int v = j + (iterations - i);
+                EXPECT_EQ(u, v);
+            }
         }
-
     }
 
     TEST(Circular_array, Emplace_back) {
         Circular_array<int> arr{};
 
-        arr.emplace_back(1);
-        arr.emplace_back(2);
-        arr.emplace_back(4);
-        arr.emplace_back(8);
-        arr.emplace_back(16);
-        arr.emplace_back(32);
-        arr.emplace_back(64);
-        arr.emplace_back(128);
+        constexpr int iterations = 1024;
 
-        EXPECT_EQ(arr.get_allocator(), std::allocator<int>{});
-        EXPECT_EQ(arr.size(), 8);
-        EXPECT_GE(arr.capacity(), 8);
-        EXPECT_EQ(arr.end() - arr.begin(), 8);
-        EXPECT_FALSE(arr.empty());
+        for (int i = 0; i < iterations; ++i) {
+            arr.emplace_back(i);
 
-        for (std::size_t i = 0; i < 8; ++i) {
-            EXPECT_EQ(arr[i], 1 << i);
+            EXPECT_EQ(arr.size(), i + 1);
+            EXPECT_GE(arr.capacity(), i + 1);
+            EXPECT_EQ(arr.end() - arr.begin(), i + 1);
+            EXPECT_FALSE(arr.empty());
+
+            for (int j = 0; j <= i; ++j) {
+                int u = arr[j];
+                int v = j;
+                EXPECT_EQ(u, v);
+            }
         }
-
     }
 
-    /*
-    TEST(Circular_array, Emplace) {
+    TEST(Circular_array, Emplace_at_begin) {
         Circular_array<int> arr{};
 
-        arr.emplace(arr.begin(), 0x44);
-        arr.emplace(arr.begin(), 0x45);
-        arr.emplace(arr.begin(), 0x46);
-        arr.emplace(arr.begin(), 0x47);
+        constexpr int iterations = 1024;
 
-        EXPECT_EQ(arr[0], 0x47);
-        EXPECT_EQ(arr[1], 0x46);
-        EXPECT_EQ(arr[2], 0x45);
-        EXPECT_EQ(arr[3], 0x44);
+        for (int i = 0; i < iterations; ++i) {
+            arr.emplace(arr.begin(), i);
+
+            EXPECT_EQ(arr.size(), i + 1);
+            EXPECT_GE(arr.capacity(), i + 1);
+            EXPECT_EQ(arr.end() - arr.begin(), i + 1);
+            EXPECT_FALSE(arr.empty());
+
+            for (int j = 0; j <= i; ++j) {
+                int u = arr[j];
+                int v = i - j;
+                EXPECT_EQ(u, v);
+            }
+        }
     }
-    */
+
+    TEST(Circular_array, Emplace_at_middle) {
+        std::vector<int> vec{};
+        Circular_array<int> arr{};
+
+        constexpr int iterations = 1024;
+
+        for (int i = 0; i < iterations; ++i) {
+            auto it1 = vec.begin() + (vec.size() / 2);
+            vec.insert(it1, i);
+
+            auto it0 = arr.begin() + (arr.size() / 2);
+            arr.emplace(it0, i);
+
+            EXPECT_EQ(arr.size(), i + 1);
+            EXPECT_GE(arr.capacity(), i + 1);
+            EXPECT_EQ(arr.end() - arr.begin(), i + 1);
+            EXPECT_FALSE(arr.empty());
+            for (int j = 0; j < arr.size(); ++j) {
+                auto u = arr[j];
+                auto v = vec[j];
+                EXPECT_EQ(u, v);
+            }
+        }
+    }
+
+    TEST(Circular_array, Emplace_at_end) {
+        Circular_array<int> arr{};
+
+        constexpr int iterations = 1024;
+
+        for (int i = 0; i < iterations; ++i) {
+            arr.emplace(arr.end(), i);
+
+            EXPECT_EQ(arr.size(), i + 1);
+            EXPECT_GE(arr.capacity(), i + 1);
+            EXPECT_EQ(arr.end() - arr.begin(), i + 1);
+            EXPECT_FALSE(arr.empty());
+
+            for (int j = 0; j <= i; ++j) {
+                int u = arr[j];
+                int v = j;
+                EXPECT_EQ(u, v);
+            }
+        }
+    }
 
     //=====================================================
     // Element removal
@@ -296,7 +358,6 @@ namespace aul::tests {
 
         EXPECT_EQ(arr.get_allocator(), std::allocator<float>{});
         EXPECT_EQ(arr.size(), 0);
-        EXPECT_EQ(arr.capacity(), 0);
         EXPECT_TRUE(arr.empty());
         EXPECT_EQ(arr.begin(), arr.end());
 
@@ -304,17 +365,6 @@ namespace aul::tests {
         EXPECT_ANY_THROW(arr.at(1));
         EXPECT_ANY_THROW(arr.at(2));
     }
-
-    //=====================================================
-    // Features
-    //=====================================================
-
-    /*
-    TEST(Circular_array, Constexpr_support) {
-        constexpr aul::Circular_array<int> arr0{};
-        constexpr aul::Circular_array<int> arr1{};
-    }
-     */
 
 }
 
