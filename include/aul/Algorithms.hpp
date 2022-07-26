@@ -32,9 +32,9 @@ namespace aul {
     /// \param val
     /// \return True if an object comparing equal to val was found.
     template<class F_iter, class T, class C = std::equal_to<T>>
-    constexpr bool linear_find(F_iter begin, F_iter end, const T& val, C c = {}) {
+    constexpr bool linear_find(F_iter begin, F_iter end, const T& val) {
         for (;begin != end; ++begin) {
-            if (c(*begin, val)) {
+            if (C(*begin, val)) {
                 return true;
             }
         }
@@ -69,6 +69,71 @@ namespace aul {
         }
 
         return begin;
+    }
+
+    /*
+    ///
+    /// \tparam R_iter Randomc access iterator type
+    /// \tparam T Object Type to compare to
+    /// \tparam C Comparator type
+    /// \param begin Iterator to begining of range
+    /// \param end Iterator to end of range
+    /// \param val Value to compare against
+    /// \param c Comparator object
+    template<class R_iter, class T, class C = std::less<T>>
+    [[nodiscard]]
+    constexpr R_iter exponential_search(R_iter begin, R_iter end, const T& val, C c = {}) {
+        using diff_type = std::iterator_traits<R_iter>::difference_type;
+
+        diff_type size = (end - begin);
+        diff_type offset = 1;
+
+        R_iter a = begin;
+        R_iter b = begin;
+        while (b != end) {
+            if (c(val, *b)) {
+                return binary_search(a, b, val, c);
+            }
+
+            a = b;
+            b = b + offset;
+
+            if ((size / 2) < offset) {
+                offset = size;
+            } else {
+                offset *= 2;
+            }
+        }
+
+        return end;
+    }
+    */
+
+    ///
+    /// Remove consecutive elements in the range specified by [begin, end) when
+    /// c(a, b) returns false.
+    ///
+    /// Similar to std::unique but meant to be used with ordering relations as
+    /// opposed to equality relations.
+    ///
+    /// \tparam R_iter Forward iterator type
+    /// \tparam C Comparator type
+    /// \param begin Iterator to beginning of range
+    /// \param end Iterator to end of range
+    /// \param c Comparator object to use
+    /// \return Iterator to new end of range
+    template<class R_iter, class C>
+    R_iter filter_adjacent(R_iter begin, R_iter end, C c = {}) {
+        auto a = begin;
+        auto b = ++a;
+        for (;b != end; ++b) {
+            if (c(*a, *b)) {
+                ++a;
+                *a = std::move(*b);
+            }
+        }
+
+        return ++a;
     }
 
     template<class...Args>

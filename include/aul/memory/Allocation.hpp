@@ -9,6 +9,10 @@ namespace aul {
     class Allocation {
     public:
 
+        //=================================================
+        // Type aliases
+        //=================================================
+
         using pointer = typename std::allocator_traits<A>::pointer;
         using size_type = typename std::allocator_traits<A>::size_type;
 

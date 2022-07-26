@@ -244,6 +244,66 @@ namespace aul {
         }
     }
 
+    ///
+    /// Move all elements in the specified range to the left by the specified
+    /// offset via move assignment. The last offset elements are destroyed via a
+    /// call to alloc.destroy. If (end - begin) is less than offset then this
+    /// function does nothing.
+    ///
+    /// \tparam Iter Iterator type
+    /// \tparam size_type Size ty[e
+    /// \tparam Alloc Allocator type
+    /// \param begin Iterator to begining of range
+    /// \param end Iterator to end of range
+    /// \param offset number of locations to move left by
+    /// \param alloc Allocator with which to destroy last elements
+    template<class Iter, class size_type, class Alloc>
+    void move_elements_left(Iter begin, Iter end, size_type offset, Alloc& alloc) {
+        if (end - begin < offset) {
+            return;
+        }
+
+        Iter a = begin;
+        Iter b = std::advance(begin, offset);
+        for (;b != end;, ++a, ++b) {
+            *a = std::move(b);
+        }
+
+        aul::destroy(a, end, alloc);
+    }
+
+    ///
+    /// Move all elements in the specified range to the left by the specified
+    /// offset via move assignment. The last offset elements are destroyed via a
+    /// call to alloc.destroy. If (end - begin) is less than offset then this
+    /// function does nothing.
+    ///
+    /// \tparam Iter Bidirectional Iterator type
+    /// \tparam size_type Size ty[e
+    /// \tparam Alloc Allocator type
+    /// \param begin Iterator to begining of range
+    /// \param end Iterator to end of range
+    /// \param offset number of locations to move left by
+    /// \param alloc Allocator with which to destroy last elements
+    template<class Iter, class size_type, class Alloc>
+    void move_elements_right(Iter begin, Iter end, size_type offset, Alloc& alloc) {
+        if (end - begin < offset) {
+            return;
+        }
+
+        auto a = end;
+        std::advance(a, -offset);
+        aul::uninitialized_move(a, end, end, alloc);
+
+        --a;
+        auto b = end;
+        --b;
+
+        for (;b != end;, --a, --b) {
+            *b = std::move(a);
+        }
+    }
+
     //=====================================================
     // Utility templates
     //=====================================================
