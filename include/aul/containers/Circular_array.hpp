@@ -742,11 +742,12 @@ namespace aul {
         /// \return Iterator to first of newly created elements
         iterator insert(const_iterator pos, const size_type n, const T& val) {
             iterator it = begin() + (pos - cbegin());
-            //There's probably a fencepost error here
-            if (size() < capacity() - n) {
-                insert_within_capacity(it, n, val);
+
+            //TODO: Prevent overflow
+            if (elem_count + n < allocation.capacity) {
+                return insert_within_capacity_n(it, n, val);
             } else {
-                insert_with_new_allocation(it, n, val);
+                return insert_with_new_allocation_n(it, n, val);
             }
         }
 
@@ -1372,11 +1373,10 @@ namespace aul {
             auto left = (it - begin());
             auto right = (end() - it);
             if (left < right) {
-                emplace_within_capacity_nudge_left(it, std::forward<Args>(args)...);
+                return emplace_within_capacity_nudge_left(it, std::forward<Args>(args)...);
             } else {
-                emplace_within_capacity_nudge_right(it, std::forward<Args>(args)...);
+                return emplace_within_capacity_nudge_right(it, std::forward<Args>(args)...);
             }
-            return it;
         }
 
         ///
@@ -1385,14 +1385,14 @@ namespace aul {
         ///     constructed
         /// \param args Parameters for new element's constructor
         template<class...Args>
-        void emplace_within_capacity_nudge_left(iterator it, Args&&...args) {
+        iterator emplace_within_capacity_nudge_left(iterator it, Args&&...args) {
             auto allocator = get_allocator();
 
             auto it0 = begin() - 1;
             auto it1 = begin();
             auto it2 = it + 1;
 
-            aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
+            auto it3 = aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
 
             pointer p = std::addressof(it[-1]);
             try {
@@ -1402,12 +1402,14 @@ namespace aul {
                     std::forward<Args>(args)...
                 );
             } catch(...) {
-                aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
+                aul::uninitialized_destructive_move_elements_right(it0, it3, it, allocator);
                 throw;
             }
 
             decrement_head_offset();
             ++elem_count;
+
+            return it - 1;
         }
 
         ///
@@ -1416,14 +1418,14 @@ namespace aul {
         ///     constructed
         /// \param args Parameters for new element's constructor
         template<class...Args>
-        void emplace_within_capacity_nudge_right(iterator it, Args&&...args) {
+        iterator emplace_within_capacity_nudge_right(iterator it, Args&&...args) {
             auto allocator = get_allocator();
 
             auto it0 = it;
             auto it1 = end();
             auto it2 = end() + 1;
 
-            aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
+            auto it3 = aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
 
             pointer p = std::addressof(*it);
             try {
@@ -1433,49 +1435,72 @@ namespace aul {
                     std::forward<Args>(args)...
                 );
             } catch(...) {
-                aul::uninitialized_destructive_move_backward(it0, it1, it2, allocator);
+                aul::uninitialized_destructive_move_elements_left(it, it3, it2, allocator);
                 throw;
             }
 
             ++elem_count;
+            return it;
         }
 
-        void insert_within_capacity(iterator it, size_type n, const T& val) {
+        iterator insert_within_capacity_n(iterator it, size_type n, const T& val) {
             auto left = it - begin();
             auto right = end() - it;
             if (left < right) {
-                insert_within_capacity_nudge_left(it, n, val);
+                return insert_within_capacity_nudge_left_n(it, n, val);
             } else {
-                insert_within_capacity_nudge_right(it, n, val);
+                return insert_within_capacity_nudge_right_n(it, n, val);
             }
         }
 
-        void insert_within_capacity_nudge_left(iterator it, size_type n, const T& val) {
-            auto allocator  = get_allocator();
+        iterator insert_within_capacity_nudge_left_n(iterator it, size_type n, const T& val) {
+            auto allocator = get_allocator();
 
             auto it0 = begin() - n;
             auto it1 = begin();
             auto it2 = it + 1;
 
-            aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
+            auto it3 = aul::uninitialized_destructive_move_elements_left(it0, it1, it2, allocator);
 
             try {
-                aul::uninitialized_fill(it - n, it, val, allocator);
-            } catch (...) {
-                aul::uninitialized_move_elements_right(it0, it1, it2, allocator);
+                aul::uninitialized_fill_n(it - n, n, val, allocator);
+            } catch(...) {
+                aul::uninitialized_destructive_move_elements_right(it0, it3, it, allocator);
+                throw;
+            }
+
+            decrease_head_offset(n);
+            elem_count += n;
+
+            return (it - n);
+        }
+
+        iterator insert_within_capacity_nudge_right_n(iterator it, size_type n, const T& val) {
+            auto allocator = get_allocator();
+
+            auto it0 = it;
+            auto it1 = end();
+            auto it2 = end() + n;
+
+            auto it3 = aul::uninitialized_destructive_move_elements_right(it0, it1, it2, allocator);
+
+            try {
+                aul::uninitialized_fill_n(it, n, val, allocator);
+            } catch(...) {
+                aul::uninitialized_destructive_move_elements_left(it, it3, it2, allocator);
                 throw;
             }
 
             elem_count += n;
-            head_offset -= n; //TODO: Handle wrap around
+            return it;
         }
 
-        void insert_with_new_allocation(iterator it, size_type n, const T& val) {
+        iterator insert_with_new_allocation_n(iterator it, size_type n, const T& val) {
             allocation_type new_allocation = allocate(size() + n);
 
             auto allocator = get_allocator();
 
-            pointer p = new_allocation + (it - begin());
+            pointer p = new_allocation.ptr + (it - begin());
             try {
                 aul::uninitialized_fill_n(p, n, val, allocator);
             } catch (...) {
@@ -1489,6 +1514,7 @@ namespace aul {
             head_offset = 0;
 
             allocation = new_allocation;
+            return {it - begin(), allocation.ptr, allocation.ptr + allocation.capacity};
         }
 
         ///

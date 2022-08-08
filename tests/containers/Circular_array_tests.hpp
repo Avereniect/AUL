@@ -154,6 +154,21 @@ namespace aul::tests {
         }
     }
 
+    TEST(Circular_array, Swap) {
+        aul::Circular_array<int> arr0{{0, 2, 4, 6, 8}};
+        aul::Circular_array<int> arr1{{1, 3, 5}};
+
+        arr0.swap(arr1);
+
+        EXPECT_EQ(arr0.size(), 3);
+        EXPECT_GE(arr0.capacity(), 3);
+        EXPECT_EQ(arr0.end() - arr0.begin(), 3);
+
+        EXPECT_EQ(arr1.size(), 5);
+        EXPECT_GE(arr1.capacity(), 5);
+        EXPECT_EQ(arr1.end() - arr1.begin(), 5);
+    }
+
     //=====================================================
     // Element addition
     //=====================================================
@@ -280,6 +295,34 @@ namespace aul::tests {
         }
     }
 
+    TEST(Circular_array, Insert_n_single) {
+        Circular_array<float> arr{};
+        arr.insert(arr.begin(), 1, 5.0f);
+
+        EXPECT_EQ(arr.size(), 1);
+        EXPECT_GE(arr.capacity(), 1);
+        EXPECT_EQ(arr.end() - arr.begin(), 1);
+        EXPECT_EQ(arr.cend() - arr.cbegin(), 1);
+        EXPECT_EQ(arr[0], 5.0f);
+        EXPECT_EQ(arr.begin()[0], 5.0f);
+    }
+
+    TEST(Circular_array, Insert_n_multiple) {
+        for (int i = 1; i < 1024; i += i) {
+            Circular_array<float> arr{};
+            arr.insert(arr.begin(), i, 5.0f);
+
+            EXPECT_EQ(arr.size(), i);
+            EXPECT_GE(arr.capacity(), i);
+            EXPECT_EQ(arr.end() - arr.begin(), i);
+            EXPECT_EQ(arr.cend() - arr.cbegin(), i);
+
+            for (int j = 0; j < arr.size(); ++j) {
+                EXPECT_EQ(arr[j], 5.0f);
+            }
+        }
+    }
+
     //=====================================================
     // Element removal
     //=====================================================
@@ -310,7 +353,7 @@ namespace aul::tests {
 
     TEST(Circular_array, Pop_front) {
         std::initializer_list<int> list{ 0, 1, 2, 4, 8, 16, 32, 64 };
-        aul::Circular_array<int> arr{ list };
+        aul::Circular_array<int> arr{list};
 
         arr.pop_front();
         arr.pop_front();
