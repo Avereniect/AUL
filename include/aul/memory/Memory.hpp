@@ -435,7 +435,7 @@ namespace aul {
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
     Forward_iter uninitialized_copy_n(Input_iter begin, const size_type n, Forward_iter dest, Alloc& alloc) {
         using tag = typename std::iterator_traits<Input_iter>::iterator_category;
-        impl::destroy_n(begin, n, alloc, tag{});
+        return impl::uninitialized_copy_n(begin, n, dest, alloc, tag{});
     }
 
     ///
@@ -552,6 +552,7 @@ namespace aul {
     /// \param b Iterator to beginning of source range
     /// \param c Iterator to end of source range
     /// \param alloc Allocator object to construct destroy elements with
+    /// \return Iterator to end of destination range
     template<class R_iter, class Alloc>
     R_iter uninitialized_destructive_move_elements_left(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         using d_type = typename std::iterator_traits<R_iter>::difference_type;
@@ -629,13 +630,13 @@ namespace aul {
     }
 
     ///
-    /// \tparam R_iter
-    /// \tparam size_type
-    /// \tparam Alloc
-    /// \param a
-    /// \param b
-    /// \param c
-    /// \param alloc
+    /// \tparam R_iter Random access iterator
+    /// \tparam Alloc Allocator type
+    /// \param a Iterator to beginning of source range
+    /// \param b Iterator to end of source range
+    /// \param c Iterator to end of destination range
+    /// \param alloc Allocator object with which to construct and destroy objects
+    /// \return Iterator to beginning of destination range
     template<class R_iter, class Alloc>
     R_iter uninitialized_destructive_move_elements_right(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         using d_type = typename std::iterator_traits<R_iter>::difference_type;
