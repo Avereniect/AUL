@@ -252,7 +252,7 @@ namespace aul {
     template<class In_iter, class Out_iter, class size_type, class Alloc>
     Out_iter uninitialized_move_n(In_iter begin, const size_type n, Out_iter dest, Alloc& alloc) {
         using tag = typename std::iterator_traits<In_iter>::iterator_category;
-        impl::uninitialized_move_n(begin, n, dest, alloc, tag{});
+        return impl::uninitialized_move_n(begin, n, dest, alloc, tag{});
     }
 
     ///
