@@ -46,30 +46,6 @@ namespace aul {
         T t1 = a / c;
 
         //TODO: Complete implementation
-
-        /*
-        // o = a + b
-        difference_type b = o %  ;
-        difference_type a = o - b;
-
-        // a = x * bits_per_element + y;
-        difference_type x = a / bits_per_element;
-        difference_type y = a % bits_per_element;
-
-        static_assert(sizeof(std::ptrdiff_t) >= sizeof(T));
-
-        // This could still technically overflow if std::ptrdiff_t is not at
-        // least as large as bits_per_element, as unlikely as that would be.
-        std::ptrdiff_t partial = size * y + size * b;
-        std::ptrdiff_t whole   = size * x;
-
-        partial += offset;
-        whole += (partial / ptrdiff_t(bits_per_element));
-        partial = (partial % ptrdiff_t(bits_per_element));
-
-        ptr += whole;
-        offset = partial;
-        */
     }
     */
     
