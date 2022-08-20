@@ -1258,7 +1258,7 @@ namespace aul {
             aul::uninitialized_move(pos, end(), p1, allocator);
 
             aul::destroy(begin(), end(), allocator);
-            deallocate(allocator);
+            deallocate(allocation);
 
             allocation = new_allocation;
 
