@@ -352,7 +352,7 @@ namespace aul::tests {
     }
 
     TEST(Circular_array, Pop_front) {
-        std::initializer_list<int> list{ 0, 1, 2, 4, 8, 16, 32, 64 };
+        std::initializer_list<int> list{0, 1, 2, 4, 8, 16, 32, 64};
         aul::Circular_array<int> arr{list};
 
         arr.pop_front();
@@ -373,6 +373,35 @@ namespace aul::tests {
 
         EXPECT_ANY_THROW(arr.at(0));
         EXPECT_ANY_THROW(arr.at(1));
+    }
+
+    TEST(Circular_array, Erase_front) {
+        aul::Circular_array<int> arr{0, 1, 2, 4, 8, 16, 32, 64};
+
+        arr.erase(arr.begin());
+
+        EXPECT_EQ(arr[0], 1);
+        EXPECT_EQ(arr.size(), 7);
+        EXPECT_GE(arr.capacity(), 7);
+        EXPECT_EQ(arr.end() - arr.begin(), 7);
+        EXPECT_EQ(arr.back(), 64);
+        EXPECT_FALSE(arr.empty());
+    }
+
+    TEST(Circular_array, Erase_back) {
+        aul::Circular_array<int> arr{0, 1, 2, 4, 8, 16, 32, 64};
+
+        arr.erase(arr.end() - 1);
+
+        EXPECT_EQ(arr[6], 32);
+        EXPECT_EQ(arr.size(), 7);
+        EXPECT_GE(arr.capacity(), 7);
+        EXPECT_EQ(arr.end() - arr.begin(), 7);
+        EXPECT_EQ(arr.front(), 0);
+        EXPECT_EQ(arr.back(), 32);
+        EXPECT_FALSE(arr.empty());
+
+        EXPECT_ANY_THROW(arr.at(7));
     }
 
     //=====================================================
