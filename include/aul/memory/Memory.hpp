@@ -614,18 +614,17 @@ namespace aul {
 
     ///
     /// \tparam R_iter
-    /// \tparam size_type
     /// \tparam Alloc
     /// \param a
     /// \param b
     /// \param c
     /// \param alloc
-    template<class R_iter, class size_type, class Alloc>
+    template<class R_iter, class Alloc>
     R_iter destructive_move_elements_right(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         auto non_overlap = std::min(c - b, b - a);
 
-        auto it0 = std::move_backward(b - non_overlap, b, c, alloc);
-        auto it1 = aul::destructive_move_backward(a, b - non_overlap, it0);
+        auto it0 = std::move_backward(b - non_overlap, b, c);
+        auto it1 = aul::destructive_move_backward(a, b - non_overlap, it0, alloc);
         return it1;
     }
 

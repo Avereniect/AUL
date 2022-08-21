@@ -637,7 +637,7 @@ namespace aul {
         ///
         /// \return Reference to last element
         T& back() {
-            return *index_to_ptr(elem_count);
+            return *index_to_ptr(elem_count - 1);
         }
 
         ///
@@ -905,18 +905,13 @@ namespace aul {
             size_type left = pos - begin();
             size_type right = cend() - pos - 1;
 
+            auto allocator = get_allocator();
+
             if (left < right) {
-                for (auto it = begin(); static_cast<const_iterator>(it) != pos; ++it) {
-                    it[-1] = it[0];
-                }
-                auto allocator = get_allocator();
-                std::allocator_traits<allocator_type>::destroy(allocator, begin().operator->());
+                aul::destructive_move_elements_right(begin(), pos, pos + 1, allocator);
+                increment_head_offset();
             } else {
-                for (auto it = end() - 1; it++ != it;) {
-                    it[0] = it[1];
-                }
-                auto allocator = get_allocator();
-                std::allocator_traits<allocator_type>::destroy(allocator, (end() - 1).operator->());
+                aul::destructive_move_elements_left(pos, pos + 1, end(), allocator);
             }
             --elem_count;
         }
@@ -928,7 +923,21 @@ namespace aul {
         ///
         /// \param from Iterator to beginning of range
         /// \param to Iterator to end of range
-        void erase(const_iterator from, const_iterator to);
+        void erase(const_iterator from, const_iterator to) {
+            size_type left = from - begin();
+            size_type right = cend() - to;
+
+            auto allocator = get_allocator();
+
+            if (left < right) {
+                aul::destructive_move_elements_right(begin(), from, to, allocator);
+                increase_head_offset(to - from);
+            } else {
+                aul::destructive_move_elements_left(from, to, end(), allocator);
+            }
+
+            elem_count -= (to - from);
+        }
 
         //=================================================
         // State Mutators
@@ -1592,13 +1601,14 @@ namespace aul {
         }
 
         void decrease_head_offset(size_type d) {
-            //TODO: Correct implementation
+            //TODO: Correct implementation/ Head offset should always be in
+            // [0, size()) range
             d %= elem_count;
 
-            if (head_offset > -elem_count + d) {
+            if (d < head_offset) {
                 head_offset -= d;
             } else {
-                head_offset = head_offset + size() - d;
+                head_offset += elem_count - d;
             }
         }
 
