@@ -17,7 +17,7 @@ namespace aul {
     template<class T>
     [[nodiscard]]
     constexpr T rotl(T x, unsigned s) noexcept {
-        static_assert(std::is_unsigned_v<T>);
+        static_assert(std::is_unsigned<T>::value);
         auto constexpr bits = std::numeric_limits<T>::digits;
         return (x << s) | (x >> (bits - s));
     }
@@ -31,7 +31,7 @@ namespace aul {
     template<class T>
     [[nodiscard]]
     constexpr T rotr(T x, unsigned s) noexcept {
-        static_assert(std::is_unsigned_v<T>);
+        static_assert(std::is_unsigned<T>::value);
         auto constexpr bits = std::numeric_limits<T>::digits;
         return (x >> s) | ((x << (bits - s)));
     }
@@ -143,7 +143,7 @@ namespace aul {
     template<class T>
     [[nodiscard]]
     constexpr inline T fill_bits(unsigned begin, unsigned end) {
-        static_assert(std::is_integral_v<T>);
+        static_assert(std::is_integral<T>::value);
         constexpr auto bits_per_int = sizeof(T) * CHAR_BIT;
         T ret = (~T{0} >> (bits_per_int - (end - begin))) << begin;
         return ret;
@@ -152,7 +152,7 @@ namespace aul {
     template<class T>
     [[nodiscard]]
     constexpr inline T fill_first_n_bits(unsigned n) {
-        static_assert(std::is_integral_v<T>);
+        static_assert(std::is_integral<T>::value);
         constexpr auto bits_per_int = sizeof(T) * CHAR_BIT;
         T ret = (~T{0} >> (bits_per_int - n)) ;
         return ret;
