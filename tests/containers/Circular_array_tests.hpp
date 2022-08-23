@@ -438,6 +438,31 @@ namespace aul::tests {
         EXPECT_ANY_THROW(arr.at(2));
     }
 
+    //=====================================================
+    // Integration
+    //=====================================================
+
+    TEST(Circular_array, Alternating_pop_fronts_and_pop_backs) {
+        aul::Circular_array<std::vector<int>> arr{};
+
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.pop_front();
+        arr.pop_front();
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.pop_front();
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.pop_front();
+        arr.emplace_back(std::vector<int>{1, 2, 3, 4});
+        arr.pop_front();
+        arr.pop_front();
+
+        //EXPECT_EQ(arr.size(), 0);
+        //EXPECT_EQ(arr.end() - arr.begin(), 0);
+        //EXPECT_TRUE(arr.empty());
+    }
+
 }
 
 #endif //AUL_CIRCULAR_ARRAY_TESTS_HPP
