@@ -872,11 +872,15 @@ namespace aul {
         /// Invalidates iterators to first element
         ///
         void pop_front() {
-            pointer ptr = begin().operator->();
+            pointer ptr = index_to_ptr(0);
             auto allocator = get_allocator();
             std::allocator_traits<A>::destroy(allocator, ptr);
 
-            increment_head_offset();
+            if (elem_count == 1) {
+                head_offset = 0;
+            } else {
+                increment_head_offset();
+            }
 
             --elem_count;
         }
@@ -892,6 +896,10 @@ namespace aul {
             auto allocator = get_allocator();
             std::allocator_traits<A>::destroy(allocator, ptr);
             --elem_count;
+
+            if (elem_count == 0) {
+                head_offset = 0;
+            }
         }
 
         ///
