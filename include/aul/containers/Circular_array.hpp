@@ -1585,7 +1585,7 @@ namespace aul {
 
         void increment_head_offset() {
             head_offset += 1;
-            if (head_offset == size()) {
+            if (head_offset == allocation.capacity) {
                 head_offset = 0;
             }
         }
