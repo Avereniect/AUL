@@ -434,7 +434,7 @@ namespace aul {
             key_pointer key_ptr = aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator);
             if (key_ptr && !empty() && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 pointer ptr = allocation.vals + (key_ptr - allocation.keys);
-                return std::make_pair(iterator{ptr}, false);
+                return std::make_pair(iterator{key_ptr, ptr}, false);
             }
 
             if (size() + 1 <= capacity()) {
@@ -473,7 +473,7 @@ namespace aul {
                 }
 
                 ++elem_count;
-                return std::make_pair(iterator{new_val_ptr}, true);
+                return std::make_pair(iterator{new_key_ptr, new_val_ptr}, true);
             } else {
                 Allocation new_allocation = allocate(grow_size(size() + 1));
 
@@ -516,7 +516,7 @@ namespace aul {
                 allocation = std::move(new_allocation);
 
                 ++elem_count;
-                return std::make_pair(iterator{new_val_ptr}, true);
+                return std::make_pair(iterator{new_key_ptr, new_val_ptr}, true);
             }
         }
 
