@@ -904,6 +904,18 @@ namespace aul {
             key_pointer key_ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
 
             if (key_ptr && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
+                return const_iterator{key_ptr, allocation.vals + (key_ptr - allocation.keys)};
+            } else {
+                return cend();
+            }
+        }
+
+        template<class K2>
+        [[nodiscard]]
+        iterator find(const K2& key) noexcept {
+            key_pointer key_ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+
+            if (key_ptr && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
                 return iterator{key_ptr, allocation.vals + (key_ptr - allocation.keys)};
             } else {
                 return end();
@@ -912,16 +924,14 @@ namespace aul {
 
         template<class K2>
         [[nodiscard]]
-        iterator find(const K2& key) noexcept {
-            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
-        }
-
-        template<class K2>
-        [[nodiscard]]
         const_iterator find(const K2& key) const noexcept {
-            key_pointer ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
-            return (ptr && (ptr != allocation.keys + elem_count) && compare_keys(*ptr, key)) ? iterator{allocation.vals + (ptr - allocation.keys)} : end();
+            key_pointer key_ptr = {aul::binary_search(allocation.keys, allocation.keys + elem_count, key, comparator)};
+
+            if (key_ptr && (key_ptr != allocation.keys + elem_count) && compare_keys(*key_ptr, key)) {
+                return const_iterator{key_ptr, allocation.vals + (key_ptr - allocation.keys)};
+            } else {
+                return cend();
+            }
         }
 
         ///
@@ -1284,6 +1294,8 @@ namespace aul {
         /// \return X < Y according to their key associations
         [[nodiscard]]
         bool operator()(const_iterator x, const const_iterator y) const {
+            //TODO: Compare pointers to elements instead
+
             //Elements at lower addresses map to keys which are less than the
             //keys for elements at higher addresses
             return x.operator->() < y.operator->();

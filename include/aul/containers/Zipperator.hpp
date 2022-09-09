@@ -59,22 +59,22 @@ namespace aul {
     class Random_access_zipperator;
 
     template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip);
+    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip);
+    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip);
+    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip);
+    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip);
+    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip);
+    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
 
     ///
     /// Wrapper around individual iterators that functions as a parallel
@@ -203,12 +203,13 @@ namespace aul {
         //=================================================
 
         template<std::size_t i>
-        friend auto get(const Forward_zipperator& zip) {
-            if constexpr (i == 0) {
-                return zip.it;
-            } else {
-                return get<i - 1>(zip.its);
-            }
+        friend auto get(const Forward_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
+            return std::get<i>(zip.operator->());
+        }
+
+        template<class It0_2, class...Args2, class = typename std::enable_if<>::type>
+        operator Forward_zipperator<const It0_2, Args2...>() const {
+
         }
 
     protected:
@@ -336,14 +337,8 @@ namespace aul {
         //=================================================
 
         template<std::size_t i>
-        friend typename std::conditional<i == 0, It0, It1>::type get(const Forward_zipperator& zip) {
-            if constexpr (i == 0) {
-                return zip.it0;
-            } else if (i == 1) {
-                return zip.it1;
-            } else {
-                return {};
-            }
+        friend auto get(const Forward_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
+            return std::get<i>(zip.operator->());
         }
 
     protected:
@@ -424,12 +419,8 @@ namespace aul {
         //=================================================
 
         template<std::size_t i>
-        friend auto get(const Bidirectional_zipperator& zip) {
-            if constexpr (i == 0) {
-                return zip.it;
-            } else {
-                return get<i - 1>(zip.its);
-            }
+        friend auto get(const Bidirectional_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
+            return std::get<i>(zip.operator->());
         }
 
     private:
@@ -656,12 +647,8 @@ namespace aul {
         //=================================================
 
         template<std::size_t i>
-        friend auto get(const Random_access_zipperator& zip) {
-            if constexpr (i == 0) {
-                return zip.it;
-            } else {
-                return get<i - 1>(zip.its);
-            }
+        friend auto get(const Random_access_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
+            return std::get<i>(zip.operator->());
         }
 
     private:
