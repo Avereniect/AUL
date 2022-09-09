@@ -67,6 +67,15 @@ namespace aul {
     template<std::size_t i, class It0, class...Args>
     auto get(const Forward_zipperator<It0, Args...>& zip);
 
+    template<std::size_t i, class It0, class It1>
+    auto get(const Forward_zipperator<It0, It1>& zip);
+
+    template<std::size_t i, class It0, class It1>
+    auto get(const Forward_zipperator<It0, It1>& zip);
+
+    template<std::size_t i, class It0, class It1>
+    auto get(const Forward_zipperator<It0, It1>& zip);
+
     ///
     /// Wrapper around individual iterators that functions as a parallel
     /// iterator. Functions purely as a forward iterator
