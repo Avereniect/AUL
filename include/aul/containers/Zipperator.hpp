@@ -49,33 +49,6 @@ namespace aul {
 
     }
 
-    template<class It, class...Its>
-    class Forward_zipperator;
-
-    template<class It, class...Its>
-    class Bidirectional_zipperator;
-
-    template<class It, class...Its>
-    class Random_access_zipperator;
-
-    template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
-
-    template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
-
-    template<std::size_t i, class It0, class...Args>
-    auto get(const Forward_zipperator<It0, Args...>& zip) -> decltype(std::get<i>(zip.operator->()));
-
-    template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
-
-    template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
-
-    template<std::size_t i, class It0, class It1>
-    auto get(const Forward_zipperator<It0, It1>& zip) -> decltype(std::get<i>(zip.operator->()));
-
     ///
     /// Wrapper around individual iterators that functions as a parallel
     /// iterator. Functions purely as a forward iterator
@@ -198,19 +171,8 @@ namespace aul {
             );
         }
 
-        //=================================================
-        // Misc.
-        //=================================================
-
-        template<std::size_t i>
-        friend auto get(const Forward_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
-            return std::get<i>(zip.operator->());
-        }
-
-        template<class It0_2, class...Args2, class = typename std::enable_if<>::type>
-        operator Forward_zipperator<const It0_2, Args2...>() const {
-
-        }
+        //template<class It0_2, class...Args2, class = typename std::enable_if<>::type>
+        //operator Forward_zipperator<const It0_2, Args2...>() const {//TODO: Implement}
 
     protected:
 
@@ -332,15 +294,6 @@ namespace aul {
             return std::make_tuple(impl::arrow(it0), impl::arrow(it1));
         }
 
-        //=================================================
-        // Misc.
-        //=================================================
-
-        template<std::size_t i>
-        friend auto get(const Forward_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
-            return std::get<i>(zip.operator->());
-        }
-
     protected:
 
         //=================================================
@@ -412,15 +365,6 @@ namespace aul {
             auto tmp = *this;
             --base::it0;
             return tmp;
-        }
-
-        //=================================================
-        // Misc.
-        //=================================================
-
-        template<std::size_t i>
-        friend auto get(const Bidirectional_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
-            return std::get<i>(zip.operator->());
         }
 
     private:
@@ -642,15 +586,6 @@ namespace aul {
             return *tmp;
         }
 
-        //=================================================
-        // Misc.
-        //=================================================
-
-        template<std::size_t i>
-        friend auto get(const Random_access_zipperator& zip) -> decltype(std::get<i>(zip.operator->())) {
-            return std::get<i>(zip.operator->());
-        }
-
     private:
 
         //=================================================
@@ -808,18 +743,40 @@ namespace std {
 
     template<std::size_t index, class It, class...Args>
     struct tuple_element<index, aul::Forward_zipperator<It, Args...>> {
-        using type = std::tuple_element<index, std::tuple<It, Args...>>;
+        using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
 
     template<std::size_t index, class It, class...Args>
     struct tuple_element<index, aul::Bidirectional_zipperator<It, Args...>> {
-        using type = std::tuple_element<index, std::tuple<It, Args...>>;
+        using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
 
     template<std::size_t index, class It, class...Args>
     struct tuple_element<index, aul::Random_access_zipperator<It, Args...>> {
-        using type = std::tuple_element<index, std::tuple<It, Args...>>;
+        using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
+
+}
+
+namespace aul {
+
+    template<std::size_t i, class It0, class...Args>
+    typename std::tuple_element<i, Forward_zipperator<It0, Args...>>::type
+    get(const Forward_zipperator<It0, Args...>& zip) {
+        return std::get<i>(zip.operator->());
+    }
+
+    template<std::size_t i, class It0, class...Args>
+    typename std::tuple_element<i, Bidirectional_zipperator<It0, Args...>>::type
+    get(const Bidirectional_zipperator<It0, Args...>& zip) {
+        return std::get<i>(zip.operator->());
+    }
+
+    template<std::size_t i, class It0, class...Args>
+    typename std::tuple_element<i, Random_access_zipperator<It0, Args...>>::type
+    get(const Random_access_zipperator<It0, Args...>& zip) {
+        return std::get<i>(zip.operator->());
+    }
 
 }
 
