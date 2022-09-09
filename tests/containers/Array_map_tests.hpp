@@ -1,5 +1,5 @@
-#ifndef AUL_ASSOCIATIVE_LIST_TESTS_HPP
-#define AUL_ASSOCIATIVE_LIST_TESTS_HPP
+#ifndef AUL_ARRAY_MAP_TESTS_HPP
+#define AUL_ARRAY_MAP_TESTS_HPP
 
 
 #include <aul/containers/Array_map.hpp>
@@ -18,14 +18,14 @@ namespace aul::tests {
     protected:
 
         virtual void SetUp() override {
-            map.insert(0, 0.00);
-            map.insert(1, 1.00);
-            map.insert(2, 2.00);
-            map.insert(3, 3.00);
-            map.insert(4, 4.00);
-            map.insert(5, 5.00);
-            map.insert(6, 6.00);
-            map.insert(7, 7.00);
+            map.insert(0, 0.00f);
+            map.insert(1, 1.00f);
+            map.insert(2, 2.00f);
+            map.insert(3, 3.00f);
+            map.insert(4, 4.00f);
+            map.insert(5, 5.00f);
+            map.insert(6, 6.00f);
+            map.insert(7, 7.00f);
         }
 
         aul::Array_map<int, float> map;
@@ -98,7 +98,8 @@ namespace aul::tests {
 
         EXPECT_EQ(arr.begin(), arr.end());
         EXPECT_EQ(arr.data(), nullptr);
-        EXPECT_EQ(arr.keys(), nullptr);
+        EXPECT_TRUE(arr.keys().empty());
+        EXPECT_TRUE(arr.values().empty());
 
         EXPECT_ANY_THROW(arr.at(0));
     }
@@ -347,7 +348,7 @@ namespace aul::tests {
         map.emplace(3, 3.0);
 
         std::vector<int> results;
-        for (auto x : map) {
+        for (auto x : map.values()) {
             results.push_back(x);
         }
 
@@ -389,12 +390,12 @@ namespace aul::tests {
         map.emplace(3, 3.0);
         map.emplace(4, 4.0);
 
-        EXPECT_EQ(*map.find(1), 1.0);
-        EXPECT_EQ(*map.find(2), 2.0);
-        EXPECT_EQ(*map.find(3), 3.0);
-        EXPECT_EQ(*map.find(4), 4.0);
+        EXPECT_EQ(std::get<1>(*map.find(1)), 1.0);
+        EXPECT_EQ(std::get<1>(*map.find(2)), 2.0);
+        EXPECT_EQ(std::get<1>(*map.find(3)), 3.0);
+        EXPECT_EQ(std::get<1>(*map.find(4)), 4.0);
     }
 
 }
 
-#endif //AUL_ASSOCIATIVE_LIST_HPP
+#endif //AUL_ARRAY_MAP_TESTS_HPP

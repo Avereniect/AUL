@@ -9,6 +9,7 @@
 
 #include <tuple>
 #include <iterator>
+#include <utility>
 
 namespace aul {
 
@@ -47,6 +48,24 @@ namespace aul {
         }
 
     }
+
+    template<class It, class...Its>
+    class Forward_zipperator;
+
+    template<class It, class...Its>
+    class Bidirectional_zipperator;
+
+    template<class It, class...Its>
+    class Random_access_zipperator;
+
+    template<std::size_t i, class It0, class...Args>
+    auto get(const Forward_zipperator<It0, Args...>& zip);
+
+    template<std::size_t i, class It0, class...Args>
+    auto get(const Forward_zipperator<It0, Args...>& zip);
+
+    template<std::size_t i, class It0, class...Args>
+    auto get(const Forward_zipperator<It0, Args...>& zip);
 
     ///
     /// Wrapper around individual iterators that functions as a parallel
@@ -171,10 +190,23 @@ namespace aul {
         }
 
         //=================================================
-        // Instance members
+        // Misc.
         //=================================================
 
+        template<std::size_t i>
+        friend auto get(const Forward_zipperator& zip) {
+            if constexpr (i == 0) {
+                return zip.it;
+            } else {
+                return get<i - 1>(zip.its);
+            }
+        }
+
     protected:
+
+        //=================================================
+        // Instance members
+        //=================================================
 
         It it;
         sub_iterator its;
@@ -291,10 +323,25 @@ namespace aul {
         }
 
         //=================================================
-        // Instance members
+        // Misc.
         //=================================================
 
+        template<std::size_t i>
+        friend typename std::conditional<i == 0, It0, It1>::type get(const Forward_zipperator& zip) {
+            if constexpr (i == 0) {
+                return zip.it0;
+            } else if (i == 1) {
+                return zip.it1;
+            } else {
+                return {};
+            }
+        }
+
     protected:
+
+        //=================================================
+        // Instance members
+        //=================================================
 
         It0 it0;
         It1 it1;
@@ -364,10 +411,23 @@ namespace aul {
         }
 
         //=================================================
-        // Instance members
+        // Misc.
         //=================================================
 
+        template<std::size_t i>
+        friend auto get(const Bidirectional_zipperator& zip) {
+            if constexpr (i == 0) {
+                return zip.it;
+            } else {
+                return get<i - 1>(zip.its);
+            }
+        }
+
     private:
+
+        //=================================================
+        // Instance members
+        //=================================================
 
         Bidirectional_zipperator<Its...> its;
 
@@ -582,6 +642,19 @@ namespace aul {
             return *tmp;
         }
 
+        //=================================================
+        // Misc.
+        //=================================================
+
+        template<std::size_t i>
+        friend auto get(const Random_access_zipperator& zip) {
+            if constexpr (i == 0) {
+                return zip.it;
+            } else {
+                return get<i - 1>(zip.its);
+            }
+        }
+
     private:
 
         //=================================================
@@ -708,6 +781,48 @@ namespace aul {
             return *tmp;
         }
 
+    };
+
+}
+
+namespace std {
+
+    //=====================================================
+    // std::tuple_size specializations
+    //=====================================================
+
+    template<class It, class...Args>
+    struct tuple_size<aul::Forward_zipperator<It, Args...>> {
+        static constexpr std::size_t value = 1 + sizeof...(Args);
+    };
+
+    template<class It, class...Args>
+    struct tuple_size<aul::Bidirectional_zipperator<It, Args...>> {
+        static constexpr std::size_t value = 1 + sizeof...(Args);
+    };
+
+    template<class It, class...Args>
+    struct tuple_size<aul::Random_access_zipperator<It, Args...>> {
+        static constexpr std::size_t value = 1 + sizeof...(Args);
+    };
+
+    //=====================================================
+    // std::tuple_element specializations
+    //=====================================================
+
+    template<std::size_t index, class It, class...Args>
+    struct tuple_element<index, aul::Forward_zipperator<It, Args...>> {
+        using type = std::tuple_element<index, std::tuple<It, Args...>>;
+    };
+
+    template<std::size_t index, class It, class...Args>
+    struct tuple_element<index, aul::Bidirectional_zipperator<It, Args...>> {
+        using type = std::tuple_element<index, std::tuple<It, Args...>>;
+    };
+
+    template<std::size_t index, class It, class...Args>
+    struct tuple_element<index, aul::Random_access_zipperator<It, Args...>> {
+        using type = std::tuple_element<index, std::tuple<It, Args...>>;
     };
 
 }
