@@ -274,7 +274,7 @@ namespace aul {
 
         [[nodiscard]]
         const_iterator end() const noexcept {
-            return const_iterator{allocation.leys + elem_count, allocation.vals + elem_count};
+            return const_iterator{allocation.keys + elem_count, allocation.vals + elem_count};
         }
 
         [[nodiscard]]
