@@ -188,6 +188,10 @@ namespace aul {
         /// \param rhs Object to copy
         /// \return *this
         Array_map& operator=(const Array_map& rhs) {
+            if (this == &rhs) {
+                return *this;
+            }
+
             // Attempt to create new allocation. Return if allocation failed
             Allocation new_allocation = allocate(rhs.elem_count);
 
@@ -217,6 +221,10 @@ namespace aul {
         /// \param rhs Object to move from
         /// \return *this
         Array_map& operator=(Array_map&& rhs) noexcept(aul::is_noexcept_movable_v<A>) {
+            if (this == &rhs) {
+                return *this;
+            }
+
             //If allocator is not propagated and allocators do not compare equal a new allocation must be made.
             bool use_new_allocation =
                 !aul::is_noexcept_movable_v<A> &&
@@ -1340,6 +1348,10 @@ namespace aul {
         Allocation& operator=(const Allocation&) = delete;
 
         Allocation& operator=(Allocation&& alloc) noexcept {
+            if (this == &alloc) {
+                return;
+            }
+
             capacity = std::move(alloc.capacity);
             vals = std::move(alloc.vals);
             keys = std::move(alloc.keys);
