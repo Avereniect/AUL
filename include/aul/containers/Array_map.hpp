@@ -298,6 +298,10 @@ namespace aul {
         /// \param rhs Array_map to compare against
         /// \return True if all keys and elements compare equal
         bool operator==(const Array_map& rhs) const noexcept {
+            if (this == &rhs) {
+                return true;
+            }
+
             if (elem_count != rhs.elem_count) {
                 return false;
             }
