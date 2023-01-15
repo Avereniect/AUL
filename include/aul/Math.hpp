@@ -38,6 +38,7 @@ namespace aul {
     std::array<T, 2> mul_div(T x, T y, T z) {
         using std::max;
         using std::min;
+
         T a = max(x, y);
         T b = min(x, y);
         T c = z;
@@ -56,17 +57,6 @@ namespace aul {
 
         constexpr U temp = std::numeric_limits<T>::max();
         return U(x) / static_cast<U>(temp);
-    }
-
-    //=====================================================
-    // Utilities
-    //=====================================================
-
-    template<class T>
-    T clamp(T x, T lo, T hi) {
-        using std::min;
-        using std::max;
-        return min(max(x, lo), hi);
     }
 
 }
