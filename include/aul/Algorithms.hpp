@@ -56,7 +56,7 @@ namespace aul {
     constexpr R_iter binary_search(R_iter begin, R_iter end, const T& val, C c = {}) {
         using diff_type = typename std::iterator_traits<R_iter>::difference_type;
 
-        constexpr diff_type empty_full[2] = {0, ~diff_type{0}};
+        //constexpr diff_type empty_full[2] = {0, ~diff_type{0}};
 
         diff_type size = (end - begin);
         R_iter pivot;
@@ -64,7 +64,11 @@ namespace aul {
         while (size) {
             diff_type half = (size >> 1);
             pivot = begin + half;
-            begin = begin + ((size - half) & empty_full[c(*pivot, val)]);
+            // Branchless approach:
+            //begin = begin + ((size - half) & empty_full[c(*pivot, val)]);
+            if (c(*pivot, val)) {
+                begin += (size - half);
+            }
             size = half;
         }
 
