@@ -96,6 +96,14 @@ namespace aul::tests {
         EXPECT_EQ(vec.end(), aul::binary_search(vec.begin(), vec.end(), -1, comparator));
     }
 
+    TEST(aul_binary_search, Multiple_equal_elements) {
+        const std::vector<int> vec = {
+            4, 4, 4, 4
+        };
+
+        EXPECT_EQ(vec.begin(), aul::binary_search(vec.begin(), vec.end(), 4));
+    }
+
 }
 
 #endif //AUL_TESTS_ALGORITHMS_TESTS_HPP
