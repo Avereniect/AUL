@@ -17,236 +17,6 @@ namespace aul {
     ///
     static constexpr std::size_t dynamic_extent = -1;
 
-    /*
-    ///
-    /// Base class for span classes.
-    ///
-    /// \tparam E Span extent
-    template<std::size_t E>
-    class Span_base {
-    protected:
-
-        Span_base() = default;
-
-        explicit Span_base(std::size_t n) {}
-
-        [[nodiscard]]
-        std::size_t size() const {
-            return E;
-        }
-
-    };
-
-    ///
-    /// Specialization of Span_base for spans of a dynamic length
-    ///
-    template<>
-    class Span_base<dynamic_extent> {
-    protected:
-
-        Span_base():
-            n(0) {}
-
-        explicit Span_base(std::size_t n):
-            n(n) {}
-
-        [[nodiscard]]
-        std::size_t size() const {
-            return n;
-        }
-
-        std::size_t n;
-
-    };
-
-    ///
-    /// \tparam T Type of element viewed by span
-    /// \tparam E Extent of span
-    template<class T, std::size_t E = dynamic_extent>
-    class Span : Span_base<E>{
-        using base = Span_base<E>;
-    public:
-
-        static constexpr std::size_t extent = dynamic_extent;
-
-        //=================================================
-        // Type aliases
-        //=================================================
-
-        using element_type = T;
-        using value_type = std::remove_cv_t<T>;
-
-        using size_type = std::size_t;
-        using difference_type = std::ptrdiff_t;
-
-        using pointer = T*;
-        using const_pointer = const T*;
-
-        using reference = T&;
-        using const_reference = const T&;
-
-        using iterator = pointer; //Random_access_zipper_iterator<pointer>;
-        using reverse_iterator = std::reverse_iterator<iterator>;
-
-        //=================================================
-        // -ctors
-        //=================================================
-
-        ///
-        /// \tparam It Iterator type
-        /// \param first Iterator to first element in
-        /// \param count
-        template<class It, class = typename std::enable_if_t<E == dynamic_extent, It>>
-        Span(It first, size_type count):
-            base(count),
-            ptr(std::addressof(*first)) {}
-
-        ///
-        /// \tparam It
-        /// \param first
-        template<class It, class = typename std::enable_if_t<E != dynamic_extent, It>>
-        explicit Span(It first):
-            base(),
-            ptr(std::addressof(*first)) {}
-
-        ///
-        /// \tparam It
-        /// \tparam End
-        /// \param first
-        /// \param end
-        template<class It, class End, class = typename std::enable_if_t<E == dynamic_extent, It>>
-        Span(It first, End end):
-            base(std::addressof(*end) - std::addressof(*first)),
-            ptr(std::addressof(*first)) {}
-
-        ///
-        /// \tparam N Length of primitive array.
-        /// \param arr Primitive array to span over
-        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
-        explicit Span(element_type (&arr)[N]) noexcept:
-            base(N),
-            ptr(std::data(arr)) {}
-
-        ///
-        /// \tparam N Length of std::array
-        /// \param arr std::array object to span over
-        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
-        explicit Span(std::array<element_type, N>& arr) noexcept:
-            base(N),
-            ptr(std::data(arr)) {}
-
-        ///
-        /// \tparam N
-        /// \param arr
-        template<std::size_t N, class = typename std::enable_if_t<E == dynamic_extent || E <= N>>
-        explicit Span(const std::array<std::remove_const_t<element_type>, N>& arr) noexcept:
-            base(N),
-            ptr(std::data(arr)) {}
-
-        Span() = default;
-        Span(const Span&) = default;
-        Span(Span&&) noexcept = default;
-        ~Span() = default;
-
-        //=================================================
-        // Assignment operators
-        //=================================================
-
-        Span& operator=(const Span&) = default;
-        Span& operator=(Span&&) noexcept = default;
-
-        //=================================================
-        // Iterator methods
-        //=================================================
-
-        iterator begin() const {
-            return iterator{ptr};
-        }
-
-        iterator end() const {
-            return iterator{ptr + size()};
-        }
-
-        //=================================================
-        // Element accessors
-        //=================================================
-
-        reference front() const {
-            return ptr[0];
-        }
-
-        reference back() const {
-            return ptr[size() - 1];
-        }
-
-        reference operator[](size_type idx) const {
-            return ptr[idx];
-        }
-
-        pointer data() const {
-            return ptr;
-        }
-
-        //=================================================
-        // Accessors
-        //=================================================
-
-        size_type size() const {
-            return base::size();
-        }
-
-        size_type size_bytes() const {
-            return size() * sizeof(element_type);
-        }
-
-        bool empty() const {
-            return size() == 0;
-        }
-
-        //=================================================
-        // Subviews
-        //=================================================
-
-        template<std::size_t Count>
-        Span<element_type, Count> first() const {
-            Span<element_type, Count> ret;
-            ret.ptr = ptr;
-            return ret;
-        }
-
-        Span<element_type, dynamic_extent> first(std::size_t c) const {
-            return Span<element_type, dynamic_extent>{ptr, c};
-        }
-
-        template<std::size_t Offset, std::size_t Count = dynamic_extent>
-        Span<element_type, (Count == dynamic_extent) ? dynamic_extent : (E != dynamic_extent) ? (E - Count) : dynamic_extent>
-        subspan() const {
-            if (Count == dynamic_extent) {
-                return {extent - Offset, ptr};
-            } else {
-                return {ptr + Offset};
-            }
-        }
-
-        //=================================================
-        // Conversion operators
-        //=================================================
-
-        operator Span<const T, E>() const {
-            return {ptr, size()};
-        };
-
-    private:
-
-        //=================================================
-        // Instance members
-        //=================================================
-
-        pointer ptr = nullptr;
-
-    };
-    */
-
     ///
     /// Multispan implementation class
     ///
@@ -287,6 +57,9 @@ namespace aul {
         // -ctors
         //=================================================
 
+        ///
+        /// \tparam Its List of contiguous iterator types
+        /// \param its Iterators to beginning of ranges ot span over
         template<class...Its>
         explicit Multispan_impl(Its...its):
             it(its...) {}
@@ -309,10 +82,16 @@ namespace aul {
         // Iterator methods
         //=================================================
 
+        ///
+        ///
+        /// \return Iterator to beginning of range
         iterator begin() const {
             return it;
         }
 
+        ///
+        ///
+        /// \return Iterator to end of range
         iterator end() const {
             return it + size();
         }
@@ -321,18 +100,31 @@ namespace aul {
         // Element accessors
         //=================================================
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return References to the first elements in the span
         reference front() const {
             return it[0];
         }
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return References to the last elements in the span
         reference back() const {
             return it[size() - 1];
         }
 
+        ///
+        /// \param idx Index of elements to retrieve a reference to
+        /// \return References to the idx'th elements in the span
         reference operator[](size_type idx) const {
             return it[idx];
         }
 
+        ///
+        /// \return Pointers to first elements in the span
         pointer data() const {
             return it.operator->();
         }
@@ -341,16 +133,23 @@ namespace aul {
         // Accessors
         //=================================================
 
+        ///
+        /// \return The number of elements over which the multispan acts as a view
         [[nodiscard]]
         size_type size() const {
             return Extent;
         }
 
+        ///
+        /// \return The number of bytes in the objects over which the multispan
+        /// acts as a view
         [[nodiscard]]
         size_type size_bytes() const {
             return size() * aul::sizeof_sum<Args...>::value;
         }
 
+        ///
+        /// \return True if the extent of the span is 0 elements.
         [[nodiscard]]
         bool empty() const {
             return size() == 0;
@@ -360,6 +159,11 @@ namespace aul {
         // Subviews
         //=================================================
 
+        ///
+        /// \tparam Count The number of elements for the new multispan to act as
+        /// a view over. Should be not greater than the value returned by size()
+        /// \return A new multispan that acts as a view over the first Count
+        /// elements in the current multispan
         template<std::size_t Count>
         Multispan_impl<Count, Args...> first() const {
             Multispan_impl<Count, Args...> ret;
@@ -367,10 +171,20 @@ namespace aul {
             return ret;
         }
 
+        ///
+        /// \param c The number of elements for the new mutispan to act as a
+        /// view over. Should be not greater than the value returned by size()
+        /// \return A new multispan that acts as a view over the first c
+        /// elements in the current multispan
         Multispan_impl<dynamic_extent, element_type> first(std::size_t c) const {
             return Multispan_impl<dynamic_extent, element_type>{it, c};
         }
 
+        ///
+        /// \tparam Offset Starting index from which new multispan should begin
+        /// \tparam Count Number of elements in new multispan
+        /// \return A new multispan which acts as a view over a subset of the
+        /// current multispan
         template<std::size_t Offset, std::size_t Count = dynamic_extent>
         Multispan_impl<(Count == dynamic_extent) ? dynamic_extent : (Extent != dynamic_extent) ? (Extent - Count) : dynamic_extent, element_type>
         subspan() const {
@@ -381,6 +195,11 @@ namespace aul {
             }
         }
 
+        ///
+        /// \param offset Starting index from which new multispan should begin
+        /// \param Count Number of elements in new multispan
+        /// \return A new multispan which acts as a view over a subset of the
+        /// current span
         Multispan_impl<dynamic_extent, element_type> subspan(size_type offset, size_type Count = dynamic_extent) const {
             size_type new_size = (Count == dynamic_extent) ? (size() - offset) : Count;
             return {new_size, begin() + offset};
@@ -390,6 +209,11 @@ namespace aul {
         // Conversion operators
         //=================================================
 
+        ///
+        /// Implicit conversion to multispan over const ranges so that
+        /// multispans over non-const objects can easily be used where
+        /// multispans over const objects are required
+        ///
         operator Multispan_impl<Extent, const Args...>() const {
             return {it, size()};
         };
@@ -466,12 +290,11 @@ namespace aul {
             ptr(std::addressof(*first)) {}
 
         ///
-        /// TODO: Relax requirements to something that's dereferenceable
         ///
-        /// \tparam It
-        /// \tparam End
-        /// \param first
-        /// \param end
+        /// \tparam It Contiguous iterator type
+        /// \tparam End Contiguous iterator type
+        /// \param first Iterator to beginning of range to span over
+        /// \param end Iterator to end of range to span over
         template<
             class It,
             class End,
@@ -485,7 +308,7 @@ namespace aul {
             ptr(std::addressof(*first)) {}
 
         ///
-        /// \tparam N Length of primitive array.
+        /// \tparam N Length of primitive array. Should be less than Extent
         /// \param arr Primitive array to span over
         template<std::size_t N>
         explicit Multispan_impl(element_type (&arr)[N]) noexcept:
@@ -493,7 +316,7 @@ namespace aul {
             ptr(arr) {}
 
         ///
-        /// \tparam N Length of std::array
+        /// \tparam N Length of std::array object. Should be less than Extent
         /// \param arr std::array object to span over
         template<std::size_t N>
         explicit Multispan_impl(std::array<element_type, N>& arr) noexcept:
@@ -501,8 +324,8 @@ namespace aul {
             ptr(arr.data()) {}
 
         ///
-        /// \tparam N
-        /// \param arr
+        /// \tparam N Length of std::array object. Should be less than Extent
+        /// \param arr std::array object to span over
         template<std::size_t N>
         explicit Multispan_impl(const std::array<std::remove_const_t<element_type>, N>& arr) noexcept:
             elem_count(N),
@@ -524,10 +347,16 @@ namespace aul {
         // Iterator methods
         //=================================================
 
+        ///
+        ///
+        /// \return Iterator to beginning of range
         iterator begin() const {
             return ptr;
         }
 
+        ///
+        ///
+        /// \return Iterator to end of range
         iterator end() const {
             return {ptr + size()};
         }
@@ -536,18 +365,31 @@ namespace aul {
         // Element accessors
         //=================================================
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return Reference to the first element in the span
         reference front() const {
             return ptr[0];
         }
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return Reference to the last element in the span
         reference back() const {
             return ptr[size() - 1];
         }
 
+        ///
+        /// \param idx Index of element to retrieve a reference to
+        /// \return Reference to the idx'th element in the span
         reference operator[](size_type idx) const {
             return ptr[idx];
         }
 
+        ///
+        /// \return Pointer to first element in the span
         pointer data() const {
             return ptr;
         }
@@ -556,16 +398,23 @@ namespace aul {
         // Accessors
         //=================================================
 
+        ///
+        /// \return The number of elements over which the span acts as a view
         [[nodiscard]]
         size_type size() const {
             return elem_count;
         }
 
+        ///
+        /// \return The number of bytes in the objects over which the span acts
+        /// as a view
         [[nodiscard]]
         size_type size_bytes() const {
             return size() * sizeof(T);
         }
 
+        ///
+        /// \return True if the extent of the span is 0 elements.
         [[nodiscard]]
         bool empty() const {
             return size() == 0;
@@ -575,20 +424,40 @@ namespace aul {
         // Subviews
         //=================================================
 
+        ///
+        /// \tparam Count The number of elements for the new span to act as a
+        /// view over. Should be not greater than the value returned by size()
+        /// \return A new span that acts as a view over the first Count elements
+        /// in the current span
         template<std::size_t Count>
         Multispan_impl<Count, T> first() const {
             return {ptr};
         }
 
+        ///
+        /// \param c The number of elements for the new span to act as a view
+        /// over. Should be not greater than the value returned by size()
+        /// \return A new span that acts as a view over the first c elements in
+        /// the current span
         Multispan_impl<dynamic_extent, element_type> first(std::size_t c) const {
             return Multispan_impl<dynamic_extent, element_type>{ptr, c};
         }
 
+        ///
+        /// \tparam Offset Starting index from which new span should begin
+        /// \tparam Count Number of elements in new span
+        /// \return A new span which acts as a view over a subset of the current
+        /// span
         template<std::size_t Offset, std::size_t Count = dynamic_extent>
         Multispan_impl<dynamic_extent, element_type> subspan() const {
             return {size() - Offset, ptr};
         }
 
+        ///
+        /// \param offset Starting index from which new span should begin
+        /// \param Count Number of elements in new span
+        /// \return A new span which acts as a view over a subset of the current
+        /// span
         Multispan_impl<dynamic_extent, element_type> subspan(size_type offset, size_type Count = dynamic_extent) const {
             size_type new_size = (Count == dynamic_extent) ? (size() - offset) : Count;
             return {new_size, begin() + offset};
@@ -598,6 +467,11 @@ namespace aul {
         // Conversion operators
         //=================================================
 
+        ///
+        /// Implicit conversion to span over const range so that spans over
+        /// non-const objects can easily be used where spans over const objects
+        /// are required
+        ///
         operator Multispan_impl<dynamic_extent, const T>() const {
             return {ptr, size()};
         };
@@ -614,6 +488,15 @@ namespace aul {
 
     };
 
+
+    ///
+    /// A class that acts as a view over a range of contiguously allocated
+    /// elements or set thereof.
+    ///
+    /// Specialization for
+    ///
+    /// \tparam T The type of the object over which the span should act as a
+    /// view
     template<class...Args>
     class Multispan_impl<dynamic_extent, Args...> {
     public:
@@ -642,6 +525,10 @@ namespace aul {
         // -ctors
         //=================================================
 
+        ///
+        /// \tparam Its List of contiguous iterator types
+        /// \param count Number of elements in ranges
+        /// \param its Iterators to beginning of ranges ot span over
         template<class...Its>
         explicit Multispan_impl(size_type count, Its...its):
             elem_count(count),
@@ -665,10 +552,16 @@ namespace aul {
         // Iterator methods
         //=================================================
 
+        ///
+        ///
+        /// \return Iterator to beginning of range
         iterator begin() const {
             return it;
         }
 
+        ///
+        ///
+        /// \return Iterator to end of range
         iterator end() const {
             return {it + elem_count};
         }
@@ -677,18 +570,31 @@ namespace aul {
         // Element accessors
         //=================================================
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return References to the first elements in the span
         reference front() const {
             return it[0];
         }
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return References to the last elements in the span
         reference back() const {
             return it[elem_count - 1];
         }
 
+        ///
+        /// \param idx Index of elements to retrieve a reference to
+        /// \return References to the idx'th elements in the span
         reference operator[](size_type idx) const {
             return it[idx];
         }
 
+        ///
+        /// \return Pointers to first elements in the span
         pointer data() const {
             return it.operator->();
         }
@@ -697,16 +603,23 @@ namespace aul {
         // Accessors
         //=================================================
 
+        ///
+        /// \return The number of elements over which the multispan acts as a view
         [[nodiscard]]
         size_type size() const {
             return elem_count;
         }
 
+        ///
+        /// \return The number of bytes in the objects over which the multispan
+        /// acts as a view
         [[nodiscard]]
         size_type size_bytes() const {
             return size() * aul::sizeof_sum<Args...>::value;
         }
 
+        ///
+        /// \return True if the extent of the span is 0 elements.
         [[nodiscard]]
         bool empty() const {
             return size() == 0;
@@ -716,6 +629,11 @@ namespace aul {
         // Subviews
         //=================================================
 
+        ///
+        /// \tparam Count The number of elements for the new multispan to act as
+        /// a view over. Should be not greater than the value returned by size()
+        /// \return A new multispan that acts as a view over the first Count
+        /// elements in the current multispan
         template<std::size_t Count>
         Multispan_impl<Count, Args...> first() const {
             Multispan_impl<Count, Args...> ret;
@@ -723,10 +641,20 @@ namespace aul {
             return ret;
         }
 
+        ///
+        /// \param c The number of elements for the new mutispan to act as a
+        /// view over. Should be not greater than the value returned by size()
+        /// \return A new multispan that acts as a view over the first c
+        /// elements in the current multispan
         Multispan_impl<dynamic_extent, element_type> first(std::size_t c) const {
             return Multispan_impl<dynamic_extent, element_type>{it, c};
         }
 
+        ///
+        /// \tparam Offset Starting index from which new multispan should begin
+        /// \tparam Count Number of elements in new multispan
+        /// \return A new multispan which acts as a view over a subset of the
+        /// current multispan
         template<std::size_t Offset, std::size_t Count = dynamic_extent>
         Multispan_impl<Count, element_type> subspan() const {
             if (Count == dynamic_extent) {
@@ -736,6 +664,11 @@ namespace aul {
             }
         }
 
+        ///
+        /// \param offset Starting index from which new multispan should begin
+        /// \param Count Number of elements in new multispan
+        /// \return A new multispan which acts as a view over a subset of the
+        /// current span
         Multispan_impl<dynamic_extent, element_type> subspan(size_type offset, size_type Count = dynamic_extent) const {
             size_type new_size = (Count == dynamic_extent) ? (size() - offset) : Count;
             return {new_size, begin() + offset};
@@ -745,6 +678,11 @@ namespace aul {
         // Conversion operators
         //=================================================
 
+        ///
+        /// Implicit conversion to multispan over const ranges so that
+        /// multispans over non-const objects can easily be used where
+        /// multispans over const objects are required
+        ///
         operator Multispan_impl<dynamic_extent, const Args...>() const {
             return {it, size()};
         };
@@ -761,6 +699,17 @@ namespace aul {
 
     };
 
+    ///
+    /// A class that acts as a view over a range of contiguously allocated
+    /// elements
+    ///
+    /// Base case for multispans.
+    ///
+    /// \tparam Extent The number of elements over which the span should act as
+    /// a view. If Extent is equal to dynamic_extent, then the span's extent is
+    /// a run-time value.
+    /// \tparam T The type of the object over which the span should act as a
+    /// view
     template<std::size_t Extent, class T>
     class Multispan_impl<Extent, T>{
     public:
@@ -787,29 +736,29 @@ namespace aul {
         using const_reference = const T&;
 
         ///
-        /// \tparam It
-        /// \param first
+        /// \tparam It Contiguous iterator type
+        /// \param first Iterator to beginning of range to span over
         template<class It>
         explicit Multispan_impl(It first):
             ptr(std::addressof(*first)) {}
 
         ///
-        /// \tparam N Length of primitive array.
+        /// \tparam N Length of primitive array. Should be less than Extent
         /// \param arr Primitive array to span over
         template<std::size_t N, class = typename std::enable_if_t<Extent <= N>>
         explicit Multispan_impl(element_type (&arr)[N]) noexcept:
             ptr(arr) {}
 
         ///
-        /// \tparam N Length of std::array
+        /// \tparam N Length of std::array object. Should be less than Extent
         /// \param arr std::array object to span over
         template<std::size_t N, class = typename std::enable_if_t<Extent <= N>>
         explicit Multispan_impl(std::array<element_type, N>& arr) noexcept:
             ptr(arr) {}
 
         ///
-        /// \tparam N
-        /// \param arr
+        /// \tparam N Length of std::array object. Should be less than Extent
+        /// \param arr std::array object to span over
         template<std::size_t N, class = typename std::enable_if_t<Extent <= N>>
         explicit Multispan_impl(const std::array<std::remove_const_t<element_type>, N>& arr) noexcept:
             ptr(arr) {}
@@ -830,10 +779,16 @@ namespace aul {
         // Iterator methods
         //=================================================
 
+        ///
+        ///
+        /// \return Iterator to beginning of range
         iterator begin() const {
             return iterator{ptr};
         }
 
+        ///
+        ///
+        /// \return Iterator to end of range
         iterator end() const {
             return iterator{ptr + Extent};
         }
@@ -842,18 +797,31 @@ namespace aul {
         // Element accessors
         //=================================================
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return Reference to the first element in the span
         reference front() const {
             return ptr[0];
         }
 
+        ///
+        /// Behavior is undefined if empty() is true
+        ///
+        /// \return Reference to the last element in the span
         reference back() const {
             return ptr[extent - 1];
         }
 
+        ///
+        /// \param idx Index of element to retrieve a reference to
+        /// \return Reference to the idx'th element in the span
         reference operator[](size_type idx) const {
             return ptr[idx];
         }
 
+        ///
+        /// \return Pointer to first element in the span
         pointer data() const {
             return ptr;
         }
@@ -862,16 +830,23 @@ namespace aul {
         // Accessors
         //=================================================
 
+        ///
+        /// \return The number of elements over which the span acts as a view
         [[nodiscard]]
         size_type size() const {
             return extent;
         }
 
+        ///
+        /// \return The number of bytes in the objects over which the span acts
+        /// as a view
         [[nodiscard]]
         size_type size_bytes() const {
             return size() * sizeof(element_type);
         }
 
+        ///
+        /// \return True if the extent of the span is 0 elements.
         [[nodiscard]]
         bool empty() const {
             return size() == 0;
@@ -881,6 +856,11 @@ namespace aul {
         // Subviews
         //=================================================
 
+        ///
+        /// \tparam Count The number of elements for the new span to act as a
+        /// view over. Should be not greater than the value returned by size()
+        /// \return A new span that acts as a view over the first Count elements
+        /// in the current span
         template<std::size_t Count>
         Multispan_impl<Count, element_type> first() const {
             Multispan_impl<Count, element_type> ret;
@@ -888,10 +868,20 @@ namespace aul {
             return ret;
         }
 
+        ///
+        /// \param c The number of elements for the new span to act as a view
+        /// over. Should be not greater than the value returned by size()
+        /// \return A new span that acts as a view over the first c elements in
+        /// the current span
         Multispan_impl<dynamic_extent, element_type> first(std::size_t c) const {
             return {ptr, c};
         }
 
+        ///
+        /// \tparam Offset Starting index from which new span should begin
+        /// \tparam Count Number of elements in new span
+        /// \return A new span which acts as a view over a subset of the current
+        /// span
         template<std::size_t Offset, std::size_t Count = dynamic_extent>
         [[nodiscard]]
         Multispan_impl<(Count == dynamic_extent) ? dynamic_extent : (Extent - Count), element_type>
@@ -899,6 +889,11 @@ namespace aul {
             return {ptr + Offset};
         }
 
+        ///
+        /// \param offset Starting index from which new span should begin
+        /// \param Count Number of elements in new span
+        /// \return A new span which acts as a view over a subset of the current
+        /// span
         Multispan_impl<dynamic_extent, element_type> subspan(size_type offset, size_type Count = dynamic_extent) const {
             size_type new_size = (Count == dynamic_extent) ? (size() - offset) : Count;
             return {new_size, begin() + offset};
@@ -908,6 +903,12 @@ namespace aul {
         // Conversion operators
         //=================================================
 
+        ///
+        /// Implicit conversion to span over const range so that spans over
+        /// non-const objects can easily be used where spans over const objects
+        /// are required
+        ///
+        [[nodiscard]]
         operator Multispan_impl<Extent, const T>() const {
             return {ptr, size()};
         };
@@ -923,19 +924,21 @@ namespace aul {
     };
 
     ///
-    /// Convenience type alias meant to ease the use of scalar spans.
+    /// Type alias that allows for use of a Span over a single range in a more
+    /// user-friendly fashion.
     ///
     template<class T, std::size_t Extent = dynamic_extent>
     using Span = Multispan_impl<Extent, T>;
 
     ///
-    ///
+    /// Type alias that allows for use of a fixed-length multispan with a more
+    /// user-friendly name
     ///
     template<std::size_t Extent, class...Args>
     using Fixed_multispan = Multispan_impl<Extent, Args...>;
 
     ///
-    /// Type aliases that allows for use of a dynamic-length multispan without
+    /// Type alias that allows for use of a dynamic-length multispan without
     /// the need to explicitly specify the Extent template parameter.
     ///
     template<class...Args>
