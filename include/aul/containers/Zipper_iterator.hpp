@@ -1,7 +1,3 @@
-//
-// Created by avereniect on 1/9/22.
-//
-
 #ifndef AUL_ZIPPER_ITERATOR_HPP
 #define AUL_ZIPPER_ITERATOR_HPP
 
@@ -56,12 +52,12 @@ namespace aul {
     /// \tparam It First iterator types
     /// \tparam Its Other iterator types
     template<class It, class...Its>
-    class Forward_zipperator {
+    class Forward_zipper_iterator {
     public:
 
         static_assert(
             sizeof...(Its),
-            "Attempted to create a zipperator that does not abstract over "
+            "Attempted to create a zipper_iterator that does not abstract over "
             "multiple iterators"
         );
 
@@ -78,7 +74,7 @@ namespace aul {
 
     private:
 
-        using sub_iterator = Forward_zipperator<Its...>;
+        using sub_iterator = Forward_zipper_iterator<Its...>;
 
     public:
 
@@ -108,31 +104,31 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Forward_zipperator(It it, Its...its):
+        explicit Forward_zipper_iterator(It it, Its...its):
             it(it),
             its(its...) {}
 
-        Forward_zipperator() = default;
-        Forward_zipperator(const Forward_zipperator&) = default;
-        Forward_zipperator(Forward_zipperator&&) noexcept = default;
-        ~Forward_zipperator() = default;
+        Forward_zipper_iterator() = default;
+        Forward_zipper_iterator(const Forward_zipper_iterator&) = default;
+        Forward_zipper_iterator(Forward_zipper_iterator&&) noexcept = default;
+        ~Forward_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Forward_zipperator& operator=(const Forward_zipperator&) = default;
-        Forward_zipperator& operator=(Forward_zipperator&&) noexcept = default;
+        Forward_zipper_iterator& operator=(const Forward_zipper_iterator&) = default;
+        Forward_zipper_iterator& operator=(Forward_zipper_iterator&&) noexcept = default;
 
         //=================================================
         // Comparison operators
         //=================================================
 
-        bool operator==(const Forward_zipperator& rhs) const {
+        bool operator==(const Forward_zipper_iterator& rhs) const {
             return (it == rhs.it0) && (its == rhs.its);
         }
 
-        bool operator!=(const Forward_zipperator& rhs) const {
+        bool operator!=(const Forward_zipper_iterator& rhs) const {
             return (it != rhs.it0) || (its != rhs.its);
         }
 
@@ -140,13 +136,13 @@ namespace aul {
         // Increment operators
         //=================================================
 
-        Forward_zipperator& operator++() {
+        Forward_zipper_iterator& operator++() {
             ++it;
             ++its;
             return *this;
         }
 
-        Forward_zipperator operator++(int) {
+        Forward_zipper_iterator operator++(int) {
             auto tmp = *this;
             ++it;
             ++its;
@@ -172,7 +168,7 @@ namespace aul {
         }
 
         //template<class It0_2, class...Args2, class = typename std::enable_if<>::type>
-        //operator Forward_zipperator<const It0_2, Args2...>() const {//TODO: Implement}
+        //operator Forward_zipper_iterator<const It0_2, Args2...>() const {//TODO: Implement}
 
     protected:
 
@@ -186,11 +182,11 @@ namespace aul {
     };
 
     ///
-    /// Specialization of Forward_zipperator for a single iterator
+    /// Specialization of Forward_zipper_iterator for a single iterator
     ///
     /// \tparam It Iterator type
     template<class It0, class It1>
-    class Forward_zipperator<It0, It1> {
+    class Forward_zipper_iterator<It0, It1> {
     public:
 
         static_assert(
@@ -237,31 +233,31 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Forward_zipperator(It0 it0, It1 it1):
+        explicit Forward_zipper_iterator(It0 it0, It1 it1):
             it0(it0),
             it1(it1) {}
 
-        Forward_zipperator() = default;
-        Forward_zipperator(const Forward_zipperator&) = default;
-        Forward_zipperator(Forward_zipperator&&) noexcept = default;
-        ~Forward_zipperator() = default;
+        Forward_zipper_iterator() = default;
+        Forward_zipper_iterator(const Forward_zipper_iterator&) = default;
+        Forward_zipper_iterator(Forward_zipper_iterator&&) noexcept = default;
+        ~Forward_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Forward_zipperator& operator=(const Forward_zipperator&) = default;
-        Forward_zipperator& operator=(Forward_zipperator&&) noexcept = default;
+        Forward_zipper_iterator& operator=(const Forward_zipper_iterator&) = default;
+        Forward_zipper_iterator& operator=(Forward_zipper_iterator&&) noexcept = default;
 
         //=================================================
         // Comparison operators
         //=================================================
 
-        bool operator==(const Forward_zipperator& rhs) const {
+        bool operator==(const Forward_zipper_iterator& rhs) const {
             return (it0 == rhs.it0) && (it1 == rhs.it1);
         }
 
-        bool operator!=(const Forward_zipperator& rhs) const {
+        bool operator!=(const Forward_zipper_iterator& rhs) const {
             return (it0 != rhs.it0) || (it1 != rhs.it1);
         }
 
@@ -269,13 +265,13 @@ namespace aul {
         // Increment operators
         //=================================================
 
-        Forward_zipperator& operator++() {
+        Forward_zipper_iterator& operator++() {
             ++it0;
             ++it1;
             return *this;
         }
 
-        Forward_zipperator operator++(int) {
+        Forward_zipper_iterator operator++(int) {
             auto tmp = *this;
             ++it0;
             ++it1;
@@ -306,13 +302,13 @@ namespace aul {
     };
 
     template<class It, class...Its>
-    class Bidirectional_zipperator : public Bidirectional_zipperator<Its...> {
-        using base = Bidirectional_zipperator<Its...>;
+    class Bidirectional_zipper_iterator : public Bidirectional_zipper_iterator<Its...> {
+        using base = Bidirectional_zipper_iterator<Its...>;
     public:
 
         static_assert(
             sizeof...(Its),
-            "Attempted to create a zipperator that does not abstract over "
+            "Attempted to create a zipper_iterator that does not abstract over "
             "multiple iterators"
         );
 
@@ -336,32 +332,32 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Bidirectional_zipperator(It it, Its...its):
+        explicit Bidirectional_zipper_iterator(It it, Its...its):
             base(it),
             its(its...) {}
 
-        Bidirectional_zipperator() = default;
-        Bidirectional_zipperator(const Bidirectional_zipperator&) = default;
-        Bidirectional_zipperator(Bidirectional_zipperator&&) noexcept = default;
-        ~Bidirectional_zipperator() = default;
+        Bidirectional_zipper_iterator() = default;
+        Bidirectional_zipper_iterator(const Bidirectional_zipper_iterator&) = default;
+        Bidirectional_zipper_iterator(Bidirectional_zipper_iterator&&) noexcept = default;
+        ~Bidirectional_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Bidirectional_zipperator& operator=(const Bidirectional_zipperator&) = default;
-        Bidirectional_zipperator& operator=(Bidirectional_zipperator&&) noexcept = default;
+        Bidirectional_zipper_iterator& operator=(const Bidirectional_zipper_iterator&) = default;
+        Bidirectional_zipper_iterator& operator=(Bidirectional_zipper_iterator&&) noexcept = default;
 
         //=================================================
         // Decrement_operators
         //=================================================
 
-        Bidirectional_zipperator& operator--() {
+        Bidirectional_zipper_iterator& operator--() {
             --base::it0;
             return *this;
         }
 
-        Bidirectional_zipperator operator--(int) {
+        Bidirectional_zipper_iterator operator--(int) {
             auto tmp = *this;
             --base::it0;
             return tmp;
@@ -373,13 +369,13 @@ namespace aul {
         // Instance members
         //=================================================
 
-        Bidirectional_zipperator<Its...> its;
+        Bidirectional_zipper_iterator<Its...> its;
 
     };
 
     template<class It0, class It1>
-    class Bidirectional_zipperator<It0, It1> : public Forward_zipperator<It0, It1> {
-        using base = Forward_zipperator<It0, It1>;
+    class Bidirectional_zipper_iterator<It0, It1> : public Forward_zipper_iterator<It0, It1> {
+        using base = Forward_zipper_iterator<It0, It1>;
     public:
 
         static_assert(
@@ -409,31 +405,31 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Bidirectional_zipperator(It0 it0, It1 it1):
+        explicit Bidirectional_zipper_iterator(It0 it0, It1 it1):
             base(it0, it1) {}
 
-        Bidirectional_zipperator() = default;
-        Bidirectional_zipperator(const Bidirectional_zipperator&) = default;
-        Bidirectional_zipperator(Bidirectional_zipperator&&) noexcept = default;
-        ~Bidirectional_zipperator() = default;
+        Bidirectional_zipper_iterator() = default;
+        Bidirectional_zipper_iterator(const Bidirectional_zipper_iterator&) = default;
+        Bidirectional_zipper_iterator(Bidirectional_zipper_iterator&&) noexcept = default;
+        ~Bidirectional_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Bidirectional_zipperator& operator=(const Bidirectional_zipperator&) = default;
-        Bidirectional_zipperator& operator=(Bidirectional_zipperator&&) = default;
+        Bidirectional_zipper_iterator& operator=(const Bidirectional_zipper_iterator&) = default;
+        Bidirectional_zipper_iterator& operator=(Bidirectional_zipper_iterator&&) = default;
 
         //=================================================
         // Decrement_operators
         //=================================================
 
-        Bidirectional_zipperator& operator--() {
+        Bidirectional_zipper_iterator& operator--() {
             --base::it;
             return *this;
         }
 
-        Bidirectional_zipperator operator--(int) {
+        Bidirectional_zipper_iterator operator--(int) {
             auto tmp = *this;
             --base::it;
             return tmp;
@@ -442,13 +438,13 @@ namespace aul {
     };
 
     template<class It, class...Its>
-    class Random_access_zipperator : public Random_access_zipperator<Its...> {
-        using base = Random_access_zipperator<Its...>;
+    class Random_access_zipper_iterator : public Random_access_zipper_iterator<Its...> {
+        using base = Random_access_zipper_iterator<Its...>;
     public:
 
         static_assert(
             sizeof...(Its),
-            "Attempted to create a zipperator that does not abstract over "
+            "Attempted to create a zipper_iterator that does not abstract over "
             "multiple iterators"
         );
 
@@ -487,39 +483,39 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Random_access_zipperator(It it, Its... its):
+        explicit Random_access_zipper_iterator(It it, Its... its):
             base(its...),
             it(it) {}
 
-        Random_access_zipperator() = default;
-        Random_access_zipperator(const Random_access_zipperator&) = default;
-        Random_access_zipperator(Random_access_zipperator&&) noexcept = default;
-        ~Random_access_zipperator() = default;
+        Random_access_zipper_iterator() = default;
+        Random_access_zipper_iterator(const Random_access_zipper_iterator&) = default;
+        Random_access_zipper_iterator(Random_access_zipper_iterator&&) noexcept = default;
+        ~Random_access_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Random_access_zipperator& operator=(const Random_access_zipperator&) = default;
-        Random_access_zipperator& operator=(Random_access_zipperator&&) noexcept = default;
+        Random_access_zipper_iterator& operator=(const Random_access_zipper_iterator&) = default;
+        Random_access_zipper_iterator& operator=(Random_access_zipper_iterator&&) noexcept = default;
 
         //=================================================
         // Comparison operators
         //=================================================
 
-        bool operator<(const Random_access_zipperator& rhs) {
+        bool operator<(const Random_access_zipper_iterator& rhs) {
             return (base::it < rhs.it);
         }
 
-        bool operator>(const Random_access_zipperator& rhs) {
+        bool operator>(const Random_access_zipper_iterator& rhs) {
             return (base::it > rhs.it);
         }
 
-        bool operator>=(const Random_access_zipperator& rhs) {
+        bool operator>=(const Random_access_zipper_iterator& rhs) {
             return (base::it >= rhs.it);
         }
 
-        bool operator<=(const Random_access_zipperator& rhs) {
+        bool operator<=(const Random_access_zipper_iterator& rhs) {
             return (base::it <= rhs.it);
         }
 
@@ -527,13 +523,13 @@ namespace aul {
         // Arithmetic assignment operators
         //=================================================
 
-        Random_access_zipperator& operator+=(difference_type d) {
+        Random_access_zipper_iterator& operator+=(difference_type d) {
             base::operator+=(d);
             it += d;
             return *this;
         }
 
-        Random_access_zipperator& operator-=(difference_type d) {
+        Random_access_zipper_iterator& operator-=(difference_type d) {
             base::operator-=(d);
             it -= d;
             return *this;
@@ -543,29 +539,29 @@ namespace aul {
         // Arithmetic operators
         //=================================================
 
-        Random_access_zipperator operator+(difference_type rhs) const {
+        Random_access_zipper_iterator operator+(difference_type rhs) const {
             auto ret = *this;
             ret.it += rhs;
             ret.base::operator+=(rhs);
             return ret;
         }
 
-        friend Random_access_zipperator operator+(difference_type lhs, Random_access_zipperator rhs) {
+        friend Random_access_zipper_iterator operator+(difference_type lhs, Random_access_zipper_iterator rhs) {
             return (rhs + lhs);
         }
 
-        Random_access_zipperator operator-(difference_type rhs) const {
+        Random_access_zipper_iterator operator-(difference_type rhs) const {
             auto ret = *this;
             ret.it0 -= rhs;
             ret.base::operator-=(rhs);
             return ret;
         }
 
-        friend Random_access_zipperator operator-(difference_type lhs, Random_access_zipperator rhs) {
+        friend Random_access_zipper_iterator operator-(difference_type lhs, Random_access_zipper_iterator rhs) {
             return (rhs - lhs);
         }
 
-        friend difference_type operator-(Random_access_zipperator lhs, Random_access_zipperator rhs) {
+        friend difference_type operator-(Random_access_zipper_iterator lhs, Random_access_zipper_iterator rhs) {
             return lhs.it - rhs.it;
         }
 
@@ -597,8 +593,8 @@ namespace aul {
     };
 
     template<class It0, class It1>
-    class Random_access_zipperator<It0, It1> : public Bidirectional_zipperator<It0, It1> {
-        using base = Bidirectional_zipperator<It0, It1>;
+    class Random_access_zipper_iterator<It0, It1> : public Bidirectional_zipper_iterator<It0, It1> {
+        using base = Bidirectional_zipper_iterator<It0, It1>;
     public:
 
         static_assert(
@@ -625,38 +621,38 @@ namespace aul {
         // -ctors
         //=================================================
 
-        explicit Random_access_zipperator(It0 it0, It1 it1):
+        explicit Random_access_zipper_iterator(It0 it0, It1 it1):
             base(it0, it1) {}
 
-        Random_access_zipperator() = default;
-        Random_access_zipperator(const Random_access_zipperator&) = default;
-        Random_access_zipperator(Random_access_zipperator&&) noexcept = default;
-        ~Random_access_zipperator() = default;
+        Random_access_zipper_iterator() = default;
+        Random_access_zipper_iterator(const Random_access_zipper_iterator&) = default;
+        Random_access_zipper_iterator(Random_access_zipper_iterator&&) noexcept = default;
+        ~Random_access_zipper_iterator() = default;
 
         //=================================================
         // Assignment operators
         //=================================================
 
-        Random_access_zipperator& operator=(const Random_access_zipperator&) = default;
-        Random_access_zipperator& operator=(Random_access_zipperator&&) noexcept = default;
+        Random_access_zipper_iterator& operator=(const Random_access_zipper_iterator&) = default;
+        Random_access_zipper_iterator& operator=(Random_access_zipper_iterator&&) noexcept = default;
 
         //=================================================
         // Comparison operators
         //=================================================
 
-        bool operator<(const Random_access_zipperator& rhs) const {
+        bool operator<(const Random_access_zipper_iterator& rhs) const {
             return (base::it0 < rhs.it0);
         }
 
-        bool operator>(const Random_access_zipperator& rhs) const {
+        bool operator>(const Random_access_zipper_iterator& rhs) const {
             return (base::it0 > rhs.it0);
         }
 
-        bool operator>=(const Random_access_zipperator& rhs) const {
+        bool operator>=(const Random_access_zipper_iterator& rhs) const {
             return (base::it0 >= rhs.it0);
         }
 
-        bool operator<=(const Random_access_zipperator& rhs) const {
+        bool operator<=(const Random_access_zipper_iterator& rhs) const {
             return (base::it0 <= rhs.it0);
         }
 
@@ -664,13 +660,13 @@ namespace aul {
         // Arithmetic assignment operators
         //=================================================
 
-        Random_access_zipperator& operator+=(difference_type d) {
+        Random_access_zipper_iterator& operator+=(difference_type d) {
             base::it0 += d;
             base::it1 += d;
             return *this;
         }
 
-        Random_access_zipperator& operator-=(difference_type d) {
+        Random_access_zipper_iterator& operator-=(difference_type d) {
             base::it0 -= d;
             base::it1 -= d;
             return *this;
@@ -680,25 +676,25 @@ namespace aul {
         // Arithmetic operators
         //=================================================
 
-        Random_access_zipperator operator+(difference_type rhs) const {
+        Random_access_zipper_iterator operator+(difference_type rhs) const {
             auto ret = *this;
             ret.it0 += rhs;
             ret.it1 += rhs;
             return ret;
         }
 
-        friend Random_access_zipperator operator+(difference_type lhs, Random_access_zipperator rhs) {
+        friend Random_access_zipper_iterator operator+(difference_type lhs, Random_access_zipper_iterator rhs) {
             return (rhs + lhs);
         }
 
-        Random_access_zipperator operator-(difference_type rhs) const {
+        Random_access_zipper_iterator operator-(difference_type rhs) const {
             auto ret = *this;
             ret.it0 -= rhs;
             ret.it1 -= rhs;
             return ret;
         }
 
-        friend difference_type operator-(Random_access_zipperator lhs, Random_access_zipperator rhs) {
+        friend difference_type operator-(Random_access_zipper_iterator lhs, Random_access_zipper_iterator rhs) {
             return lhs.it0 - rhs.it0;
         }
 
@@ -723,17 +719,17 @@ namespace std {
     //=====================================================
 
     template<class It, class...Args>
-    struct tuple_size<aul::Forward_zipperator<It, Args...>> {
+    struct tuple_size<aul::Forward_zipper_iterator<It, Args...>> {
         static constexpr std::size_t value = 1 + sizeof...(Args);
     };
 
     template<class It, class...Args>
-    struct tuple_size<aul::Bidirectional_zipperator<It, Args...>> {
+    struct tuple_size<aul::Bidirectional_zipper_iterator<It, Args...>> {
         static constexpr std::size_t value = 1 + sizeof...(Args);
     };
 
     template<class It, class...Args>
-    struct tuple_size<aul::Random_access_zipperator<It, Args...>> {
+    struct tuple_size<aul::Random_access_zipper_iterator<It, Args...>> {
         static constexpr std::size_t value = 1 + sizeof...(Args);
     };
 
@@ -742,17 +738,17 @@ namespace std {
     //=====================================================
 
     template<std::size_t index, class It, class...Args>
-    struct tuple_element<index, aul::Forward_zipperator<It, Args...>> {
+    struct tuple_element<index, aul::Forward_zipper_iterator<It, Args...>> {
         using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
 
     template<std::size_t index, class It, class...Args>
-    struct tuple_element<index, aul::Bidirectional_zipperator<It, Args...>> {
+    struct tuple_element<index, aul::Bidirectional_zipper_iterator<It, Args...>> {
         using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
 
     template<std::size_t index, class It, class...Args>
-    struct tuple_element<index, aul::Random_access_zipperator<It, Args...>> {
+    struct tuple_element<index, aul::Random_access_zipper_iterator<It, Args...>> {
         using type = typename std::tuple_element<index, std::tuple<It, Args...>>::type;
     };
 
@@ -761,20 +757,20 @@ namespace std {
 namespace aul {
 
     template<std::size_t i, class It0, class...Args>
-    typename std::tuple_element<i, Forward_zipperator<It0, Args...>>::type
-    get(const Forward_zipperator<It0, Args...>& zip) {
+    typename std::tuple_element<i, Forward_zipper_iterator<It0, Args...>>::type
+    get(const Forward_zipper_iterator<It0, Args...>& zip) {
         return std::get<i>(zip.operator->());
     }
 
     template<std::size_t i, class It0, class...Args>
-    typename std::tuple_element<i, Bidirectional_zipperator<It0, Args...>>::type
-    get(const Bidirectional_zipperator<It0, Args...>& zip) {
+    typename std::tuple_element<i, Bidirectional_zipper_iterator<It0, Args...>>::type
+    get(const Bidirectional_zipper_iterator<It0, Args...>& zip) {
         return std::get<i>(zip.operator->());
     }
 
     template<std::size_t i, class It0, class...Args>
-    typename std::tuple_element<i, Random_access_zipperator<It0, Args...>>::type
-    get(const Random_access_zipperator<It0, Args...>& zip) {
+    typename std::tuple_element<i, Random_access_zipper_iterator<It0, Args...>>::type
+    get(const Random_access_zipper_iterator<It0, Args...>& zip) {
         return std::get<i>(zip.operator->());
     }
 

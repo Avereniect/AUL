@@ -1,7 +1,3 @@
-//
-// Created by avereniect on 5/10/20.
-//
-
 #ifndef AUL_CIRCULAR_ARRAY_HPP
 #define AUL_CIRCULAR_ARRAY_HPP
 

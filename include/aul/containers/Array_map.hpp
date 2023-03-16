@@ -1,7 +1,7 @@
 #ifndef AUL_ARRAY_MAP_HPP
 #define AUL_ARRAY_MAP_HPP
 
-#include "Zipperator.hpp"
+#include "Zipper_iterator.hpp"
 #include "Allocator_aware_base.hpp"
 #include "../Span.hpp"
 

@@ -1,11 +1,7 @@
-//
-// Created by avereniect on 1/11/22.
-//
-
 #ifndef AUL_SPAN_HPP
 #define AUL_SPAN_HPP
 
-#include "aul/containers/Zipperator.hpp"
+#include "aul/containers/Zipper_iterator.hpp"
 #include "Utility.hpp"
 
 #include <cstdint>
@@ -89,7 +85,7 @@ namespace aul {
         using reference = T&;
         using const_reference = const T&;
 
-        using iterator = pointer; //Random_access_zipperator<pointer>;
+        using iterator = pointer; //Random_access_zipper_iterator<pointer>;
         using reverse_iterator = std::reverse_iterator<iterator>;
 
         //=================================================
@@ -271,7 +267,7 @@ namespace aul {
         // Type aliases
         //=================================================
 
-        using iterator = Random_access_zipperator<Args*...>;
+        using iterator = Random_access_zipper_iterator<Args*...>;
 
         using reverse_iterator = std::reverse_iterator<iterator>;
 
@@ -626,7 +622,7 @@ namespace aul {
         // Type aliases
         //=================================================
 
-        using iterator = Random_access_zipperator<Args*...>;
+        using iterator = Random_access_zipper_iterator<Args*...>;
 
         using reverse_iterator = std::reverse_iterator<iterator>;
 
