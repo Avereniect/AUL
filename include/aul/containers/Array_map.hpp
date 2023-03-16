@@ -62,8 +62,8 @@ namespace aul {
         using size_type = typename std::allocator_traits<value_allocator_type>::size_type;
         using difference_type = typename std::allocator_traits<value_allocator_type>::pointer;
 
-        using iterator = aul::Random_access_zipperator<key_pointer, value_pointer>;
-        using const_iterator = aul::Random_access_zipperator<const_key_pointer, const_value_pointer>;
+        using iterator = aul::Random_access_zipper_iterator<key_pointer, value_pointer>;
+        using const_iterator = aul::Random_access_zipper_iterator<const_key_pointer, const_value_pointer>;
 
         //=================================================
         // -ctors
