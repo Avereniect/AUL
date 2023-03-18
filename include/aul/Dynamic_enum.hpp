@@ -8,10 +8,22 @@
 
 namespace aul {
     
-    /// 
+    ///
+    /// A class meant to serve the function of an enum but with values that are
+    /// determined at run time.
+    ///
+    /// A primary benefit of this class as opposed to using strings would be
+    /// that there would be a lower memory footprint as string data would not
+    /// need to be stored redundantly. It would impose a lower memory footprint
+    /// at the point of usage as the backing type could be as low as a single
+    /// byte, while the .
+    ///
+    /// It is assumed that the number of enum values at any given time is a
+    /// small amount. Performance may degrade if this assumption doesn't hold.
+    ///
     /// \tparam Tag A type used as a tag to identify unique instantiations of 
     /// the Dynamic_enum class
-    /// \tparam I Integral backing type 
+    /// \tparam I Integral backing type
     template<class Tag, class I = int>
     class Dynamic_enum {
         static_assert(std::is_integral<I>::value, "Backing type must be integral type");
@@ -42,7 +54,7 @@ namespace aul {
 
         Dynamic_enum() = default;
         Dynamic_enum(const Dynamic_enum&) = default;
-        Dynamic_enum(Dynamic_enum&&) = default;
+        Dynamic_enum(Dynamic_enum&&) noexcept = default;
         ~Dynamic_enum() = default;
 
         //=================================================
@@ -50,7 +62,7 @@ namespace aul {
         //=================================================
 
         Dynamic_enum& operator=(const Dynamic_enum& rhs) = default;
-        Dynamic_enum& operator=(Dynamic_enum&&) = default;
+        Dynamic_enum& operator=(Dynamic_enum&&) noexcept = default;
 
         //=================================================
         // Comparison operators
@@ -94,8 +106,8 @@ namespace aul {
         /// upon default construction or other other default-setting cases.
         ///
         /// \param v Value to use as default in future
-        static void set_default_value(backing_type v) {
-            default_value = v;
+        static void set_default_value(Dynamic_enum v) {
+            default_value = v.value;
         }
 
         ///
@@ -105,6 +117,44 @@ namespace aul {
         /// \return The value used as as default by Dynamic_enum objects
         static backing_type get_default_value() {
             return default_value;
+        }
+
+        static Dynamic_enum get_or_create_enum(const std::string& name) {
+            auto it = names_to_values.find(name);
+            if (*it != names_to_values.end()) {
+                return *it;
+            }
+
+            // Use zero as unused value in the case that no values currently
+            // exist
+            if (values_to_names.empty()) {
+                insert_enum_value(0, name);
+                return Dynamic_enum{0};
+            }
+
+            //Look for unused backing value
+
+            backing_type free_value;
+
+            auto it0 = values_to_names.keys().begin();
+            auto it1 = values_to_names.keys().end();
+
+            auto prev = *it0;
+            ++it0;
+            for (; it0 != it1; ++it0) {
+                if (*it0 != (prev + 1)) {
+                    free_value = prev + 1;
+                    break;
+                }
+                prev = *it0;
+            }
+
+            if (it0 == it1) {
+                free_value = it1[-1] + 1;
+            }
+
+            insert_enum_value(free_value, name);
+            return Dynamic_enum{free_value};
         }
 
         ///
@@ -169,11 +219,11 @@ namespace aul {
         // Static members
         //=================================================
 
-        static aul::Array_map<backing_type, std::string> values_to_names{};
+        static aul::Array_map<backing_type, std::string> values_to_names;
         
-        static aul::Array_map<std::reference_wrapper<std::string>, backing_type> names_to_values{};
+        static aul::Array_map<std::reference_wrapper<std::string>, backing_type> names_to_values;
 
-        static backing_type default_value = backing_type{0};
+        static backing_type default_value;
 
         //=================================================
         // Helper functions
@@ -190,6 +240,17 @@ namespace aul {
         }
 
     };
+
+
+
+    template<class Tag, class I>
+    aul::Array_map<I, std::string> Dynamic_enum<Tag, I>::values_to_names{};
+
+    template<class Tag, class I>
+    aul::Array_map<std::reference_wrapper<std::string>, I> Dynamic_enum<Tag, I>::names_to_values{};
+
+    template<class Tag, class I>
+    I Dynamic_enum<Tag, I>::default_value = 0;
 
 }
 
