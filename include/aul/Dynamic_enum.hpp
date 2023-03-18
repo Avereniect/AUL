@@ -13,18 +13,18 @@ namespace aul {
     /// determined at run time.
     ///
     /// A primary benefit of this class as opposed to using strings would be
-    /// that there would be a lower memory footprint as string data would not
-    /// need to be stored redundantly. It would impose a lower memory footprint
+    /// that there would be a lower memory footprint as string data could be
+    /// stored with less redundancy. It would impose a lower memory footprint
     /// at the point of usage as the backing type could be as low as a single
-    /// byte, while the .
+    /// byte, while a string object's handle would necessarily be much larger.
     ///
     /// It is assumed that the number of enum values at any given time is a
     /// small amount. Performance may degrade if this assumption doesn't hold.
     ///
-    /// \tparam Tag A type used as a tag to identify unique instantiations of 
+    /// \tparam ID A type used to identify unique instantiations of
     /// the Dynamic_enum class
     /// \tparam I Integral backing type
-    template<class Tag, class I = int>
+    template<class ID, class I = int>
     class Dynamic_enum {
         static_assert(std::is_integral<I>::value, "Backing type must be integral type");
     public:
@@ -119,10 +119,10 @@ namespace aul {
             return default_value;
         }
 
-        static Dynamic_enum get_or_create_enum(const std::string& name) {
-            auto it = names_to_values.find(name);
-            if (*it != names_to_values.end()) {
-                return *it;
+        static Dynamic_enum get_or_create_value(const std::string& name) {
+            auto it = names_to_values.find(std::reference_wrapper<const std::string>{name});
+            if (it != names_to_values.end()) {
+                return Dynamic_enum{std::get<1>(*it)};
             }
 
             // Use zero as unused value in the case that no values currently
@@ -165,9 +165,13 @@ namespace aul {
         /// \param val Value to insert into set of recognized enum values
         /// \param name The name to associated with the specified enum value.
         /// Ideally, should not be an empty string.
-        static void insert_enum_value(backing_type val, const std::string& name) {
+        /// \return Dynamic_enum object with value equal to newly registered
+        /// value
+        static Dynamic_enum insert_enum_value(backing_type val, const std::string& name) {
             values_to_names.insert(val, name);
             names_to_values.insert(name, val);
+
+            return Dynamic_enum{val};
         }
 
         ///
@@ -186,7 +190,7 @@ namespace aul {
                 return;
             }
 
-            values_to_names.erase(values_to_names.find(it));
+            values_to_names.erase(it);
             names_to_values.erase(names_to_values.find(*it));
         }
 
@@ -194,7 +198,8 @@ namespace aul {
         /// \param e An arbitrary dynamic enum value
         /// \return A const reference to a std::string object containing the
         /// name associated with the specified enum value. If no such string
-        /// exists returns a const reference to an empty string object.
+        /// exists returns a const reference to an empty string object. The
+        /// reference remains valid until the set of enum values is updated.
         [[nodiscard]]
         friend const std::string& to_string(Dynamic_enum e) {
             static std::string empty_string{""};
@@ -219,10 +224,25 @@ namespace aul {
         // Static members
         //=================================================
 
-        static aul::Array_map<backing_type, std::string> values_to_names;
-        
-        static aul::Array_map<std::reference_wrapper<std::string>, backing_type> names_to_values;
+        ///
+        /// Vector storing handles to all enum names
+        ///
+        static std::vector<std::string> enum_names;
 
+        ///
+        /// Map associating enum values with pointers to their string names
+        ///
+        static aul::Array_map<backing_type, std::string> values_to_names;
+
+        ///
+        /// Map associating enum names with their backing type
+        ///
+        static aul::Array_map<std::string, backing_type> names_to_values;
+
+        ///
+        /// Variable which determines which enum value is taken by new instance
+        /// of Dynamic_enum
+        ///
         static backing_type default_value;
 
         //=================================================
@@ -244,10 +264,13 @@ namespace aul {
 
 
     template<class Tag, class I>
+     std::vector<std::string> Dynamic_enum<Tag, I>::enum_names;
+
+    template<class Tag, class I>
     aul::Array_map<I, std::string> Dynamic_enum<Tag, I>::values_to_names{};
 
     template<class Tag, class I>
-    aul::Array_map<std::reference_wrapper<std::string>, I> Dynamic_enum<Tag, I>::names_to_values{};
+    aul::Array_map<std::string, I> Dynamic_enum<Tag, I>::names_to_values{};
 
     template<class Tag, class I>
     I Dynamic_enum<Tag, I>::default_value = 0;
