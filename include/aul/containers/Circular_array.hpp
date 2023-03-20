@@ -148,13 +148,11 @@ namespace aul {
         // Arithmetic assignment operators
         //=================================================
 
-        [[nodiscard]]
         Circular_array_iterator operator+=(const difference_type x) {
             offset += x;
             return *this;
         }
 
-        [[nodiscard]]
         Circular_array_iterator operator-=(const difference_type x) {
             offset -= x;
             return *this;
