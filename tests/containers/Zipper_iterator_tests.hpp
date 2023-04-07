@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include <aul/containers/Zipperator.hpp>
+#include <aul/containers/Zipper_iterator.hpp>
 
 namespace aul {
 

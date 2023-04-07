@@ -8,28 +8,28 @@
 
 namespace aul_tests {
 
-    TEST(RLE_range, Empty) {
+    TEST(DRLE_range, Empty) {
         std::vector<std::uint32_t> data;
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
 
         EXPECT_TRUE(compressed_data.empty());
         EXPECT_EQ(compressed_data.size(), 0);
     }
 
-    TEST(RLE_range, Slope_zero_single_element) {
+    TEST(DRLE_range, Slope_zero_single_element) {
         std::vector<std::uint32_t> data = {10};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 1);
         EXPECT_EQ(compressed_data[0], 10);
     }
 
-    TEST(RLE_range, Slope_zero_multiple_elements) {
+    TEST(DRLE_range, Slope_zero_multiple_elements) {
         std::vector<std::uint32_t> data = {10, 10, 10, 10};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 10);
@@ -38,10 +38,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 10);
     }
 
-    TEST(RLE_range, Slope_one) {
+    TEST(DRLE_range, Slope_one) {
         std::vector<std::uint32_t> data = {1, 2, 3, 4};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 1);
@@ -50,10 +50,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 4);
     }
 
-    TEST(RLE_range, Slope_negative_one) {
+    TEST(DRLE_range, Slope_negative_one) {
         std::vector<std::uint32_t> data = {4, 3, 2, 1};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 4);
@@ -62,10 +62,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 1);
     }
 
-    TEST(RLE_range, Slope_two) {
+    TEST(DRLE_range, Slope_two) {
         std::vector<std::uint32_t> data = {1, 3, 5, 7};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 1);
@@ -74,10 +74,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 7);
     }
 
-    TEST(RLE_range, Slope_negative_two) {
+    TEST(DRLE_range, Slope_negative_two) {
         std::vector<std::uint32_t> data = {7, 5, 3, 1};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 7);
@@ -86,10 +86,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 1);
     }
 
-    TEST(RLE_range, Slope_half) {
+    TEST(DRLE_range, Slope_half) {
         std::vector<std::uint32_t> data = {1, 1, 2, 2};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 1);
@@ -98,10 +98,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 2);
     }
 
-    TEST(RLE_range, Slope_one_one) {
+    TEST(DRLE_range, Slope_one_one) {
         std::vector<std::uint32_t> data = {1, 2, 1, 2};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 1);
@@ -110,10 +110,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 2);
     }
 
-    TEST(RLE_range, Slope_half_half) {
+    TEST(DRLE_range, Slope_half_half) {
         std::vector<std::uint32_t> data = {1, 1, 2, 2, 1, 1, 2, 2};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 8);
         EXPECT_EQ(compressed_data[0], 1);
@@ -126,10 +126,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[7], 2);
     }
 
-    TEST(RLE_range, Slope_neg_one_neg_one) {
+    TEST(DRLE_range, Slope_neg_one_neg_one) {
         std::vector<std::uint32_t> data = {2, 1, 2, 1};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 2);
@@ -138,10 +138,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 1);
     }
 
-    TEST(RLE_range, Slope_neg_two_neg_two) {
+    TEST(DRLE_range, Slope_neg_two_neg_two) {
         std::vector<std::uint32_t> data = {2, 0, 2, 0};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 4);
         EXPECT_EQ(compressed_data[0], 2);
@@ -150,10 +150,10 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[3], 0);
     }
 
-    TEST(RLE_range, Slope_neg_half_neg_half) {
+    TEST(DRLE_range, Slope_neg_half_neg_half) {
         std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
 
-        aul::RLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 8);
         EXPECT_EQ(compressed_data[0], 2);
@@ -164,6 +164,130 @@ namespace aul_tests {
         EXPECT_EQ(compressed_data[5], 2);
         EXPECT_EQ(compressed_data[6], 1);
         EXPECT_EQ(compressed_data[7], 1);
+    }
+    
+    TEST(DRLE_range_iterator, Dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.begin();
+
+        EXPECT_EQ(*it, 2);
+    }
+
+    TEST(DRLE_range_iterator, Preincrment_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.begin();
+
+        EXPECT_EQ(*it, 2);
+        ++it;
+        EXPECT_EQ(*it, 2);
+        ++it;
+        EXPECT_EQ(*it, 1);
+        ++it;
+        EXPECT_EQ(*it, 1);
+        ++it;
+        EXPECT_EQ(*it, 2);
+        ++it;
+        EXPECT_EQ(*it, 2);
+        ++it;
+        EXPECT_EQ(*it, 1);
+        ++it;
+        EXPECT_EQ(*it, 1);
+    }
+
+    TEST(DRLE_range_iterator, Postincrment_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.begin();
+
+        EXPECT_EQ(*(it++), 2);
+        EXPECT_EQ(*(it++), 2);
+        EXPECT_EQ(*(it++), 1);
+        EXPECT_EQ(*(it++), 1);
+        EXPECT_EQ(*(it++), 2);
+        EXPECT_EQ(*(it++), 2);
+        EXPECT_EQ(*(it++), 1);
+        EXPECT_EQ(*(it++), 1);
+    }
+
+    TEST(DRLE_range_iterator, Predecrement_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.end();
+
+        --it;
+        EXPECT_EQ(*it, 1);
+        --it;
+        EXPECT_EQ(*it, 1);
+        --it;
+        EXPECT_EQ(*it, 2);
+        --it;
+        EXPECT_EQ(*it, 2);
+        --it;
+        EXPECT_EQ(*it, 1);
+        --it;
+        EXPECT_EQ(*it, 1);
+        --it;
+        EXPECT_EQ(*it, 2);
+        --it;
+        EXPECT_EQ(*it, 2);
+    }
+
+    TEST(DRLE_range_iterator, Postdecrement_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.end();
+
+        it--;
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it),   2);
+    }
+
+    TEST(DRLE_range_iterator, Add_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it = compressed_data.end();
+
+        it--;
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 1);
+        EXPECT_EQ(*(it--), 2);
+        EXPECT_EQ(*(it),   2);
     }
 
 }
