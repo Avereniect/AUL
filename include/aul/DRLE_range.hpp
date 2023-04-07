@@ -44,7 +44,7 @@ namespace aul {
         T initial;
         slope_type slope;
         bool is_slope_inverted;
-        std::size_t size;
+        slope_type size;
         std::size_t initial_index;
     };
 
@@ -53,7 +53,7 @@ namespace aul {
     ///
     ///
     ///
-    /// \tparam T
+    /// \tparam T Type of elements in range
     template<class T>
     class DRLE_range_iterator{
     public:
@@ -62,7 +62,7 @@ namespace aul {
         // -ctors
         //=================================================
 
-        DRLE_range_iterator(const DRLE_subrange<T>* subrange, std::size_t o):
+        DRLE_range_iterator(const DRLE_subrange<T>* subrange, std::ptrdiff_t o):
             ptr(subrange),
             offset(o) {}
 
@@ -180,7 +180,7 @@ namespace aul {
 
             while (true) {
                 auto remaining_in_subrange = (ptr->size) - offset;
-                if (o <= remaining_in_subrange) {
+                if (o < remaining_in_subrange) {
                     offset = o;
                     break;
                 }
@@ -202,12 +202,12 @@ namespace aul {
             while (true) {
                 auto remaining_in_subrange = offset;
                 if (o <= remaining_in_subrange) {
-                    offset = o;
+                    offset -= o;
                     break;
                 }
 
                 --ptr;
-                offset = ptr->size - 1;
+                offset = ptr->size;
                 o -= remaining_in_subrange;
             }
 
@@ -252,7 +252,10 @@ namespace aul {
 
         T operator*() const {
             if (ptr->is_slope_inverted) {
-                return ptr->initial + (offset / ptr->slope);
+                auto a = ptr->initial;
+                auto b = (offset / ptr->slope);
+                auto c = a + b;
+                return c;
             } else {
                 return ptr->initial + (offset * ptr->slope);
             }
@@ -278,6 +281,8 @@ namespace aul {
     ///
     /// A class representing a sequence of integers using a combination of
     /// delta encoding and run-length encoding.
+    ///
+    /// TODO: Allow for customization of types used in subrange representation
     ///
     /// \tparam T Type of objects to compress. Should be an integral type
     /// \tparam A Allocator

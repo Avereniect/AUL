@@ -270,25 +270,167 @@ namespace aul_tests {
         EXPECT_EQ(*(it),   2);
     }
 
-    TEST(DRLE_range_iterator, Add_and_dereference) {
+    TEST(DRLE_range_iterator, Add_assign_positive_and_dereference) {
         std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
 
         aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
         ASSERT_FALSE(compressed_data.empty());
         ASSERT_EQ(compressed_data.size(), 8);
 
-        auto it = compressed_data.end();
+        auto it0 = compressed_data.begin();
+        it0 += 0;
+        EXPECT_EQ(*it0, 2);
 
-        it--;
-        EXPECT_EQ(*(it--), 1);
-        EXPECT_EQ(*(it--), 1);
-        EXPECT_EQ(*(it--), 2);
-        EXPECT_EQ(*(it--), 2);
-        EXPECT_EQ(*(it--), 1);
-        EXPECT_EQ(*(it--), 1);
-        EXPECT_EQ(*(it--), 2);
-        EXPECT_EQ(*(it),   2);
+        auto it1 = compressed_data.begin();
+        it1 += 1;
+        EXPECT_EQ(*it1, 2);
+
+        auto it2 = compressed_data.begin();
+        it2 += 2;
+        EXPECT_EQ(*it2, 1);
+
+        auto it3 = compressed_data.begin();
+        it3 += 3;
+        EXPECT_EQ(*it3, 1);
+
+        auto it4 = compressed_data.begin();
+        it4 += 4;
+        EXPECT_EQ(*it4, 2);
+
+        auto it5 = compressed_data.begin();
+        it5 += 5;
+        EXPECT_EQ(*it5, 2);
+
+        auto it6 = compressed_data.begin();
+        it6 += 6;
+        EXPECT_EQ(*it6, 1);
+
+        auto it7 = compressed_data.begin();
+        it7 += 7;
+        EXPECT_EQ(*it7, 1);
     }
+
+    TEST(DRLE_range_iterator, Sub_assign_positive_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it0 = compressed_data.end();
+        it0 -= 1;
+        EXPECT_EQ(*it0, 1);
+
+        auto it1 = compressed_data.end();
+        it1 -= 2;
+        EXPECT_EQ(*it1, 1);
+
+        auto it2 = compressed_data.end();
+        it2 -= 3;
+        EXPECT_EQ(*it2, 2);
+
+        auto it3 = compressed_data.end();
+        it3 -= 4;
+        EXPECT_EQ(*it3, 2);
+
+        auto it4 = compressed_data.end();
+        it4 -= 5;
+        EXPECT_EQ(*it4, 1);
+
+        auto it5 = compressed_data.end();
+        it5 -= 6;
+        EXPECT_EQ(*it5, 1);
+
+        auto it6 = compressed_data.end();
+        it6 -= 7;
+        EXPECT_EQ(*it6, 2);
+
+        auto it7 = compressed_data.end();
+        it7 -= 8;
+        EXPECT_EQ(*it7, 2);
+    }
+
+    TEST(DRLE_range_iterator, Add_assign_negative_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it0 = compressed_data.end();
+        it0 += -1;
+        EXPECT_EQ(*it0, 1);
+
+        auto it1 = compressed_data.end();
+        it1 += -2;
+        EXPECT_EQ(*it1, 1);
+
+        auto it2 = compressed_data.end();
+        it2 += -3;
+        EXPECT_EQ(*it2, 2);
+
+        auto it3 = compressed_data.end();
+        it3 += -4;
+        EXPECT_EQ(*it3, 2);
+
+        auto it4 = compressed_data.end();
+        it4 += -5;
+        EXPECT_EQ(*it4, 1);
+
+        auto it5 = compressed_data.end();
+        it5 += -6;
+        EXPECT_EQ(*it5, 1);
+
+        auto it6 = compressed_data.end();
+        it6 += -7;
+        EXPECT_EQ(*it6, 2);
+
+        auto it7 = compressed_data.end();
+        it7 += -8;
+        EXPECT_EQ(*it7, 2);
+    }
+
+    TEST(DRLE_range_iterator, Sub_assign_negative_and_dereference) {
+        std::vector<std::uint32_t> data = {2, 2, 1, 1, 2, 2, 1, 1};
+
+        aul::DRLE_range<std::uint32_t> compressed_data{data.begin(), data.end()};
+        ASSERT_FALSE(compressed_data.empty());
+        ASSERT_EQ(compressed_data.size(), 8);
+
+        auto it0 = compressed_data.begin();
+        it0 -= -0;
+        EXPECT_EQ(*it0, 2);
+
+        auto it1 = compressed_data.begin();
+        it1 -= -1;
+        EXPECT_EQ(*it1, 2);
+
+        auto it2 = compressed_data.begin();
+        it2 -= -2;
+        EXPECT_EQ(*it2, 1);
+
+        auto it3 = compressed_data.begin();
+        it3 -= -3;
+        EXPECT_EQ(*it3, 1);
+
+        auto it4 = compressed_data.begin();
+        it4 -= -4;
+        EXPECT_EQ(*it4, 2);
+
+        auto it5 = compressed_data.begin();
+        it5 -= -5;
+        EXPECT_EQ(*it5, 2);
+
+        auto it6 = compressed_data.begin();
+        it6 -= -6;
+        EXPECT_EQ(*it6, 1);
+
+        auto it7 = compressed_data.begin();
+        it7 -= -7;
+        EXPECT_EQ(*it7, 1);
+    }
+
+    //TODO: Add tests for edge cases relating to max integer values.
 
 }
 
