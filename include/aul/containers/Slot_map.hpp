@@ -11,7 +11,6 @@
 #include "Random_access_iterator.hpp"
 
 #include <algorithm>
-#include <initializer_list>
 #include <climits>
 #include <memory>
 #include <numeric>

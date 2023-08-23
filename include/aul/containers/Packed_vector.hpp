@@ -223,6 +223,7 @@ namespace aul {
         }
 
         void clear() noexcept {
+            aul::destroy_n(allocation.ptr, allocation.capacity);
             deallocate(allocation);
         }
 

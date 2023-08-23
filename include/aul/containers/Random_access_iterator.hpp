@@ -122,7 +122,7 @@ namespace aul {
         // Increment/Decrement operators
         //=================================================
 
-        Random_access_iterator operator++() noexcept {
+        Random_access_iterator& operator++() noexcept {
             p += 1;
             return *this;
         }
@@ -133,7 +133,7 @@ namespace aul {
             return temp;
         }
 
-        Random_access_iterator operator--() noexcept {
+        Random_access_iterator& operator--() noexcept {
             p -= 1;
             return *this;
         }

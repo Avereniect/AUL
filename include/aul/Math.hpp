@@ -14,6 +14,19 @@ namespace aul {
     // Arithmetic
     //=====================================================
 
+    template<long long Scale, class T>
+    [[nodiscard]]
+    T round_ceil(T v) {
+        auto x = v / Scale;
+        auto y = x * Scale;
+
+        if (y != v) {
+            y += 1;
+        }
+
+        return y;
+    }
+
     template<class T>
     [[nodiscard]]
     T divide_ceil(T x, T y) {

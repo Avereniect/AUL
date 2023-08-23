@@ -56,23 +56,21 @@ namespace aul {
     constexpr R_iter binary_search(R_iter begin, R_iter end, const T& val, C c = {}) {
         using diff_type = typename std::iterator_traits<R_iter>::difference_type;
 
-        //constexpr diff_type empty_full[2] = {0, ~diff_type{0}};
+        // Threshold value should be adjusted for further testing
+        constexpr diff_type threshold = 128 / sizeof(T);
 
         diff_type size = (end - begin);
         R_iter pivot;
 
-        while (size) {
+        while (size >= threshold) {
             diff_type half = (size >> 1);
             pivot = begin + half;
-            // Branchless approach:
-            //begin = begin + ((size - half) & empty_full[c(*pivot, val)]);
-            if (c(*pivot, val)) {
-                begin += (size - half);
-            }
+            begin = begin + ((size - half) & -diff_type(c(*pivot, val)));
+
             size = half;
         }
 
-        return begin;
+        return linear_search(begin, begin + size, val, c);
     }
 
     /*
