@@ -7,13 +7,25 @@
 
 namespace aul {
 
+    ///
+    /// Converts a pointer-like type to a raw pointer
+    ///
+    /// \tparam Ptr Pointer-like type
+    /// \param p Pointer-like object
+    /// \return Raw pointer to referenced object
     template<class Ptr>
-    auto to_raw_pointer(Ptr p) {
-        return p.operator->();
+    auto* to_raw_pointer(Ptr p) {
+        return std::addressof(*p);
     }
 
+    ///
+    /// Specialization of to_raw_pointer for row pointer types.
+    ///
+    /// \tparam T Type of oboject beign pointed to
+    /// \param p Raw pointer object
+    /// \return p
     template<class T>
-    auto to_raw_pointer(T* p) {
+    auto* to_raw_pointer(T* p) {
         return p;
     }
 
@@ -222,7 +234,8 @@ namespace aul {
     /// \param begin Iterator to beginning of source range
     /// \param end Iterator to end of source range
     /// \param dest Iterator to beginning of destination range
-    /// \param allocator
+    /// \param allocator Reference to allocator object to destroy objects with
+    /// \return Iterator to end of destination range
     template<class In_iter, class Out_iter, class Alloc>
     Out_iter uninitialized_move(In_iter begin, In_iter end, Out_iter dest, Alloc& allocator) {
         for (; begin != end; ++begin, ++dest) {
@@ -249,6 +262,18 @@ namespace aul {
 
     }
 
+    ///
+    /// Allocator extended version fo std::uninitialized_move_n
+    ///
+    /// \tparam In_iter Input iterator type
+    /// \tparam Out_iter Output iterator type
+    /// \tparam size_type Unsigned integral type
+    /// \tparam Alloc Allocator type
+    /// \param begin Iterator to start of source range
+    /// \param n Number of elements to move
+    /// \param dest Iterator to beginning of destination range
+    /// \param alloc Reference to allocator used to construct objects
+    /// \return Iterator to end of destination range
     template<class In_iter, class Out_iter, class size_type, class Alloc>
     Out_iter uninitialized_move_n(In_iter begin, const size_type n, Out_iter dest, Alloc& alloc) {
         using tag = typename std::iterator_traits<In_iter>::iterator_category;
@@ -269,6 +294,7 @@ namespace aul {
     /// \param d_first Iterator to beginning of destination range
     /// \param alloc Reference to allocator object used to construct and destroy
     ///     elements
+    /// \return Iterator to end of destination range
     template<class In_iter, class Out_iter, class Alloc>
     Out_iter uninitialized_destructive_move(In_iter first, In_iter last, Out_iter d_first, Alloc& alloc) {
         for (;first != last; first++, d_first++) {
@@ -378,6 +404,7 @@ namespace aul {
     /// \param end Iterator to end of range
     /// \param dest Iterator to beginning of destination range
     /// \param alloc Allocator object to construct objects with
+    /// \return Iterator to end of destination range
     template<class Input_iter, class Forward_iter, class Alloc>
     Forward_iter uninitialized_copy(Input_iter begin, Input_iter end, Forward_iter dest, Alloc& alloc) {
         Forward_iter x = dest;
@@ -432,6 +459,7 @@ namespace aul {
     /// \param n Size of source and destination range
     /// \param dest Iterator to beginning of destination range
     /// \param alloc Allocator object to construct objects with
+    /// \return Iterator to end of destination range
     template<class Input_iter, class Forward_iter, class size_type, class Alloc>
     Forward_iter uninitialized_copy_n(Input_iter begin, const size_type n, Forward_iter dest, Alloc& alloc) {
         using tag = typename std::iterator_traits<Input_iter>::iterator_category;
@@ -508,16 +536,16 @@ namespace aul {
     //=====================================================
 
     ///
-    /// Move elements left to uninitialized locations.
+    /// Move elements left to uninitialized memory.
     /// Destination range may overlap with input range.
     ///
     /// \tparam R_iter Random access iterator type
     /// \tparam Alloc Allocator type
-    /// \param a Iterator to location where first element should be moved to.
-    /// Must be less than b.
-    /// \param b Iterator to first element to move
-    /// \param c Iterator to one past last element to move
+    /// \param a Iterator to beginning of destination range. Must be less than b
+    /// \param b Iterator to beginning of source range
+    /// \param c Iterator to end of source range
     /// \param alloc Allocator to use to construct type
+    /// \return Iterator to end of destination range
     template<class R_iter, class Alloc>
     R_iter uninitialized_move_elements_left(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         auto non_overlap = std::min(c - b, b - a);
@@ -527,31 +555,38 @@ namespace aul {
     }
 
     ///
+    /// Move elements left to initialized memory, destroying the original
+    /// objects that do not overlap with the destination range.
+    ///
     /// Source and destination range may overlap
     ///
     /// \tparam R_iter Random access iterator
     /// \tparam Alloc Allocator type
-    /// \param a Iterator to beginning of destination range
+    /// \param a Iterator to beginning of destination range. Must be less than b
     /// \param b Iterator to beginning of source range
     /// \param c Iterator to end of source range
     /// \param alloc Allocator object to construct destroy elements with
+    /// \return Iterator to end of destination range
     template<class R_iter, class Alloc>
-    void destructive_move_elements_left(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
+    R_iter destructive_move_elements_left(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         auto overlap = std::max((c - b) - (b - a), {});
         auto it0 = b + overlap;
         auto it1 = std::move(b, it0, a);
-        aul::destructive_move(it0, c, it1, alloc);
+        return aul::destructive_move(it0, c, it1, alloc);
     }
 
     ///
-    /// Source and destination range amy overlap
+    /// Move elements left to uninitialized memory, destroying the original
+    /// objects that do not overlap with the destination range.
+    ///
+    /// Source and destination range maye overlap
     ///
     /// \tparam R_iter Random access iterator
     /// \tparam Alloc Allocator type
     /// \param a Iterator to beginning of destination range
     /// \param b Iterator to beginning of source range
     /// \param c Iterator to end of source range
-    /// \param alloc Allocator object to construct destroy elements with
+    /// \param alloc Allocator object to construct and destroy elements with
     /// \return Iterator to end of destination range
     template<class R_iter, class Alloc>
     R_iter uninitialized_destructive_move_elements_left(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
@@ -594,15 +629,18 @@ namespace aul {
     }
 
     ///
+    /// Move elements right to uninitialized memory.
     ///
+    /// Source and destination ranges may overlap.
     ///
     /// \tparam R_iter Random access iterator type
     /// \tparam size_type Integral type
     /// \tparam Alloc Allocator type
-    /// \param a Iterator to location where first element should be moved to
-    /// \param b Iterator to first element to move
-    /// \param c Iterator to one past last element to move
-    /// \param alloc Allocator to use to construct type
+    /// \param a Iterator to beginning of source range
+    /// \param b Iterator to end of source range
+    /// \param c Iterator to end of destination range
+    /// \param alloc Allocator to use to construct elements with
+    /// \return Iterator to beginning of destination range
     template<class R_iter, class Alloc>
     R_iter uninitialized_move_elements_right(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         auto non_overlap = std::min(c - b, b - a);
@@ -613,12 +651,17 @@ namespace aul {
     }
 
     ///
-    /// \tparam R_iter
-    /// \tparam Alloc
-    /// \param a
-    /// \param b
-    /// \param c
-    /// \param alloc
+    /// Move elements right to initialized memory, destroying the elements that
+    /// do no overlap with the destination range.
+    ///
+    /// Source and destination range may overlap.
+    ///
+    /// \tparam R_iter Random access iterator type
+    /// \tparam Alloc Allocator type
+    /// \param a Iterator to beginning of source range
+    /// \param b Iterator to end of source range
+    /// \param c Iterator to end of destination range
+    /// \param alloc Allocator to use to destroy elements with
     template<class R_iter, class Alloc>
     R_iter destructive_move_elements_right(R_iter a, R_iter b, R_iter c, Alloc& alloc) {
         auto non_overlap = std::min(c - b, b - a);
@@ -628,6 +671,11 @@ namespace aul {
         return it1;
     }
 
+    ///
+    /// Move elements right to uninitialized memory, destroying the elements
+    /// that do no overlap with the destination range.
+    ///
+    /// Source and destination range may overlap.
     ///
     /// \tparam R_iter Random access iterator
     /// \tparam Alloc Allocator type

@@ -8,6 +8,7 @@
 #include <limits>
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 #include <aul/containers/Allocator_aware_base.hpp>
 #include <aul/memory/Allocation.hpp>
@@ -700,6 +701,10 @@ namespace aul {
         iterator emplace(const_iterator p, Args...args) {
             iterator it = begin() + (p - cbegin());
 
+            if (max_size() -  1 < size()) {
+                throw std::length_error("Circular_array grew too big");
+            }
+
             if (elem_count < allocation.capacity) {
                 return emplace_within_capacity(it, std::forward<Args>(args)...);
             } else {
@@ -737,7 +742,10 @@ namespace aul {
         iterator insert(const_iterator pos, const size_type n, const T& val) {
             iterator it = begin() + (pos - cbegin());
 
-            //TODO: Prevent overflow
+            if (max_size() -  n < size()) {
+                throw std::length_error("Circular_array grew too big");
+            }
+
             if (elem_count + n < allocation.capacity) {
                 return insert_within_capacity_n(it, n, val);
             } else {
@@ -756,7 +764,7 @@ namespace aul {
         /// \return Iterator to first of newly inserted elements
         template<class Iter>
         iterator insert(const_iterator pos, Iter from, Iter to) {
-            auto d = to - from;
+            auto d = std::distance(to, from);
 
             if (max_size() - d < elem_count) {
                 throw std::runtime_error("Circular_array grew beyond max size");
@@ -764,9 +772,9 @@ namespace aul {
 
             iterator it = begin() + (pos - cbegin());
             if (elem_count + d < capacity()) {
-                return insert_within_capacity(it, from, to);
+                return insert_within_capacity(it, from, to, d);
             } else {
-                return insert_with_new_allocation(it, from, to);
+                return insert_with_new_allocation(it, from, to, d);
             }
         }
 
@@ -791,8 +799,8 @@ namespace aul {
         /// \param args Arguments to constructor of new object
         template<class...Args>
         void emplace_front(Args...args) {
-            if (elem_count > max_size() - 1) {
-                throw std::length_error("aul::Circular_array grew beyond max size");
+            if (max_size() -  1 < size()) {
+                throw std::length_error("Circular_array grew too big");
             }
 
             if (elem_count < allocation.capacity) {
@@ -828,8 +836,8 @@ namespace aul {
         /// \param args Parameter types for new element's constructor
         template<class...Args>
         void emplace_back(Args...args) {
-            if (size() > max_size() - 1) {
-                throw std::length_error("aul::Circular_array grew beyond max size");
+            if (max_size() -  1 < size()) {
+                throw std::length_error("Circular_array grew too big");
             }
 
             if (size() < capacity()) {
@@ -970,6 +978,10 @@ namespace aul {
             head_offset = 0;
         }
 
+        ///
+        /// Exchange elements with another object
+        ///
+        /// \param other Other object to exchange elements with
         void swap(Circular_array& other) {
             base::swap(other);
             std::swap(allocation, other.allocation);
@@ -1225,32 +1237,136 @@ namespace aul {
         // Element construction/destruction
         //=================================================
 
-        template<class Iter>
-        iterator insert_within_capacity(iterator pos, Iter a, Iter b) {
+        ///
+        /// Copy-insert elements from a range under the assumption that the
+        /// container currently has enough capacity for them.
+        ///
+        /// \tparam Iter Iterator type
+        /// \tparam Diff_type Iterator difference type
+        /// \param pos Position to insert new range of elements
+        /// \param a Iterator to beginning of range of source objects
+        /// \param b Iterator to end of range of source objects
+        /// \param d Distance from a to b
+        /// \return Iterator to first element that was newly inserted
+        template<class Iter, class Diff_type = typename std::iterator_traits<Iter>::difference_type>
+        iterator insert_within_capacity(iterator pos, Iter a, Iter b, Diff_type d) {
             auto left  = (pos - begin());
             auto right = (end() - pos);
 
             if (left < right) {
-                return insert_within_capacity_nudge_left(pos, a, b);
+                return insert_within_capacity_nudge_left(pos, a, b, d);
             } else {
-                return insert_within_capacity_nudge_right(pos, a, b);
+                return insert_within_capacity_nudge_right(pos, a, b, d);
             }
         }
 
-        template<class Iter>
-        iterator insert_within_capacity_nudge_left(iterator pos, Iter a, Iter b) {
-            //TODO: Implement
-        }
-
-        template<class Iter>
-        iterator insert_within_capacity_nudge_right(iterator pos, Iter a, Iter b) {
-            //TODO: Implement
-        }
-
-        template<class Iter>
-        iterator insert_with_new_allocation(iterator pos, Iter a, Iter b) {
+        ///
+        /// Copy-insert elements from a range under the assumption that the
+        /// container currently has enough capacity for them.
+        ///
+        /// All elements to the left of pos are shifted left to make space for
+        /// the new elements.
+        ///
+        /// \tparam Iter Iterator type
+        /// \tparam Diff_type Iterator difference type
+        /// \param pos Iterator to position to insert new elements at
+        /// \param a Iterator to beginning of source range
+        /// \param b Iterator to end of source range
+        /// \param d Distance from a to b
+        /// \return Iterator to first newly inserted element
+        template<class Iter, class Diff_type = typename std::iterator_traits<Iter>::difference_type>
+        iterator insert_within_capacity_nudge_left(iterator pos, Iter a, Iter b, Diff_type d) {
             auto allocator = get_allocator();
-            auto d = (b - a);
+
+            iterator w{
+                difference_type(head_offset - is_segmented() * allocation.capacity - d),
+                allocation.ptr,
+                allocation.ptr + allocation.capacity
+            };
+
+            iterator x = begin();
+            iterator y = pos + 1;
+
+            // Move elements left to make room for new elements
+            iterator z = aul::uninitialized_destructive_move_elements_left(
+                w, x, y, allocator
+            );
+
+            // Try to construct new elements
+            try {
+                aul::uninitialized_copy_n(a, d, z, allocator);
+            } catch (...) {
+                //Move elements back to original positions
+                aul::uninitialized_destructive_move_elements_right(
+                    w, x, y, allocator
+                );
+
+                throw;
+            }
+
+            head_offset -= d;
+            elem_count += d;
+
+            return z;
+        }
+
+        ///
+        /// Copy-insert elements from a range under the assumption that the
+        /// container currently has enough capacity for them.
+        ///
+        /// All elements to the right of pos are shifted right to make space for
+        /// the new elements.
+        ///
+        /// \tparam Iter Iterator type
+        /// \tparam DIff_type Iterator difference type
+        /// \param pos Iterator to position to insert new elements at
+        /// \param a Iterator to beginning of source range
+        /// \param b Iterator to end of source range
+        /// \param d Distance from a to b
+        /// \return Iterator to first newly inserted element
+        template<class Iter, class Diff_type = typename std::iterator_traits<Iter>::difference_type>
+        iterator insert_within_capacity_nudge_right(iterator pos, Iter a, Iter b, Diff_type d) {
+            auto allocator = get_allocator();
+
+            iterator w = pos;
+            iterator x = end();
+            iterator y = end() + d;
+
+            iterator z = aul::uninitialized_destructive_move_elements_right(
+                w, x, y, allocator
+            );
+
+            try {
+                aul::uninitialized_copy_n(a, d, pos, allocator);
+            } catch (...) {
+                // Move elements back
+                aul::uninitialized_destructive_move_elements_left(w, z, y, allocator);
+
+                throw;
+            }
+
+            head_offset -= d;
+            elem_count += d;
+
+            return pos;
+        }
+
+        ///
+        /// Copy-insert elements from a range under the assumption that the
+        /// container does not have enough space for them.
+        ///
+        /// A new allocation is made.
+        ///
+        /// \tparam Iter Iterator type
+        /// \tparam Diff_type Iterator difference type
+        /// \param pos Iterator to position to insert new elements
+        /// \param a Iterator to beginning of source range
+        /// \param b Iterator to end of source range
+        /// \param d Distance from a to b
+        /// \return Iterator to first newly inserted element
+        template<class Iter, class Diff_type = typename std::iterator_traits<Iter>::difference_type>
+        iterator insert_with_new_allocation(iterator pos, Iter a, Iter b, Diff_type d) {
+            auto allocator = get_allocator();
 
             auto new_capacity = grow_size(elem_count + d);
             auto new_allocation = allocate(new_capacity);
@@ -1283,8 +1399,8 @@ namespace aul {
         /// Construct a new element as the first element in the container under
         /// the assumption that size() < capacity()
         ///
-        /// \tparam Args
-        /// \param args
+        /// \tparam Args Types of Arguments to constructor
+        /// \param args Arguments to constructor
         template<class...Args>
         void emplace_front_within_capacity(Args&&...args) {
             ++elem_count;
@@ -1603,8 +1719,6 @@ namespace aul {
         }
 
         void decrease_head_offset(size_type d) {
-            //TODO: Correct implementation/ Head offset should always be in
-            // [0, size()) range
             d %= elem_count;
 
             if (d < head_offset) {
@@ -1615,6 +1729,17 @@ namespace aul {
         }
 
     };
+
+    //=====================================================
+    // Deduction guidelines
+    //=====================================================
+
+    #if __cplusplus >= 201703L
+
+    template<class Iter>
+    Circular_array(Iter, Iter) -> Circular_array<typename std::iterator_traits<Iter>::value_type>;
+
+    #endif
 
 }
 
