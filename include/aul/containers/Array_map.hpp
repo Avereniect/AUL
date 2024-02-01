@@ -1085,7 +1085,7 @@ namespace aul {
         ///
         /// \return Span over key array
         [[nodiscard]]
-        aul::Span<key_type> keys() const noexcept {
+        aul::Span<const key_type> keys() const noexcept {
             return {allocation.keys, elem_count};
         }
 
@@ -1093,7 +1093,15 @@ namespace aul {
         ///
         /// \return Span over value array
         [[nodiscard]]
-        aul::Span<value_type> values() const noexcept {
+        aul::Span<const value_type> values() const noexcept {
+            return {allocation.vals, elem_count};
+        }
+
+        ///
+        ///
+        /// \return Span over value array
+        [[nodiscard]]
+        aul::Span<value_type> values() noexcept {
             return {allocation.vals, elem_count};
         }
 
