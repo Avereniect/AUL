@@ -12,34 +12,38 @@ namespace aul {
     namespace impl {
 
         template<class It, class...Its>
-        auto dereference(It it, Its...its) {
+        std::tuple<decltype(*It{}), decltype(*Its{})...>
+        dereference(It it, Its...its) {
             return std::tuple_cat(std::make_tuple(*it), dereference(its...));
         }
 
         template<class It0, class It1>
-        auto dereference(It0 it0, It1 it1) {
+        std::tuple<decltype(*It0{}), decltype(*It1{})>
+        dereference(It0 it0, It1 it1) {
             return std::tie(*it0, *it1);
         }
 
 
 
         template<class It, class...Its>
-        auto arrow(It it, Its...its) {
+        std::tuple<decltype(*It{}.operator->()), decltype(*Its{}.operator->())...>
+        arrow(It it, Its...its) {
             return std::tuple_cat(std::make_tuple(it.operator->()), arrow(its...));
         }
 
         template<class It0, class It1>
-        auto arrow(It0 it0, It1 it1) {
+        std::tuple<decltype(*It0{}), decltype(*It1{})>
+        arrow(It0 it0, It1 it1) {
             return std::tie(arrow(it0), arrow(it1));
         }
 
         template<class T>
-        auto arrow(T* ptr) {
+        T* arrow(T* ptr) {
             return ptr;
         }
 
         template<class It>
-        auto arrow(It it) {
+        decltype(It{}.operator->()) arrow(It it) {
             return it.operator->();
         }
 

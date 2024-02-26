@@ -70,7 +70,7 @@ namespace aul {
 
     public:
 
-        using type = typename std::conditional_t<c, Int, typename widest_int<Ints...>::type>;
+        using type = typename std::conditional<c, Int, typename widest_int<Ints...>::type>::type;
 
     };
 
@@ -166,7 +166,7 @@ namespace aul {
 
 
     template<std::size_t N, class...Args>
-    using enable_if_homogenous_N = typename std::enable_if<aul::is_homogenous_N_v<N, Args...>>::type;
+    using enable_if_homogenous_N = typename std::enable_if<aul::is_homogenous_N<N, Args...>::value>::type;
 
     template<std::size_t N, class...Args>
     using enable_if_homogenous_N_t = enable_if_homogenous_N<N, Args...>;
@@ -183,12 +183,13 @@ namespace aul {
     /// \return A std::array object containing the parameters passed to the function
     template<std::size_t N, class...Args>
     [[nodiscard]]
-    auto array_from(Args...args) {
+    std::array<typename std::decay<typename first_type<Args...>::type>::type, N>
+    array_from(Args...args) {
         static_assert(N != 0, "");
         static_assert(sizeof...(Args) == N, "");
-        static_assert(are_convertible_to<std::decay_t<first_type_t<Args...>>, std::decay_t<Args>...>::value, "");
+        static_assert(are_convertible_to<typename std::decay<typename first_type<Args...>::type>::type, typename std::decay<Args>::type...>::value, "");
 
-        using U = typename std::decay_t<first_type_t<Args...>>;
+        using U = typename std::decay<typename first_type<Args...>::type>::type;
 
         std::array<U, N> ret{static_cast<U>(args)...};
         return ret;
@@ -196,10 +197,11 @@ namespace aul {
 
     template<std::size_t N, class T, class...Args>
     [[nodiscard]]
-    auto array_from_T(Args...args) {
+    std::array<typename std::decay<typename first_type<Args...>::type>::type, N>
+    array_from_T(Args...args) {
         static_assert(N != 0, "");
         static_assert(sizeof...(Args) == N, "");
-        static_assert(are_convertible_to<T, std::decay_t<Args>...>::value, "");
+        static_assert(are_convertible_to<T, typename std::decay<Args>::type...>::value, "");
 
         std::array<T, N> ret{static_cast<T>(args)...};
         return ret;

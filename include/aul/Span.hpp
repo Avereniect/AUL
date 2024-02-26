@@ -48,7 +48,7 @@ namespace aul {
         using reverse_iterator = std::reverse_iterator<iterator>;
 
         using element_type = std::tuple<Args...>;
-        using value_type = std::tuple<std::remove_cv_t<Args>...>;
+        using value_type = std::tuple<typename std::remove_cv<Args>::type...>;
 
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
@@ -297,7 +297,7 @@ namespace aul {
         using reverse_iterator = std::reverse_iterator<iterator>;
 
         using element_type = std::tuple<Args...>;
-        using value_type = std::tuple<std::remove_cv_t<Args>...>;
+        using value_type = std::tuple<typename std::remove_cv<Args>::type...>;
 
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
@@ -881,7 +881,7 @@ namespace aul {
         /// \tparam N Length of std::array object. Should be less than Extent
         /// \param arr std::array object to span over
         template<std::size_t N>
-        explicit Multispan_impl(const std::array<std::remove_const_t<element_type>, N>& arr) noexcept:
+        explicit Multispan_impl(const std::array<typename std::remove_const<element_type>::type, N>& arr) noexcept:
             elem_count(N),
             ptr(arr.data()) {}
 
