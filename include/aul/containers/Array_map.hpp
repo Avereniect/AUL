@@ -155,6 +155,43 @@ namespace aul {
             arr.elem_count = 0;
         }
 
+        template<class Zip_it>
+        Array_map(
+            Zip_it begin,
+            Zip_it end,
+            const key_compare compare,
+            const value_allocator_type& alloc
+        ):
+            base{alloc},
+            allocation{allocate(std::distance(begin, end))},
+            comparator{std::move(compare)},
+            elem_count{std::distance(begin, end)}
+        {
+            using std::get;
+
+            auto values_begin = get<0>(begin);
+            auto values_end = get<0>(end);
+            auto value_allocator = get_allocator();
+            aul::uninitialized_copy(values_begin, values_end, allocation.vals, value_allocator);
+
+            auto keys_begin = get<1>(begin);
+            auto keys_end = get<1>(end);
+            auto key_alloc = key_allocator_type{get_allocator()};
+            aul::uninitialized_copy(values_begin, values_end, allocation.keys, value_allocator);
+        }
+
+        template<class Zip_it>
+        Array_map(Zip_it begin, Zip_it end, const key_compare cmp):
+            Array_map(begin, end, std::move(cmp), value_allocator_type{}) {}
+
+        template<class Zip_it>
+        Array_map(Zip_it begin, Zip_it end, const value_allocator_type& alloc):
+            Array_map(begin, end, std::move(key_compare{}), alloc) {}
+
+        template<class Zip_it>
+        Array_map(Zip_it begin, Zip_it end):
+            Array_map(begin, end, std::move(key_compare{}), value_allocator_type{}) {}
+
         ~Array_map() {
             clear();
         }
