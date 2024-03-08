@@ -178,6 +178,17 @@ namespace aul {
             auto keys_end = get<1>(end);
             auto key_alloc = key_allocator_type{get_allocator()};
             aul::uninitialized_copy(values_begin, values_end, allocation.keys, value_allocator);
+
+            std::sort(begin(), end(), comparator);
+
+            auto find_predicate = [&compare] (const key_type& lhs, const key_type rhs) {
+                return compare(lhs, rhs) || (compare(rhs, lhs));
+            };
+
+            auto duplicate_it = std::adjacent_find(keys_begin, keys_end, find_predicate);
+            if (duplicate_it != keys_end) {
+                throw std::runtime_error("Duplicate keys passed to Array_map constructor.");
+            }
         }
 
         template<class Zip_it>
