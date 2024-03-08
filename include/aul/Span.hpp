@@ -1106,6 +1106,20 @@ namespace aul {
     };
 
     //=====================================================
+    // Tuple methods
+    //=====================================================
+
+    template<std::size_t N, std::size_t Extent, class...Args>
+    aul::Span<typename nth_type<N, Args...>::type, Extent>
+    get(const aul::Multispan_impl<Extent, Args...>& multi_span) {
+        using std::get;
+
+        auto begin = get<N>(multi_span.begin());
+        auto end   = get<N>(multi_span.end());
+        return aul::Span<typename nth_type<N, Args...>::type, Extent>{begin, end};
+    }
+
+    //=====================================================
     // Deduction guides
     //=====================================================
 

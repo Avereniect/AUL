@@ -1,7 +1,3 @@
-//
-// Created by avereniect on 7/5/20.
-//
-
 #ifndef AUL_UTILITY_HPP
 #define AUL_UTILITY_HPP
 
@@ -231,6 +227,18 @@ namespace aul {
 
     template<class T>
     struct sizeof_sum<T> : public std::integral_constant<std::size_t, sizeof(T)> {};
+
+
+
+    template<std::size_t N, class...Args>
+    struct nth_type {
+        using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
+
+        static_assert(N < sizeof...(Args), "Type index must less than number of types.");
+    };
+
+    template<std::size_t N, class...Args>
+    using nth_type_type = typename nth_type<N, Args...>::type;
 
 }
 
