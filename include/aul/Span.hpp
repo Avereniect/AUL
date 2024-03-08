@@ -333,7 +333,15 @@ namespace aul {
         /// \tparam N Length of std::array objects
         /// \param args List of std::array objects
         template<std::size_t N>
-        explicit Multispan_impl(const std::array<typename std::remove_const<Args>::type, N> ...args):
+        explicit Multispan_impl(std::array<typename std::remove_const<Args>::type, N>& ...args):
+            elem_count(N),
+            it(args.data()...) {}
+
+        ///
+        /// \tparam N Length of std::array objects
+        /// \param args List of std::array objects
+        template<std::size_t N>
+        explicit Multispan_impl(const std::array<typename std::remove_const<Args>::type, N>& ...args):
             elem_count(N),
             it(args.data()...) {}
 
