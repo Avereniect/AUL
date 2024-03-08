@@ -939,6 +939,26 @@ namespace aul {
             return (ptr && size() && compare_keys(*ptr, key));
         }
 
+        [[nodiscard]]
+        V& get_or_default(const key_type& key, V& def) noexcept {
+            auto it = find(key);
+            if (it == end()) {
+                return def;
+            } else {
+                return std::get<1>(*it);
+            }
+        }
+
+        [[nodiscard]]
+        const V& get_or_default(const key_type& key, const V& def) noexcept {
+            auto it = find(key);
+            if (it == end()) {
+                return def;
+            } else {
+                return std::get<1>(*it);
+            }
+        }
+
         //=================================================
         // Misc. methods
         //=================================================
